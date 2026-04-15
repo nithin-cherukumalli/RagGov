@@ -5,12 +5,24 @@ build-backend = "hatchling.build"
 [project]
 name = "raggov"
 version = "0.1.0"
+description = "Diagnose why your RAG answer failed, whether the evidence was unsafe, and whether the system should have answered at all."
+license = {text = "MIT"}
+authors = [{name = "RagGov Contributors"}]
+readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "pydantic>=2.0",
     "typer>=0.9",
     "rich>=13.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/nithin-cherukumalli/RagGov"
+Repository = "https://github.com/nithin-cherukumalli/RagGov"
+Issues = "https://github.com/nithin-cherukumalli/RagGov/issues"
+
+[project.scripts]
+raggov = "raggov.cli:app"
 
 [project.optional-dependencies]
 llm = [
@@ -25,6 +37,9 @@ dev = [
     "ruff",
     "mypy",
 ]
+
+[tool.pytest.ini_options]
+addopts = "-p no:asyncio"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/raggov"]

@@ -1,0 +1,73 @@
+{
+  "run_id": "456eb02a-b81d-41fa-993c-fdc86f5b9303",
+  "query": "What are the warranty claim steps for the Orion outdoor router?",
+  "retrieved_chunks": [
+    {
+      "chunk_id": "citation-mismatch-chunk-1",
+      "text": "The Orion outdoor router warranty process begins with verifying the device serial number in the customer portal. Customers should describe the fault and attach a diagnostic log from the device. The support team reviews the submission before issuing a return authorization. Claims without a diagnostic log may be delayed.",
+      "source_doc_id": "doc-12",
+      "score": 0.83,
+      "metadata": {
+        "title": "Orion Router Warranty Intake",
+        "source": "support-kb"
+      }
+    },
+    {
+      "chunk_id": "citation-mismatch-chunk-2",
+      "text": "After a return authorization is approved, the customer ships the router to the regional repair depot. The device must be packed with the authorization number visible on the label. Repairs are usually completed within ten business days after arrival. Replacement units may be offered when repair is not practical.",
+      "source_doc_id": "doc-15",
+      "score": 0.79,
+      "metadata": {
+        "title": "Orion Router Return Authorization",
+        "source": "support-kb"
+      }
+    },
+    {
+      "chunk_id": "citation-mismatch-chunk-3",
+      "text": "Warranty coverage for Orion outdoor routers excludes lightning damage, water ingress from improper installation, and unauthorized enclosure modifications. Customers can appeal a denial by submitting installation photos and purchase records. The appeal review is handled by a senior support specialist. Approved appeals continue through the normal repair workflow.",
+      "source_doc_id": "doc-20",
+      "score": 0.76,
+      "metadata": {
+        "title": "Orion Router Warranty Exclusions",
+        "source": "support-kb"
+      }
+    }
+  ],
+  "final_answer": "To file an Orion router warranty claim, verify the device serial number, submit a fault description and diagnostic log, wait for return authorization, then ship the unit to the repair depot. Repairs usually take about ten business days after the depot receives the device. Coverage excludes damage from improper installation, but denied claims can be appealed with installation photos and purchase records.",
+  "cited_doc_ids": [
+    "doc-99",
+    "doc-47"
+  ],
+  "answer_confidence": 0.81,
+  "corpus_entries": [
+    {
+      "doc_id": "doc-12",
+      "text": "The Orion outdoor router warranty process begins with verifying the device serial number in the customer portal. Customers should describe the fault and attach a diagnostic log from the device. The support team reviews the submission before issuing a return authorization. Claims without a diagnostic log may be delayed.",
+      "timestamp": "2026-02-01T08:00:00Z",
+      "metadata": {
+        "title": "Orion Router Warranty Intake"
+      }
+    },
+    {
+      "doc_id": "doc-15",
+      "text": "After a return authorization is approved, the customer ships the router to the regional repair depot. The device must be packed with the authorization number visible on the label. Repairs are usually completed within ten business days after arrival. Replacement units may be offered when repair is not practical.",
+      "timestamp": "2026-02-02T08:00:00Z",
+      "metadata": {
+        "title": "Orion Router Return Authorization"
+      }
+    },
+    {
+      "doc_id": "doc-20",
+      "text": "Warranty coverage for Orion outdoor routers excludes lightning damage, water ingress from improper installation, and unauthorized enclosure modifications. Customers can appeal a denial by submitting installation photos and purchase records. The appeal review is handled by a senior support specialist. Approved appeals continue through the normal repair workflow.",
+      "timestamp": "2026-02-03T08:00:00Z",
+      "metadata": {
+        "title": "Orion Router Warranty Exclusions"
+      }
+    }
+  ],
+  "metadata": {
+    "scenario": "citation_mismatch",
+    "expected_primary_failure": "CITATION_MISMATCH"
+  },
+  "created_at": "2026-04-10T10:15:00Z"
+}

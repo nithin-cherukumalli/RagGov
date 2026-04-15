@@ -1,0 +1,84 @@
+{
+  "run_id": "5f8f0d45-6b0e-4fa8-9c54-4b5a4d45a101",
+  "query": "How do Python list comprehensions work?",
+  "retrieved_chunks": [
+    {
+      "chunk_id": "clean-pass-chunk-1",
+      "text": "A Python list comprehension is a compact syntax for building a new list from an iterable. It places the output expression first, followed by a for clause that names each item. The expression is evaluated once for every item that passes the optional filters. This form is commonly used when transforming values from one sequence into another.",
+      "source_doc_id": "python-listcomp-doc-1",
+      "score": 0.88,
+      "metadata": {
+        "title": "Python Tutorial: List Comprehensions",
+        "source": "internal-python-guide",
+        "section": "syntax"
+      }
+    },
+    {
+      "chunk_id": "clean-pass-chunk-2",
+      "text": "List comprehensions can include an if clause after the for clause. The if clause filters the input values before the output expression is added to the result list. For example, a comprehension can keep only even numbers while squaring each retained value. This makes filtering and mapping readable when the transformation is simple.",
+      "source_doc_id": "python-listcomp-doc-2",
+      "score": 0.85,
+      "metadata": {
+        "title": "Python Tutorial: Filtering with Comprehensions",
+        "source": "internal-python-guide",
+        "section": "filters"
+      }
+    },
+    {
+      "chunk_id": "clean-pass-chunk-3",
+      "text": "A list comprehension returns a list immediately, unlike a generator expression which produces values lazily. Comprehensions should usually be kept short so the intent remains clear to readers. If the expression or filtering logic becomes complex, a regular for loop is often easier to maintain. The feature is best suited for concise transformations over existing iterables.",
+      "source_doc_id": "python-listcomp-doc-3",
+      "score": 0.82,
+      "metadata": {
+        "title": "Python Tutorial: Comprehension Guidance",
+        "source": "internal-python-guide",
+        "section": "readability"
+      }
+    }
+  ],
+  "final_answer": "Python list comprehensions build a new list from an iterable by evaluating an output expression for each item in a for clause. List comprehensions can include an if clause after the for clause, and the if clause filters input values before the output expression is added to the result list. A list comprehension returns a list immediately, unlike a generator expression, and is best suited for concise transformations over existing iterables.",
+  "cited_doc_ids": [
+    "python-listcomp-doc-1",
+    "python-listcomp-doc-2",
+    "python-listcomp-doc-3"
+  ],
+  "answer_confidence": 0.93,
+  "trace": {
+    "retriever": "fixture-vector-search",
+    "top_k": 3
+  },
+  "corpus_entries": [
+    {
+      "doc_id": "python-listcomp-doc-1",
+      "text": "A Python list comprehension is a compact syntax for building a new list from an iterable. It places the output expression first, followed by a for clause that names each item. The expression is evaluated once for every item that passes the optional filters. This form is commonly used when transforming values from one sequence into another.",
+      "timestamp": "2026-03-15T09:00:00Z",
+      "metadata": {
+        "title": "Python Tutorial: List Comprehensions",
+        "source": "internal-python-guide"
+      }
+    },
+    {
+      "doc_id": "python-listcomp-doc-2",
+      "text": "List comprehensions can include an if clause after the for clause. The if clause filters the input values before the output expression is added to the result list. For example, a comprehension can keep only even numbers while squaring each retained value. This makes filtering and mapping readable when the transformation is simple.",
+      "timestamp": "2026-03-16T09:00:00Z",
+      "metadata": {
+        "title": "Python Tutorial: Filtering with Comprehensions",
+        "source": "internal-python-guide"
+      }
+    },
+    {
+      "doc_id": "python-listcomp-doc-3",
+      "text": "A list comprehension returns a list immediately, unlike a generator expression which produces values lazily. Comprehensions should usually be kept short so the intent remains clear to readers. If the expression or filtering logic becomes complex, a regular for loop is often easier to maintain. The feature is best suited for concise transformations over existing iterables.",
+      "timestamp": "2026-03-17T09:00:00Z",
+      "metadata": {
+        "title": "Python Tutorial: Comprehension Guidance",
+        "source": "internal-python-guide"
+      }
+    }
+  ],
+  "metadata": {
+    "scenario": "clean_pass",
+    "expected_primary_failure": "CLEAN"
+  },
+  "created_at": "2026-04-10T09:30:00Z"
+}

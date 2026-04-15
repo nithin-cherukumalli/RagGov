@@ -1,0 +1,80 @@
+{
+  "run_id": "7efed4c1-00b8-4d1a-aab9-bb8d8025e202",
+  "query": "How do I create a streaming response with the NovaAI Python SDK?",
+  "retrieved_chunks": [
+    {
+      "chunk_id": "stale-retrieval-chunk-1",
+      "text": "In NovaAI SDK version 1.x, streaming responses are created with the client.stream_response method. The method accepts a prompt string and returns an iterator of text fragments. Developers should instantiate NovaClient with an API key and then call client.stream_response(prompt='...'). This method was part of the legacy synchronous API surface.",
+      "source_doc_id": "novaai-doc-legacy-streaming",
+      "score": 0.87,
+      "metadata": {
+        "library": "NovaAI Python SDK",
+        "version": "1.8.4",
+        "section": "streaming"
+      }
+    },
+    {
+      "chunk_id": "stale-retrieval-chunk-2",
+      "text": "The NovaClient constructor in the legacy SDK accepts api_key, timeout, and retry_count parameters. For quick scripts, the documentation recommends creating the client directly in the module where it is used. Streaming examples show a for loop over chunks returned by stream_response. The old examples do not mention the newer responses namespace.",
+      "source_doc_id": "novaai-doc-legacy-client",
+      "score": 0.84,
+      "metadata": {
+        "library": "NovaAI Python SDK",
+        "version": "1.8.4",
+        "section": "client"
+      }
+    },
+    {
+      "chunk_id": "stale-retrieval-chunk-3",
+      "text": "Legacy NovaAI SDK applications can set model='nova-large' when requesting a streamed answer. The SDK returns plain strings as chunks and does not expose structured events. The examples use client.stream_response with a prompt and a model name. This page has not been updated for the current SDK release.",
+      "source_doc_id": "novaai-doc-legacy-models",
+      "score": 0.8,
+      "metadata": {
+        "library": "NovaAI Python SDK",
+        "version": "1.8.4",
+        "section": "models"
+      }
+    }
+  ],
+  "final_answer": "In NovaAI SDK version 1.x, streaming responses are created with the client.stream_response method. Developers should instantiate NovaClient with an API key and then call client.stream_response(prompt='...').",
+  "cited_doc_ids": [
+    "novaai-doc-legacy-streaming",
+    "novaai-doc-legacy-client",
+    "novaai-doc-legacy-models"
+  ],
+  "answer_confidence": 0.72,
+  "corpus_entries": [
+    {
+      "doc_id": "novaai-doc-legacy-streaming",
+      "text": "In NovaAI SDK version 1.x, streaming responses are created with the client.stream_response method. The method accepts a prompt string and returns an iterator of text fragments. Developers should instantiate NovaClient with an API key and then call client.stream_response(prompt='...'). This method was part of the legacy synchronous API surface.",
+      "timestamp": "2024-04-10T12:00:00Z",
+      "metadata": {
+        "library": "NovaAI Python SDK",
+        "version": "1.8.4"
+      }
+    },
+    {
+      "doc_id": "novaai-doc-legacy-client",
+      "text": "The NovaClient constructor in the legacy SDK accepts api_key, timeout, and retry_count parameters. For quick scripts, the documentation recommends creating the client directly in the module where it is used. Streaming examples show a for loop over chunks returned by stream_response. The old examples do not mention the newer responses namespace.",
+      "timestamp": "2024-04-11T12:00:00Z",
+      "metadata": {
+        "library": "NovaAI Python SDK",
+        "version": "1.8.4"
+      }
+    },
+    {
+      "doc_id": "novaai-doc-legacy-models",
+      "text": "Legacy NovaAI SDK applications can set model='nova-large' when requesting a streamed answer. The SDK returns plain strings as chunks and does not expose structured events. The examples use client.stream_response with a prompt and a model name. This page has not been updated for the current SDK release.",
+      "timestamp": "2024-04-12T12:00:00Z",
+      "metadata": {
+        "library": "NovaAI Python SDK",
+        "version": "1.8.4"
+      }
+    }
+  ],
+  "metadata": {
+    "scenario": "stale_retrieval",
+    "expected_primary_failure": "STALE_RETRIEVAL"
+  },
+  "created_at": "2026-04-10T10:00:00Z"
+}

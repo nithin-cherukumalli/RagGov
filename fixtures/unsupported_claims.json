@@ -1,0 +1,74 @@
+{
+  "run_id": "dd8dd9b6-d4d4-4fa4-89c1-866f5059fb06",
+  "query": "What happened during the 1913 Meridian Textile Strike?",
+  "retrieved_chunks": [
+    {
+      "chunk_id": "unsupported-claims-chunk-1",
+      "text": "The Meridian Textile Strike began after mill workers protested a proposed wage reduction. Local newspapers reported that the dispute centered on loom assignments and overtime rules. The strike involved workers from two cotton mills on the east side of town. Negotiations were mediated by a county labor committee.",
+      "source_doc_id": "meridian-strike-doc-1",
+      "score": 0.77,
+      "metadata": {
+        "title": "Meridian Textile Strike Overview",
+        "source": "local-history-archive"
+      }
+    },
+    {
+      "chunk_id": "unsupported-claims-chunk-2",
+      "text": "Archive notes describe several public meetings held at the courthouse during the textile dispute. The notes mention mill owners, worker delegates, and a local minister who urged both sides to continue talks. The documents do not provide a final settlement date. They also do not list the number of workers who participated.",
+      "source_doc_id": "meridian-strike-doc-2",
+      "score": 0.71,
+      "metadata": {
+        "title": "Courthouse Meeting Notes",
+        "source": "local-history-archive"
+      }
+    },
+    {
+      "chunk_id": "unsupported-claims-chunk-3",
+      "text": "A museum exhibit states that the textile strike became part of a broader conversation about industrial labor conditions in the region. The exhibit connects the dispute to later organizing efforts at nearby mills. It includes photographs of picket signs and a short account from a worker's family member. The exhibit does not mention arrests, casualty figures, or national union leaders.",
+      "source_doc_id": "meridian-strike-doc-3",
+      "score": 0.68,
+      "metadata": {
+        "title": "Museum Exhibit Notes",
+        "source": "regional-museum"
+      }
+    }
+  ],
+  "final_answer": "The 1913 Meridian Textile Strike began on March 4, 1913, when 1,200 workers led by organizer Clara Benton walked out of three mills. The strike ended on April 18 after Governor Samuel Price sent state police to arrest twenty-seven picketers. Workers won a 12 percent wage increase and a legally binding eight-hour day, making it one of the most successful textile strikes in the region.",
+  "cited_doc_ids": [
+    "meridian-strike-doc-1",
+    "meridian-strike-doc-2",
+    "meridian-strike-doc-3"
+  ],
+  "answer_confidence": 0.62,
+  "corpus_entries": [
+    {
+      "doc_id": "meridian-strike-doc-1",
+      "text": "The Meridian Textile Strike began after mill workers protested a proposed wage reduction. Local newspapers reported that the dispute centered on loom assignments and overtime rules. The strike involved workers from two cotton mills on the east side of town. Negotiations were mediated by a county labor committee.",
+      "timestamp": "2026-01-20T09:00:00Z",
+      "metadata": {
+        "title": "Meridian Textile Strike Overview"
+      }
+    },
+    {
+      "doc_id": "meridian-strike-doc-2",
+      "text": "Archive notes describe several public meetings held at the courthouse during the textile dispute. The notes mention mill owners, worker delegates, and a local minister who urged both sides to continue talks. The documents do not provide a final settlement date. They also do not list the number of workers who participated.",
+      "timestamp": "2026-01-21T09:00:00Z",
+      "metadata": {
+        "title": "Courthouse Meeting Notes"
+      }
+    },
+    {
+      "doc_id": "meridian-strike-doc-3",
+      "text": "A museum exhibit states that the textile strike became part of a broader conversation about industrial labor conditions in the region. The exhibit connects the dispute to later organizing efforts at nearby mills. It includes photographs of picket signs and a short account from a worker's family member. The exhibit does not mention arrests, casualty figures, or national union leaders.",
+      "timestamp": "2026-01-22T09:00:00Z",
+      "metadata": {
+        "title": "Museum Exhibit Notes"
+      }
+    }
+  ],
+  "metadata": {
+    "scenario": "unsupported_claims",
+    "expected_primary_failure": "UNSUPPORTED_CLAIM"
+  },
+  "created_at": "2026-04-10T11:00:00Z"
+}

@@ -1,0 +1,74 @@
+{
+  "run_id": "2a1f3f14-1f2b-4ad5-b935-bdf6e75b0f04",
+  "query": "What was Acme Corp's total revenue in Q3 2024?",
+  "retrieved_chunks": [
+    {
+      "chunk_id": "insufficient-context-chunk-1",
+      "text": "The company develops workflow automation tools for mid-sized logistics teams. Its flagship product, Flow, helps dispatchers coordinate shipments and customer notifications. The company describes its platform as configurable for regional carriers and third-party warehouses. The page focuses on product positioning and does not discuss investor reporting.",
+      "source_doc_id": "acme-products-doc-1",
+      "score": 0.74,
+      "metadata": {
+        "title": "Acme Corp Product Overview",
+        "source": "company-site"
+      }
+    },
+    {
+      "chunk_id": "insufficient-context-chunk-2",
+      "text": "The company announced a dashboard redesign for Flow in a recent product update. The update adds role-based views for planners, warehouse staff, and account managers. Customers can configure exception alerts and export operational reports. The announcement contains no quarterly sales figures or audited investor statements.",
+      "source_doc_id": "acme-products-doc-2",
+      "score": 0.7,
+      "metadata": {
+        "title": "Acme Flow Dashboard Update",
+        "source": "company-blog"
+      }
+    },
+    {
+      "chunk_id": "insufficient-context-chunk-3",
+      "text": "The customer support documentation explains how administrators invite users and manage permissions. It includes guidance on team roles, account settings, and support ticket escalation. The documentation is intended for product administrators rather than investors. It does not include earnings, bookings, or other investor metrics.",
+      "source_doc_id": "acme-products-doc-3",
+      "score": 0.67,
+      "metadata": {
+        "title": "Acme Flow Admin Guide",
+        "source": "support-docs"
+      }
+    }
+  ],
+  "final_answer": "Acme Corp's total revenue in Q3 2024 was $18.4 million, up 22% from the prior quarter. The increase was driven by new logistics customers and expanded use of the Acme Flow dashboard. The company also improved operating efficiency during the same period.",
+  "cited_doc_ids": [
+    "acme-products-doc-1",
+    "acme-products-doc-2",
+    "acme-products-doc-3"
+  ],
+  "answer_confidence": 0.58,
+  "corpus_entries": [
+    {
+      "doc_id": "acme-products-doc-1",
+      "text": "The company develops workflow automation tools for mid-sized logistics teams. Its flagship product, Flow, helps dispatchers coordinate shipments and customer notifications. The company describes its platform as configurable for regional carriers and third-party warehouses. The page focuses on product positioning and does not discuss investor reporting.",
+      "timestamp": "2026-01-10T09:00:00Z",
+      "metadata": {
+        "title": "Acme Corp Product Overview"
+      }
+    },
+    {
+      "doc_id": "acme-products-doc-2",
+      "text": "The company announced a dashboard redesign for Flow in a recent product update. The update adds role-based views for planners, warehouse staff, and account managers. Customers can configure exception alerts and export operational reports. The announcement contains no quarterly sales figures or audited investor statements.",
+      "timestamp": "2026-01-11T09:00:00Z",
+      "metadata": {
+        "title": "Acme Flow Dashboard Update"
+      }
+    },
+    {
+      "doc_id": "acme-products-doc-3",
+      "text": "The customer support documentation explains how administrators invite users and manage permissions. It includes guidance on team roles, account settings, and support ticket escalation. The documentation is intended for product administrators rather than investors. It does not include earnings, bookings, or other investor metrics.",
+      "timestamp": "2026-01-12T09:00:00Z",
+      "metadata": {
+        "title": "Acme Flow Admin Guide"
+      }
+    }
+  ],
+  "metadata": {
+    "scenario": "insufficient_context",
+    "expected_primary_failure": "INSUFFICIENT_CONTEXT"
+  },
+  "created_at": "2026-04-10T10:30:00Z"
+}
