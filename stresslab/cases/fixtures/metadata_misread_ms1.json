@@ -1,0 +1,14 @@
+{
+  "case_id": "metadata_misread_ms1",
+  "document_set": ["2011SE_MS1.PDF"],
+  "query": "What is the issuing department and order number for MS1?",
+  "gold_answer": "The answer should cite the exact department and G.O./G.O.Ms. number from the document header.",
+  "gold_supporting_locations": ["2011SE_MS1.PDF#metadata"],
+  "pipeline_variant": "parse-only",
+  "failure_injection": "swap_header_lines",
+  "expected_primary_failure": "metadata_misread",
+  "expected_secondary_failures": ["retrieval_missing_critical_context"],
+  "expected_should_have_answered": true,
+  "severity": "medium",
+  "deterministic_or_query_dependent": "deterministic"
+}

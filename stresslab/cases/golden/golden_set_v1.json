@@ -1,0 +1,1393 @@
+{
+  "name": "govrag_golden_set_v1",
+  "version": "0.1.0",
+  "description": "Human-reviewed golden evaluation set derived from the selected high-signal subset of tests/Data for answer-quality and failure-attribution evaluation.",
+  "corpus_subset": [
+    "2011SE_MS1.PDF",
+    "2011SE_MS9.PDF",
+    "2011SE_MS11.PDF",
+    "2011SE_MS15.PDF",
+    "2011SE_MS16.PDF",
+    "2011SE_MS17.PDF",
+    "2011SE_MS20.PDF",
+    "2011SE_MS22.PDF",
+    "2011SE_MS24.PDF",
+    "2011SE_MS29.PDF",
+    "2011SE_MS30.PDF",
+    "2011SE_MS35.PDF",
+    "2011SE_MS39.PDF"
+  ],
+  "items": [
+    {
+      "gold_id": "ms20_q01",
+      "source_docs": ["2011SE_MS20.PDF"],
+      "question": "What is the neighborhood distance for children in classes I to V?",
+      "question_type": "direct_factual",
+      "difficulty": "easy",
+      "gold_answer": "A school shall be established within a walking distance of one kilometer of the neighborhood for classes I to V.",
+      "gold_short_answer": "One kilometer.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS20.PDF",
+          "page": 5,
+          "section_label": "Rule 5(1)(a)",
+          "quoted_fact_summary": "For classes I-V the neighborhood school distance is one kilometer."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS20.PDF"],
+      "required_sections": ["Rule 5(1)(a)"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["correct_distance", "mentions_classes_i_to_v", "grounded_in_rule_5"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["wrong distance", "missing class range", "definition text retrieved instead of Rule 5"]
+      },
+      "likely_primary_failure_if_wrong": "RETRIEVAL",
+      "likely_secondary_failures_if_wrong": ["GROUNDING", "CONFIDENCE"],
+      "developer_fix_hint": "Check whether Rule 5 chunks are being retrieved ahead of definitions and preamble text."
+    },
+    {
+      "gold_id": "ms20_q02",
+      "source_docs": ["2011SE_MS20.PDF"],
+      "question": "What is the neighborhood distance for children in classes VI to VIII?",
+      "question_type": "direct_factual",
+      "difficulty": "easy",
+      "gold_answer": "A school shall be established within a walking distance of three kilometers of the neighborhood for classes VI to VIII.",
+      "gold_short_answer": "Three kilometers.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS20.PDF",
+          "page": 5,
+          "section_label": "Rule 5(1)(b)",
+          "quoted_fact_summary": "For classes VI-VIII the neighborhood school distance is three kilometers."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS20.PDF"],
+      "required_sections": ["Rule 5(1)(b)"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["correct_distance", "mentions_classes_vi_to_viii", "grounded_in_rule_5"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["uses one kilometer instead of three", "mixes class bands", "unsupported synthesis"]
+      },
+      "likely_primary_failure_if_wrong": "RETRIEVAL",
+      "likely_secondary_failures_if_wrong": ["GROUNDING"],
+      "developer_fix_hint": "Inspect whether Rule 5(1)(a) and Rule 5(1)(b) are chunked too coarsely or confused at retrieval time."
+    },
+    {
+      "gold_id": "ms20_q03",
+      "source_docs": ["2011SE_MS20.PDF"],
+      "question": "What should the government do where no school exists within the neighborhood limits?",
+      "question_type": "cross_section_reasoning",
+      "difficulty": "medium",
+      "gold_answer": "Where no school exists within the neighborhood limits, the Government or Local Authority shall make adequate arrangements such as free transportation, residential facilities, and other facilities for providing elementary education in a school.",
+      "gold_short_answer": "Provide arrangements such as free transportation and residential facilities.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS20.PDF",
+          "page": 5,
+          "section_label": "Rule 5(4)",
+          "quoted_fact_summary": "If no school exists within neighborhood limits, transportation, residential facilities, and other arrangements must be made."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS20.PDF"],
+      "required_sections": ["Rule 5(4)"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["mentions_transport", "mentions_residential_facilities", "does_not_invent_budget_or_deadline"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["drops residential facilities", "returns only distance values", "hallucinates funding details"]
+      },
+      "likely_primary_failure_if_wrong": "CHUNKING",
+      "likely_secondary_failures_if_wrong": ["RETRIEVAL", "GROUNDING"],
+      "developer_fix_hint": "Check whether Rule 5 sub-rules are split apart or whether the retrieval window lands on Rule 5(1) instead of Rule 5(4)."
+    },
+    {
+      "gold_id": "ms20_q04",
+      "source_docs": ["2011SE_MS20.PDF"],
+      "question": "What is the minimum duration of special training and what is the maximum period to which it may be extended?",
+      "question_type": "multi_clause_factual",
+      "difficulty": "medium",
+      "gold_answer": "The duration of special training shall be for a minimum period of three months and may be extended, based on periodical assessment, up to a maximum period not exceeding two years.",
+      "gold_short_answer": "Minimum three months; maximum two years.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS20.PDF",
+          "page": 4,
+          "section_label": "Rule 4(1)(d)",
+          "quoted_fact_summary": "Special training must last at least three months and may extend up to two years."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS20.PDF"],
+      "required_sections": ["Rule 4(1)(d)"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["minimum_duration_correct", "maximum_duration_correct", "mentions_extension_condition"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["drops one duration bound", "mixes months and years", "retrieves definition text instead"]
+      },
+      "likely_primary_failure_if_wrong": "RETRIEVAL",
+      "likely_secondary_failures_if_wrong": ["GROUNDING", "CONFIDENCE"],
+      "developer_fix_hint": "Review whether clause-level retrieval can isolate Rule 4(1)(d) rather than the surrounding training boilerplate."
+    },
+    {
+      "gold_id": "ms20_q05",
+      "source_docs": ["2011SE_MS20.PDF"],
+      "question": "Who may be involved in mobilization and identification of out-of-school children?",
+      "question_type": "direct_factual",
+      "difficulty": "easy",
+      "gold_answer": "School Management Committees may involve Civil Society Organizations and Self Help Groups in mobilization and identification of out-of-school children.",
+      "gold_short_answer": "Civil Society Organizations and Self Help Groups.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS20.PDF",
+          "page": 4,
+          "section_label": "Rule 4(3)",
+          "quoted_fact_summary": "CSOs and SHGs may be involved in mobilization and identification of out-of-school children."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS20.PDF"],
+      "required_sections": ["Rule 4(3)"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["correct_entities_named", "does_not_substitute_local_authority"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["answers with local authority or school only", "misses one of the two groups"]
+      },
+      "likely_primary_failure_if_wrong": "GROUNDING",
+      "likely_secondary_failures_if_wrong": ["RETRIEVAL"],
+      "developer_fix_hint": "Inspect whether nearby school-management clauses are crowding out the specific mobilization clause."
+    },
+    {
+      "gold_id": "ms20_q06",
+      "source_docs": ["2011SE_MS20.PDF"],
+      "question": "What do the rules say about children with disabilities who cannot access school?",
+      "question_type": "cross_section_reasoning",
+      "difficulty": "medium",
+      "gold_answer": "The Government or Local Authority shall endeavor to make appropriate and safe transportation arrangements, and in case of severe disability it shall make arrangements for home-based education for children who cannot be safely transported to neighborhood schools.",
+      "gold_short_answer": "Arrange safe transport where possible; provide home-based education in severe cases.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS20.PDF",
+          "page": 6,
+          "section_label": "Rule 5(7)",
+          "quoted_fact_summary": "Children with disabilities should receive safe transportation, and severe disability may require home-based education."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS20.PDF"],
+      "required_sections": ["Rule 5(7)"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["mentions_transport", "mentions_home_based_education", "mentions_severe_disability_condition"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["returns generic inclusion policy", "omits home-based education", "hallucinates special schools requirement"]
+      },
+      "likely_primary_failure_if_wrong": "CHUNKING",
+      "likely_secondary_failures_if_wrong": ["GROUNDING", "SUFFICIENCY"],
+      "developer_fix_hint": "Ensure the disability-access provision is not lost inside oversized access chunks."
+    },
+    {
+      "gold_id": "ms20_q07",
+      "source_docs": ["2011SE_MS20.PDF"],
+      "question": "What does free education include under these rules?",
+      "question_type": "definition_extraction",
+      "difficulty": "medium",
+      "gold_answer": "Free education means elementary education without direct costs such as fees or capitation fees and without indirect costs such as stationery or services to be borne by the parents, and it includes free textbooks, notebooks, writing material, midday meals with nutritional values, and uniforms in neighborhood schools run by the Government.",
+      "gold_short_answer": "No direct or indirect costs to parents; includes textbooks, notebooks, writing material, midday meals, and uniforms.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS20.PDF",
+          "page": 3,
+          "section_label": "Definitions (13)",
+          "quoted_fact_summary": "Free education excludes direct and indirect parental costs and includes textbooks, notebooks, writing material, meals, and uniforms."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS20.PDF"],
+      "required_sections": ["Definitions (13)"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["mentions_no_direct_costs", "mentions_no_indirect_costs", "includes_materials_and_meals"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["partial list only", "drops indirect costs", "adds tuition reimbursement details not present"]
+      },
+      "likely_primary_failure_if_wrong": "RETRIEVAL",
+      "likely_secondary_failures_if_wrong": ["GROUNDING"],
+      "developer_fix_hint": "Check whether definition chunks are retrievable independently from the operative rules."
+    },
+    {
+      "gold_id": "ms20_q08",
+      "source_docs": ["2011SE_MS20.PDF"],
+      "question": "What is meant by an out of school child in these rules?",
+      "question_type": "definition_extraction",
+      "difficulty": "medium",
+      "gold_answer": "An out of school child is a child aged 6 to 14 who has not completed elementary education, including one who was never enrolled or dropped out without completing elementary education, and a pupil absent for more than one month is also to be considered an out of school child.",
+      "gold_short_answer": "A 6-14 child not completing elementary education, including never-enrolled, dropped-out, or absent for more than one month.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS20.PDF",
+          "page": 3,
+          "section_label": "Definitions (19)",
+          "quoted_fact_summary": "Out-of-school child includes never-enrolled, dropped-out, and pupils absent for more than one month."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS20.PDF"],
+      "required_sections": ["Definitions (19)"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["mentions_age_band", "mentions_never_enrolled_or_dropped_out", "mentions_one_month_absence"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["returns generic dropout definition", "omits one-month absence", "wrong age range"]
+      },
+      "likely_primary_failure_if_wrong": "GROUNDING",
+      "likely_secondary_failures_if_wrong": ["RETRIEVAL"],
+      "developer_fix_hint": "Inspect whether the definition block is truncated or merged with adjacent definitions."
+    },
+    {
+      "gold_id": "ms20_q09",
+      "source_docs": ["2011SE_MS20.PDF"],
+      "question": "Which authority identifies neighborhood schools and makes the information public?",
+      "question_type": "direct_factual",
+      "difficulty": "easy",
+      "gold_answer": "The Local Authority shall identify the neighborhood school or schools where children can be admitted and make that information public for each habitation within its jurisdiction.",
+      "gold_short_answer": "The Local Authority.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS20.PDF",
+          "page": 6,
+          "section_label": "Rule 5(6)",
+          "quoted_fact_summary": "The Local Authority identifies neighborhood schools and makes that information public."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS20.PDF"],
+      "required_sections": ["Rule 5(6)"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["names_local_authority", "does_not_swap_in_school_management_committee"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["mixes with School Management Committee duties", "generic government answer"]
+      },
+      "likely_primary_failure_if_wrong": "RETRIEVAL",
+      "likely_secondary_failures_if_wrong": ["GROUNDING"],
+      "developer_fix_hint": "Review local-authority retrieval around Rule 5(6) versus Rule 4 and Rule 6 fragments."
+    },
+    {
+      "gold_id": "ms20_q10",
+      "source_docs": ["2011SE_MS20.PDF"],
+      "question": "What 2012 district budget was allocated to enforce Rule 5?",
+      "question_type": "abstention",
+      "difficulty": "easy",
+      "gold_answer": "The corpus does not provide a 2012 district budget allocation for enforcing Rule 5, so the system should abstain.",
+      "gold_short_answer": "Abstain; not in the corpus.",
+      "supporting_evidence": [],
+      "required_doc_ids": [],
+      "required_sections": [],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["abstains", "does_not_invent_budget", "explicitly_states_missing_support"],
+      "diagnostic_expectations": {
+        "answer_should": "abstain",
+        "minimum_support_count": 0,
+        "common_failure_signals": ["invented budget", "unsupported year", "confident numeric hallucination"]
+      },
+      "likely_primary_failure_if_wrong": "SUFFICIENCY",
+      "likely_secondary_failures_if_wrong": ["GROUNDING", "CONFIDENCE"],
+      "developer_fix_hint": "If the system answers numerically here, tighten abstention logic and unsupported-claim checks."
+    },
+    {
+      "gold_id": "ms9_q01",
+      "source_docs": ["2011SE_MS9.PDF"],
+      "question": "How many posts can be adjusted to SSA for Krishna district?",
+      "question_type": "table_lookup",
+      "difficulty": "medium",
+      "gold_answer": "For Krishna district, 228 posts can be adjusted to SSA.",
+      "gold_short_answer": "228.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS9.PDF",
+          "page": 3,
+          "section_label": "Annexure district row for Krishna",
+          "quoted_fact_summary": "The Krishna row lists 228 in the column for posts that can be adjusted to SSA."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS9.PDF"],
+      "required_sections": ["Annexure"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["correct_numeric_value", "correct_district_mapping"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["wrong district row", "wrong column value", "uses balance of posts instead of adjustable posts"]
+      },
+      "likely_primary_failure_if_wrong": "PARSING",
+      "likely_secondary_failures_if_wrong": ["EMBEDDING", "RETRIEVAL"],
+      "developer_fix_hint": "Inspect whether table row and column bindings survive parsing and chunking."
+    },
+    {
+      "gold_id": "ms9_q02",
+      "source_docs": ["2011SE_MS9.PDF"],
+      "question": "What is the total number of teacher posts adjusted to SSA?",
+      "question_type": "table_lookup",
+      "difficulty": "easy",
+      "gold_answer": "A total of 22,075 teacher posts were adjusted to Sarva Shiksha Abhiyan.",
+      "gold_short_answer": "22075.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS9.PDF",
+          "page": 1,
+          "section_label": "Paragraph 5",
+          "quoted_fact_summary": "The order states that 21048 plus 1027 posts totaling 22075 are adjusted to SSA."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS9.PDF"],
+      "required_sections": ["Paragraph 5"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["correct_total", "does_not_confuse_with_21048_or_38293"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["reports 21048 only", "reports 38293 total sanctioned instead"]
+      },
+      "likely_primary_failure_if_wrong": "GROUNDING",
+      "likely_secondary_failures_if_wrong": ["RETRIEVAL"],
+      "developer_fix_hint": "Check whether the answer generator is mixing paragraph totals with annexure totals."
+    },
+    {
+      "gold_id": "ms9_q03",
+      "source_docs": ["2011SE_MS9.PDF"],
+      "question": "How many posts were allotted to M.A. and U.D. Department?",
+      "question_type": "direct_factual",
+      "difficulty": "easy",
+      "gold_answer": "1,027 posts were allotted to M.A. and U.D. Department.",
+      "gold_short_answer": "1027.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS9.PDF",
+          "page": 1,
+          "section_label": "Paragraph 3",
+          "quoted_fact_summary": "The table under paragraph 3 totals 1027 posts allotted to M.A. and U.D."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS9.PDF"],
+      "required_sections": ["Paragraph 3"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["correct_total", "mentions_ma_ud_context"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["swaps with 22075", "returns one component instead of total"]
+      },
+      "likely_primary_failure_if_wrong": "RETRIEVAL",
+      "likely_secondary_failures_if_wrong": ["GROUNDING"],
+      "developer_fix_hint": "Ensure paragraph 3 remains retrievable independently from paragraph 5 totals."
+    },
+    {
+      "gold_id": "ms9_q04",
+      "source_docs": ["2011SE_MS9.PDF"],
+      "question": "What is the total number of posts created in G.O.Ms.No.363 according to the annexure?",
+      "question_type": "table_lookup",
+      "difficulty": "easy",
+      "gold_answer": "The annexure shows a total of 26,859 posts created in G.O.Ms.No.363.",
+      "gold_short_answer": "26859.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS9.PDF",
+          "page": 3,
+          "section_label": "Annexure total",
+          "quoted_fact_summary": "The total for posts created in G.O.Ms.No.363 is 26859."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS9.PDF"],
+      "required_sections": ["Annexure"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["correct_total", "correct_column"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["uses 23472 or 21048 instead", "column confusion"]
+      },
+      "likely_primary_failure_if_wrong": "PARSING",
+      "likely_secondary_failures_if_wrong": ["GROUNDING"],
+      "developer_fix_hint": "Check whether total-row parsing preserves the correct column association."
+    },
+    {
+      "gold_id": "ms15_q01",
+      "source_docs": ["2011SE_MS15.PDF"],
+      "question": "How many categories were identified for rectification of pay anomalies in SIET?",
+      "question_type": "direct_factual",
+      "difficulty": "easy",
+      "gold_answer": "Nineteen categories of posts were identified for rectification of pay anomalies.",
+      "gold_short_answer": "19 categories.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS15.PDF",
+          "page": 1,
+          "section_label": "Paragraph 3",
+          "quoted_fact_summary": "The order states that 19 categories were identified for rectification."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS15.PDF"],
+      "required_sections": ["Paragraph 3"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["correct_count", "mentions_rectification_context"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["uses 48 total categories", "uses 29 unchanged categories instead"]
+      },
+      "likely_primary_failure_if_wrong": "GROUNDING",
+      "likely_secondary_failures_if_wrong": ["RETRIEVAL"],
+      "developer_fix_hint": "Check whether the model is collapsing '48 examined' and '19 rectified' into one figure."
+    },
+    {
+      "gold_id": "ms15_q02",
+      "source_docs": ["2011SE_MS15.PDF"],
+      "question": "Which categories had financial implication according to the Director, SIET?",
+      "question_type": "table_plus_narrative",
+      "difficulty": "medium",
+      "gold_answer": "The categories with financial implication were serial numbers 1, 2, 3, 5, 6, 7, and 8.",
+      "gold_short_answer": "Serial numbers 1, 2, 3, 5, 6, 7, and 8.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS15.PDF",
+          "page": 2,
+          "section_label": "Paragraph 4",
+          "quoted_fact_summary": "Paragraph 4 states that only serial numbers 1, 2, 3, 5, 6, 7, and 8 have financial implication."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS15.PDF"],
+      "required_sections": ["Paragraph 4"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["correct_serial_list", "does_not_expand_to_all_19"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["returns all 19 categories", "returns category names not the flagged subset"]
+      },
+      "likely_primary_failure_if_wrong": "CHUNKING",
+      "likely_secondary_failures_if_wrong": ["GROUNDING"],
+      "developer_fix_hint": "Make sure the explanatory paragraph remains associated with the preceding table."
+    },
+    {
+      "gold_id": "ms15_q03",
+      "source_docs": ["2011SE_MS15.PDF"],
+      "question": "What monetary period and amount were worked out for the 19 categories?",
+      "question_type": "direct_factual",
+      "difficulty": "medium",
+      "gold_answer": "The Director worked out the amount for the monetary period from 1-4-2005, with a total amount of Rs.11,57,724.",
+      "gold_short_answer": "From 1-4-2005; Rs.11,57,724.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS15.PDF",
+          "page": 2,
+          "section_label": "Paragraph 4",
+          "quoted_fact_summary": "Paragraph 4 states the monetary period from 1-4-2005 and the total amount Rs.11,57,724."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS15.PDF"],
+      "required_sections": ["Paragraph 4"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["correct_date", "correct_amount"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["mixes with notional date", "rounds amount incorrectly", "hallucinates lakh wording only"]
+      },
+      "likely_primary_failure_if_wrong": "GROUNDING",
+      "likely_secondary_failures_if_wrong": ["RETRIEVAL"],
+      "developer_fix_hint": "Check whether the answer generator is confusing paragraph 4 details with paragraph 5 implementation dates."
+    },
+    {
+      "gold_id": "ms15_q04",
+      "source_docs": ["2011SE_MS15.PDF"],
+      "question": "From what dates were the revised scales implemented notionally and monetarily?",
+      "question_type": "multi_clause_factual",
+      "difficulty": "medium",
+      "gold_answer": "The scales were implemented notionally with effect from 01-07-2003 and monetary benefit was allowed with effect from 01-04-2005.",
+      "gold_short_answer": "Notional: 01-07-2003. Monetary: 01-04-2005.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS15.PDF",
+          "page": 2,
+          "section_label": "Paragraph 5",
+          "quoted_fact_summary": "Paragraph 5 distinguishes notional effect from 01-07-2003 and monetary effect from 01-04-2005."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS15.PDF"],
+      "required_sections": ["Paragraph 5"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["correct_notional_date", "correct_monetary_date", "distinguishes_them"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["same date for both", "swapped dates", "returns only one date"]
+      },
+      "likely_primary_failure_if_wrong": "GROUNDING",
+      "likely_secondary_failures_if_wrong": ["CHUNKING"],
+      "developer_fix_hint": "Review whether paragraph 5 is chunked separately from paragraph 4 so the date distinction remains intact."
+    },
+    {
+      "gold_id": "ms39_q01",
+      "source_docs": ["2011SE_MS39.PDF"],
+      "question": "What is the proposed number of Project Officers for Warangal after modification?",
+      "question_type": "table_lookup",
+      "difficulty": "medium",
+      "gold_answer": "The proposed number of Project Officers for Warangal is 1.",
+      "gold_short_answer": "1 Project Officer.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS39.PDF",
+          "page": 2,
+          "section_label": "Statement-A Warangal row",
+          "quoted_fact_summary": "In Statement-A, Warangal shows proposed POs as 1."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS39.PDF"],
+      "required_sections": ["Statement-A"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["correct_numeric_value", "correct_district_mapping"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["uses existing pattern 3 instead", "uses Khammam row", "wrong row-column binding"]
+      },
+      "likely_primary_failure_if_wrong": "PARSING",
+      "likely_secondary_failures_if_wrong": ["EMBEDDING", "RETRIEVAL"],
+      "developer_fix_hint": "Check whether Statement-A rows are being preserved with the proposed pattern column attached."
+    },
+    {
+      "gold_id": "ms39_q02",
+      "source_docs": ["2011SE_MS39.PDF"],
+      "question": "What is the proposed number of Project Officers for Khammam after modification?",
+      "question_type": "table_lookup",
+      "difficulty": "medium",
+      "gold_answer": "The proposed number of Project Officers for Khammam is 2.",
+      "gold_short_answer": "2 Project Officers.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS39.PDF",
+          "page": 2,
+          "section_label": "Statement-A Khammam row",
+          "quoted_fact_summary": "In Statement-A, Khammam shows proposed POs as 2."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS39.PDF"],
+      "required_sections": ["Statement-A"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["correct_numeric_value", "correct_district_mapping"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["uses Warangal value", "uses existing pattern 2 without identifying the modified column"]
+      },
+      "likely_primary_failure_if_wrong": "PARSING",
+      "likely_secondary_failures_if_wrong": ["RETRIEVAL"],
+      "developer_fix_hint": "Inspect whether the proposed-staff pattern columns are recoverable as a table, not flattened narrative."
+    },
+    {
+      "gold_id": "ms39_q03",
+      "source_docs": ["2011SE_MS39.PDF"],
+      "question": "What transfer condition applies specifically to Assistant Project Officers and Supervisors?",
+      "question_type": "direct_factual",
+      "difficulty": "easy",
+      "gold_answer": "Assistant Project Officers and Supervisors are zonal posts, so transfers shall be within the zone only.",
+      "gold_short_answer": "Transfers shall be within the zone only.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS39.PDF",
+          "page": 3,
+          "section_label": "Paragraph 3(d)",
+          "quoted_fact_summary": "Paragraph 3(d) states that APOs and Supervisors are zonal posts and transfers shall be within the zone only."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS39.PDF"],
+      "required_sections": ["Paragraph 3(d)"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["mentions_within_zone_only", "mentions_apo_and_supervisors"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["returns general administrative transfer condition only", "omits zonal scope"]
+      },
+      "likely_primary_failure_if_wrong": "CHUNKING",
+      "likely_secondary_failures_if_wrong": ["GROUNDING"],
+      "developer_fix_hint": "Make sure paragraph 3 conditions stay separate from the statement tables."
+    },
+    {
+      "gold_id": "ms39_q04",
+      "source_docs": ["2011SE_MS39.PDF"],
+      "question": "How many total Assistant Project Officer posts and Supervisor posts are proposed?",
+      "question_type": "table_lookup",
+      "difficulty": "medium",
+      "gold_answer": "The proposed totals are 47 Assistant Project Officer posts and 254 Supervisor posts.",
+      "gold_short_answer": "47 APO posts and 254 Supervisor posts.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS39.PDF",
+          "page": 3,
+          "section_label": "Statement-B totals",
+          "quoted_fact_summary": "Statement-B totals show 47 APO posts and 254 Supervisor posts."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS39.PDF"],
+      "required_sections": ["Statement-B"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["correct_two_totals", "does_not_use_grand_total_301"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["returns 301 only", "mixes APO and Supervisor totals", "wrong table block"]
+      },
+      "likely_primary_failure_if_wrong": "PARSING",
+      "likely_secondary_failures_if_wrong": ["GROUNDING"],
+      "developer_fix_hint": "Review whether Statement-B totals are preserved instead of only the grand total."
+    },
+    {
+      "gold_id": "ms24_q01",
+      "source_docs": ["2011SE_MS24.PDF"],
+      "question": "Which retired SGT from Wardhannapet, Warangal District was proceeded against under Rule 9?",
+      "question_type": "near_duplicate_disambiguation",
+      "difficulty": "medium",
+      "gold_answer": "Sri B. Sambaiah, SGT (Retd.), O/o. the MEO., Wardhannapet, Warangal District.",
+      "gold_short_answer": "Sri B. Sambaiah.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS24.PDF",
+          "page": 1,
+          "section_label": "Order opening paragraph",
+          "quoted_fact_summary": "The order names Sri B. Sambaiah, SGT (Retd.), Wardhannapet, Warangal District."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS24.PDF"],
+      "required_sections": ["Opening order paragraph"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["correct_person_name", "correct_district", "does_not_swap_with_duplicate_order"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["wrong retired teacher", "correct rule but wrong district", "cross-document identity blend"]
+      },
+      "likely_primary_failure_if_wrong": "RETRIEVAL",
+      "likely_secondary_failures_if_wrong": ["GROUNDING", "CITATION_MISMATCH"],
+      "developer_fix_hint": "Inspect near-duplicate ranking and whether person/district tokens are underweighted in retrieval."
+    },
+    {
+      "gold_id": "ms29_q01",
+      "source_docs": ["2011SE_MS29.PDF"],
+      "question": "Which retired S.A. from Ikkurthy, Alair, Nalgonda District was proceeded against under Rule 9?",
+      "question_type": "near_duplicate_disambiguation",
+      "difficulty": "medium",
+      "gold_answer": "Sri P. Rajaiah, S.A. (Retd.), ZPHS., Ikkurthy, Alair (M), Nalgonda District.",
+      "gold_short_answer": "Sri P. Rajaiah.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS29.PDF",
+          "page": 1,
+          "section_label": "Order opening paragraph",
+          "quoted_fact_summary": "The order names Sri P. Rajaiah, S.A. (Retd.), from Ikkurthy, Alair, Nalgonda District."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS29.PDF"],
+      "required_sections": ["Opening order paragraph"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["correct_person_name", "correct_post", "correct_district"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["wrong retired teacher", "uses teacher instead of S.A.", "district confusion"]
+      },
+      "likely_primary_failure_if_wrong": "EMBEDDING",
+      "likely_secondary_failures_if_wrong": ["RETRIEVAL", "GROUNDING"],
+      "developer_fix_hint": "Check whether the duplicate-cluster embeddings preserve title/post distinctions like S.A. versus SGT versus Teacher."
+    },
+    {
+      "gold_id": "ms30_q01",
+      "source_docs": ["2011SE_MS30.PDF"],
+      "question": "Which retired teacher from Utlalpalli, Miryalguda, Nalgonda District was proceeded against under Rule 9?",
+      "question_type": "near_duplicate_disambiguation",
+      "difficulty": "medium",
+      "gold_answer": "Sri K.V.L. Narsimha Rao, Teacher (Retd.), ZPHS., Utlalpalli, Miryalguda (M), Nalgonda District.",
+      "gold_short_answer": "Sri K.V.L. Narsimha Rao.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS30.PDF",
+          "page": 1,
+          "section_label": "Order opening paragraph",
+          "quoted_fact_summary": "The order names Sri K.V.L. Narsimha Rao from Utlalpalli, Miryalguda, Nalgonda District."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS30.PDF"],
+      "required_sections": ["Opening order paragraph"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["correct_person_name", "correct_locality", "correct_district"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["confuses with Rajaiah because both are Nalgonda", "wrong locality", "wrong designation"]
+      },
+      "likely_primary_failure_if_wrong": "RETRIEVAL",
+      "likely_secondary_failures_if_wrong": ["EMBEDDING", "GROUNDING"],
+      "developer_fix_hint": "Investigate ranking among Nalgonda duplicate orders and whether locality tokens survive preprocessing."
+    },
+    {
+      "gold_id": "ms35_q01",
+      "source_docs": ["2011SE_MS35.PDF"],
+      "question": "Which retired SGT from Maddur, Mahabubnagar District was proceeded against under Rule 9?",
+      "question_type": "near_duplicate_disambiguation",
+      "difficulty": "medium",
+      "gold_answer": "Sri Shanker Reddy, SGT (Retd.), O/o. the MEO., Maddur (M), Mahabubnagar District.",
+      "gold_short_answer": "Sri Shanker Reddy.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS35.PDF",
+          "page": 1,
+          "section_label": "Order opening paragraph",
+          "quoted_fact_summary": "The order names Sri Shanker Reddy from Maddur, Mahabubnagar District."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS35.PDF"],
+      "required_sections": ["Opening order paragraph"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["correct_person_name", "correct_district", "correct_post"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["wrong teacher from similar vigilance order", "wrong district", "cross-order identity blending"]
+      },
+      "likely_primary_failure_if_wrong": "RETRIEVAL",
+      "likely_secondary_failures_if_wrong": ["GROUNDING", "CITATION_MISMATCH"],
+      "developer_fix_hint": "Audit how duplicate personnel orders are chunked and whether district names dominate similarity enough."
+    },
+    {
+      "gold_id": "dup_q05",
+      "source_docs": ["2011SE_MS24.PDF", "2011SE_MS29.PDF", "2011SE_MS30.PDF", "2011SE_MS35.PDF"],
+      "question": "Under which rule were departmental proceedings sanctioned in these vigilance orders?",
+      "question_type": "direct_factual",
+      "difficulty": "easy",
+      "gold_answer": "Departmental proceedings were sanctioned under Rule 9 of the A.P. Revised Pension Rules, 1980.",
+      "gold_short_answer": "Rule 9 of the A.P. Revised Pension Rules, 1980.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS24.PDF",
+          "page": 1,
+          "section_label": "Paragraph 2",
+          "quoted_fact_summary": "Paragraph 2 sanctions proceedings under Rule 9 of the A.P. Revised Pension Rules, 1980."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS24.PDF", "2011SE_MS29.PDF", "2011SE_MS30.PDF", "2011SE_MS35.PDF"],
+      "required_sections": ["Paragraph 2"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["correct_rule", "mentions_pension_rules_1980"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["returns Rule 20 instead", "omits pension rules 1980"]
+      },
+      "likely_primary_failure_if_wrong": "GROUNDING",
+      "likely_secondary_failures_if_wrong": ["RETRIEVAL"],
+      "developer_fix_hint": "Check whether the model is confusing sanction authority with the procedural rule for conducting proceedings."
+    },
+    {
+      "gold_id": "dup_q06",
+      "source_docs": ["2011SE_MS24.PDF", "2011SE_MS29.PDF", "2011SE_MS30.PDF", "2011SE_MS35.PDF"],
+      "question": "Under which rule were the proceedings to be conducted after sanction was granted?",
+      "question_type": "direct_factual",
+      "difficulty": "easy",
+      "gold_answer": "The proceedings were to be conducted in accordance with Rule 20 of the A.P.C.S. (CC&A) Rules, 1991.",
+      "gold_short_answer": "Rule 20 of the A.P.C.S. (CC&A) Rules, 1991.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS29.PDF",
+          "page": 1,
+          "section_label": "Paragraph 3",
+          "quoted_fact_summary": "Paragraph 3 directs that proceedings be conducted under Rule 20 of the A.P.C.S. (CC&A) Rules, 1991."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS24.PDF", "2011SE_MS29.PDF", "2011SE_MS30.PDF", "2011SE_MS35.PDF"],
+      "required_sections": ["Paragraph 3"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["correct_rule", "does_not_confuse_with_rule_9"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["returns Rule 9 instead", "drops CC&A Rules, 1991"]
+      },
+      "likely_primary_failure_if_wrong": "GROUNDING",
+      "likely_secondary_failures_if_wrong": ["RETRIEVAL"],
+      "developer_fix_hint": "Review whether adjacent paragraphs are being merged without preserving the sanction/procedure distinction."
+    },
+    {
+      "gold_id": "dup_q07",
+      "source_docs": ["2011SE_MS24.PDF", "2011SE_MS29.PDF", "2011SE_MS30.PDF", "2011SE_MS35.PDF"],
+      "question": "What allegation is common across these vigilance orders?",
+      "question_type": "direct_factual",
+      "difficulty": "easy",
+      "gold_answer": "The common allegation is that the employee submitted fake, forged, and fabricated medical bills to claim medical reimbursement amounts.",
+      "gold_short_answer": "Fake, forged, and fabricated medical reimbursement bills.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS35.PDF",
+          "page": 1,
+          "section_label": "Opening order paragraph",
+          "quoted_fact_summary": "The employee is alleged to have submitted fake, forged, and fabricated medical bills for reimbursement."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS24.PDF", "2011SE_MS29.PDF", "2011SE_MS30.PDF", "2011SE_MS35.PDF"],
+      "required_sections": ["Opening order paragraph"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["mentions_fake_forged_fabricated", "mentions_medical_reimbursement"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["generic misconduct only", "wrong allegation type"]
+      },
+      "likely_primary_failure_if_wrong": "GROUNDING",
+      "likely_secondary_failures_if_wrong": ["RETRIEVAL"],
+      "developer_fix_hint": "Inspect whether opening allegation paragraphs are dropped during chunk compression."
+    },
+    {
+      "gold_id": "dup_q08",
+      "source_docs": ["2011SE_MS24.PDF", "2011SE_MS29.PDF", "2011SE_MS30.PDF", "2011SE_MS35.PDF"],
+      "question": "Which authority was directed to take further action in these vigilance orders?",
+      "question_type": "direct_factual",
+      "difficulty": "easy",
+      "gold_answer": "The Commissioner and Director of School Education, A.P., Hyderabad was directed to take further action.",
+      "gold_short_answer": "The Commissioner and Director of School Education, A.P., Hyderabad.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS24.PDF",
+          "page": 1,
+          "section_label": "Paragraph 4",
+          "quoted_fact_summary": "Paragraph 4 directs the Commissioner and Director of School Education to take further action."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS24.PDF", "2011SE_MS29.PDF", "2011SE_MS30.PDF", "2011SE_MS35.PDF"],
+      "required_sections": ["Paragraph 4"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["correct_authority", "mentions_hyderabad"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["returns district collector or DEO", "drops authority title"]
+      },
+      "likely_primary_failure_if_wrong": "RETRIEVAL",
+      "likely_secondary_failures_if_wrong": ["GROUNDING"],
+      "developer_fix_hint": "Make sure operative closing paragraphs remain retrievable, not just allegations and sanction clauses."
+    },
+    {
+      "gold_id": "ms1_q01",
+      "source_docs": ["2011SE_MS1.PDF"],
+      "question": "What relief was granted to Smt. T. Jyothi?",
+      "question_type": "direct_factual",
+      "difficulty": "easy",
+      "gold_answer": "The Government allowed her appeal and ordered that Smt. T. Jyothi be reinstated into service as Secondary Grade Teacher in the aided post in R.C.M. Cathedral Aided Upper Primary School, Visakhapatnam, as a special case.",
+      "gold_short_answer": "She was reinstated into service as Secondary Grade Teacher.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS1.PDF",
+          "page": 1,
+          "section_label": "Paragraph 5",
+          "quoted_fact_summary": "Paragraph 5 orders reinstatement into service as a special case."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS1.PDF"],
+      "required_sections": ["Paragraph 5"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["mentions_reinstatement", "mentions_secondary_grade_teacher", "does_not_say_regularization"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["generic sympathy answer", "confuses with leave approval", "hallucinates regularization"]
+      },
+      "likely_primary_failure_if_wrong": "GROUNDING",
+      "likely_secondary_failures_if_wrong": ["RETRIEVAL"],
+      "developer_fix_hint": "Check whether the model is grounding on the factual background rather than the operative order."
+    },
+    {
+      "gold_id": "ms1_q02",
+      "source_docs": ["2011SE_MS1.PDF"],
+      "question": "How was the out-of-employment period to be treated?",
+      "question_type": "direct_factual",
+      "difficulty": "easy",
+      "gold_answer": "The out-of-employment period from the date of termination till the date of reinstatement was to be treated as dies-non.",
+      "gold_short_answer": "It was treated as dies-non.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS1.PDF",
+          "page": 1,
+          "section_label": "Paragraph 6",
+          "quoted_fact_summary": "Paragraph 6 states that the period of out of employment shall be treated as dies-non."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS1.PDF"],
+      "required_sections": ["Paragraph 6"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["mentions_dies_non", "correct_period_scope"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["says fully regularized service", "omits treatment of the period"]
+      },
+      "likely_primary_failure_if_wrong": "RETRIEVAL",
+      "likely_secondary_failures_if_wrong": ["GROUNDING"],
+      "developer_fix_hint": "Ensure later operative clauses are not dropped when retrieving this short order."
+    },
+    {
+      "gold_id": "ms1_q03",
+      "source_docs": ["2011SE_MS1.PDF"],
+      "question": "Under what basis did the Government allow Smt. T. Jyothi's reinstatement?",
+      "question_type": "legal_authority",
+      "difficulty": "medium",
+      "gold_answer": "The Government allowed reinstatement as a special case by relaxing specified conduct-rule provisions and by invoking Rule 31 of the A.P. State and Subordinate Service Rules after reconsideration of the matter.",
+      "gold_short_answer": "As a special case through relaxation of conduct-rule provisions and by invoking Rule 31.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS1.PDF",
+          "page": 1,
+          "section_label": "Paragraph 5",
+          "quoted_fact_summary": "Paragraph 5 describes relaxation of rules and invocation of Rule 31 for reinstatement as a special case."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS1.PDF"],
+      "required_sections": ["Paragraph 5"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["mentions_special_case", "mentions_relaxation", "mentions_rule_31"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["gives only a narrative reason", "drops legal basis", "hallucinates court order"]
+      },
+      "likely_primary_failure_if_wrong": "CHUNKING",
+      "likely_secondary_failures_if_wrong": ["GROUNDING"],
+      "developer_fix_hint": "Preserve long operative clauses with embedded legal basis; do not over-split them."
+    },
+    {
+      "gold_id": "ms11_q01",
+      "source_docs": ["2011SE_MS11.PDF"],
+      "question": "Why were the four teachers repatriated from Karimnagar district?",
+      "question_type": "multi_clause_factual",
+      "difficulty": "medium",
+      "gold_answer": "They were repatriated because they had been appointed in violation of Presidential Order 1975 and the reservation for locals under the local cadre rules.",
+      "gold_short_answer": "They were appointed in violation of Presidential Order 1975 and local reservation rules.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS11.PDF",
+          "page": 2,
+          "section_label": "Paragraphs 2 and 3",
+          "quoted_fact_summary": "Paragraphs 2 and 3 connect the repatriation request and the violation of Presidential Order 1975."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS11.PDF"],
+      "required_sections": ["Paragraph 2", "Paragraph 3"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["mentions_presidential_order_1975", "mentions_violation", "mentions_repatriation_reason"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 2,
+        "common_failure_signals": ["returns only public-interest wording", "drops violation basis", "mixes with district list"]
+      },
+      "likely_primary_failure_if_wrong": "CHUNKING",
+      "likely_secondary_failures_if_wrong": ["GROUNDING"],
+      "developer_fix_hint": "The cause and authority are spread across paragraphs; check whether they are being retrieved together."
+    },
+    {
+      "gold_id": "ms11_q02",
+      "source_docs": ["2011SE_MS11.PDF"],
+      "question": "Under which provision did the Government order repatriation of the four teachers?",
+      "question_type": "legal_authority",
+      "difficulty": "medium",
+      "gold_answer": "The Government ordered repatriation in terms of para 5(2)(c) of Presidential Order, 1975.",
+      "gold_short_answer": "Para 5(2)(c) of Presidential Order, 1975.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS11.PDF",
+          "page": 2,
+          "section_label": "Paragraph 3",
+          "quoted_fact_summary": "Paragraph 3 explicitly cites para 5(2)(c) of Presidential Order, 1975."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS11.PDF"],
+      "required_sections": ["Paragraph 3"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["correct_provision", "does_not_substitute_rule_5_c_generic"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["missing clause detail", "generic presidential order reference only"]
+      },
+      "likely_primary_failure_if_wrong": "GROUNDING",
+      "likely_secondary_failures_if_wrong": ["RETRIEVAL"],
+      "developer_fix_hint": "Check whether paragraph 3 is retained as a distinct clause-level chunk."
+    },
+    {
+      "gold_id": "ms11_q03",
+      "source_docs": ["2011SE_MS11.PDF"],
+      "question": "To which local cadre districts were the four teachers to be repatriated?",
+      "question_type": "table_plus_narrative",
+      "difficulty": "medium",
+      "gold_answer": "The four teachers were to be repatriated to Guntur, Nalgonda, Vizianagaram, and Prakasam local cadre districts.",
+      "gold_short_answer": "Guntur, Nalgonda, Vizianagaram, and Prakasam.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS11.PDF",
+          "page": 1,
+          "section_label": "Teacher details table",
+          "quoted_fact_summary": "The teacher list shows local cadre districts as Guntur, Nalgonda, Vizianagaram, and Prakasam."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS11.PDF"],
+      "required_sections": ["Teacher details list"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["all_four_districts_present", "no_extra_districts"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["drops one district", "uses Karimnagar as destination", "mixes school names with district names"]
+      },
+      "likely_primary_failure_if_wrong": "PARSING",
+      "likely_secondary_failures_if_wrong": ["CHUNKING"],
+      "developer_fix_hint": "Inspect table/list extraction for the teacher detail block."
+    },
+    {
+      "gold_id": "ms16_q01",
+      "source_docs": ["2011SE_MS16.PDF"],
+      "question": "For which classes was review of syllabus permitted?",
+      "question_type": "direct_factual",
+      "difficulty": "easy",
+      "gold_answer": "Review of syllabus was permitted for classes VII to X.",
+      "gold_short_answer": "Classes VII to X.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS16.PDF",
+          "page": 1,
+          "section_label": "Paragraphs 2 and 5(i)",
+          "quoted_fact_summary": "The order permits review of syllabus for classes VII to X."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS16.PDF"],
+      "required_sections": ["Paragraph 2", "Paragraph 5(i)"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["correct_class_range", "does_not_expand_to_i_to_x"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["returns classes I-X", "mixes textbook development classes with syllabus review classes"]
+      },
+      "likely_primary_failure_if_wrong": "GROUNDING",
+      "likely_secondary_failures_if_wrong": ["RETRIEVAL"],
+      "developer_fix_hint": "Differentiate between syllabus review scope and textbook development scope in the same order."
+    },
+    {
+      "gold_id": "ms16_q02",
+      "source_docs": ["2011SE_MS16.PDF"],
+      "question": "What additional budget was requested for syllabus review, new textbooks, and moral education work?",
+      "question_type": "date_amount_count_extraction",
+      "difficulty": "medium",
+      "gold_answer": "An additional budget of Rs.1,94,51,595 was requested for the purposes listed in paragraph 3.",
+      "gold_short_answer": "Rs.1,94,51,595.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS16.PDF",
+          "page": 2,
+          "section_label": "Paragraph 3(iv)",
+          "quoted_fact_summary": "Paragraph 3(iv) requests an additional budget of Rs.1,94,51,595."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS16.PDF"],
+      "required_sections": ["Paragraph 3(iv)"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["correct_requested_amount", "does_not_swap_with_finance_release_amount"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["returns 1,94,52,000 instead", "rounds amount loosely", "drops request context"]
+      },
+      "likely_primary_failure_if_wrong": "GROUNDING",
+      "likely_secondary_failures_if_wrong": ["CHUNKING"],
+      "developer_fix_hint": "Check whether the model is conflating requested amount in paragraph 3 with finance release in paragraph 4."
+    },
+    {
+      "gold_id": "ms16_q03",
+      "source_docs": ["2011SE_MS16.PDF"],
+      "question": "What amount did the Finance Department release through the Budget Release Order?",
+      "question_type": "date_amount_count_extraction",
+      "difficulty": "medium",
+      "gold_answer": "The Finance Department issued a Budget Release Order for Rs.1,94,52,000.",
+      "gold_short_answer": "Rs.1,94,52,000.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS16.PDF",
+          "page": 2,
+          "section_label": "Paragraph 4",
+          "quoted_fact_summary": "Paragraph 4 states that the Budget Release Order was for Rs.1,94,52,000."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS16.PDF"],
+      "required_sections": ["Paragraph 4"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["correct_release_amount", "mentions_budget_release_order"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["returns requested amount instead", "omits finance release context"]
+      },
+      "likely_primary_failure_if_wrong": "GROUNDING",
+      "likely_secondary_failures_if_wrong": ["RETRIEVAL"],
+      "developer_fix_hint": "Preserve neighboring monetary clauses separately so the model can distinguish request from release."
+    },
+    {
+      "gold_id": "ms16_q04",
+      "source_docs": ["2011SE_MS16.PDF"],
+      "question": "What moral education text was proposed for introduction at high school level?",
+      "question_type": "direct_factual",
+      "difficulty": "easy",
+      "gold_answer": "The proposed moral education text was 'Life and Teachings of Swami Vivekananda.'",
+      "gold_short_answer": "Life and Teachings of Swami Vivekananda.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS16.PDF",
+          "page": 1,
+          "section_label": "Paragraph 3 and 5(iii)",
+          "quoted_fact_summary": "The order proposes Life and Teachings of Swami Vivekananda as part of moral education."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS16.PDF"],
+      "required_sections": ["Paragraph 3", "Paragraph 5(iii)"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["correct_text_name", "mentions_moral_education_context"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["generic value education answer", "wrong book title", "drops Swami Vivekananda"]
+      },
+      "likely_primary_failure_if_wrong": "RETRIEVAL",
+      "likely_secondary_failures_if_wrong": ["GROUNDING"],
+      "developer_fix_hint": "Check retrieval around the permission list and whether non-detailed text references are preserved."
+    },
+    {
+      "gold_id": "ms17_q01",
+      "source_docs": ["2011SE_MS17.PDF"],
+      "question": "To how many adhoc teachers was the benefit of RPS 2010 extended?",
+      "question_type": "direct_factual",
+      "difficulty": "easy",
+      "gold_answer": "The benefit of RPS 2010 was extended to 21 adhoc teachers working in APREIS.",
+      "gold_short_answer": "21 adhoc teachers.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS17.PDF",
+          "page": 1,
+          "section_label": "Abstract and paragraph 4",
+          "quoted_fact_summary": "The order extends RPS 2010 to 21 adhoc teachers."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS17.PDF"],
+      "required_sections": ["Paragraph 4"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["correct_count", "mentions_apreis_context"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["uses original 24 teachers", "confuses with 21 after rejections context"]
+      },
+      "likely_primary_failure_if_wrong": "GROUNDING",
+      "likely_secondary_failures_if_wrong": ["RETRIEVAL"],
+      "developer_fix_hint": "Separate the historical 24-teacher background from the operative 21-teacher decision."
+    },
+    {
+      "gold_id": "ms17_q02",
+      "source_docs": ["2011SE_MS17.PDF"],
+      "question": "Was the extension of RPS 2010 prospective or retrospective?",
+      "question_type": "direct_factual",
+      "difficulty": "easy",
+      "gold_answer": "The extension was prospective, from the date of issue of orders.",
+      "gold_short_answer": "Prospective, from the date of issue of orders.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS17.PDF",
+          "page": 2,
+          "section_label": "Paragraph 4",
+          "quoted_fact_summary": "Paragraph 4 says the benefit is extended with prospective effect from the date of issue of orders."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS17.PDF"],
+      "required_sections": ["Paragraph 4"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["mentions_prospective", "mentions_date_of_issue"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["says retrospective due to older writ context", "omits temporal condition"]
+      },
+      "likely_primary_failure_if_wrong": "GROUNDING",
+      "likely_secondary_failures_if_wrong": ["CHUNKING"],
+      "developer_fix_hint": "Keep the operative order separate from the long historical litigation narrative."
+    },
+    {
+      "gold_id": "ms17_q03",
+      "source_docs": ["2011SE_MS17.PDF"],
+      "question": "Did extension of the minimum time scale confer any right to regularization?",
+      "question_type": "direct_factual",
+      "difficulty": "easy",
+      "gold_answer": "No. The order explicitly states that extension of the minimum time scale shall not confer any right for regularization of their services or otherwise.",
+      "gold_short_answer": "No, it did not confer a right to regularization.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS17.PDF",
+          "page": 2,
+          "section_label": "Paragraph 4",
+          "quoted_fact_summary": "Paragraph 4 explicitly denies any right to regularization from the extension."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS17.PDF"],
+      "required_sections": ["Paragraph 4"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["explicit_no", "mentions_regularization", "does_not_soften_to_maybe"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["implies regularization benefit", "drops the limitation clause"]
+      },
+      "likely_primary_failure_if_wrong": "GROUNDING",
+      "likely_secondary_failures_if_wrong": ["CONFIDENCE"],
+      "developer_fix_hint": "Inspect whether restrictive clauses at the end of long paragraphs are being preserved."
+    },
+    {
+      "gold_id": "ms22_q01",
+      "source_docs": ["2011SE_MS22.PDF"],
+      "question": "Whose name was deleted from the annexure to G.O.Ms.No.158?",
+      "question_type": "amendment_exception",
+      "difficulty": "easy",
+      "gold_answer": "The name of Smt P. Mary Usha Rani was deleted from the annexure to G.O.Ms.No.158.",
+      "gold_short_answer": "Smt P. Mary Usha Rani.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS22.PDF",
+          "page": 1,
+          "section_label": "Paragraph 3",
+          "quoted_fact_summary": "Paragraph 3 states that the name of Smt P. Mary Usha Rani at serial number 43 is deleted."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS22.PDF"],
+      "required_sections": ["Paragraph 3"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["correct_person_name", "mentions_deletion_from_list"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["returns one of the 133 generic teachers", "omits amendment action"]
+      },
+      "likely_primary_failure_if_wrong": "GROUNDING",
+      "likely_secondary_failures_if_wrong": ["RETRIEVAL"],
+      "developer_fix_hint": "Check whether amendment paragraphs are retrieved as distinct operative statements."
+    },
+    {
+      "gold_id": "ms22_q02",
+      "source_docs": ["2011SE_MS22.PDF"],
+      "question": "Why was Smt P. Mary Usha Rani's name deleted from the repatriation list?",
+      "question_type": "multi_clause_factual",
+      "difficulty": "medium",
+      "gold_answer": "Her name was deleted because on recalculation against the notified posts in DSC-2000 she fell within the 20% open competition quota and could therefore be retained in Medak District.",
+      "gold_short_answer": "She fell under the 20% open competition quota after recalculation and could be retained in Medak.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS22.PDF",
+          "page": 1,
+          "section_label": "Paragraphs 2 and 3",
+          "quoted_fact_summary": "The order explains that recalculation of 20% and 80% open category posts allowed her retention in Medak."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS22.PDF"],
+      "required_sections": ["Paragraph 2", "Paragraph 3"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["mentions_recalculation", "mentions_20_percent_open_competition", "mentions_retention_in_medak"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 2,
+        "common_failure_signals": ["says court alone caused deletion", "drops quota explanation", "mixes with Nalgonda local cadre background only"]
+      },
+      "likely_primary_failure_if_wrong": "CHUNKING",
+      "likely_secondary_failures_if_wrong": ["GROUNDING"],
+      "developer_fix_hint": "The causal explanation spans multiple paragraphs; verify they are retrieved together."
+    },
+    {
+      "gold_id": "ms22_q03",
+      "source_docs": ["2011SE_MS22.PDF"],
+      "question": "Under which larger legal framework was the original repatriation exercise being reviewed in this amendment order?",
+      "question_type": "legal_authority",
+      "difficulty": "medium",
+      "gold_answer": "The repatriation exercise was under the Presidential Order, 1975 governing organization of local cadres and regulation of direct recruitment.",
+      "gold_short_answer": "The Presidential Order, 1975 on local cadres and direct recruitment.",
+      "supporting_evidence": [
+        {
+          "doc_id": "2011SE_MS22.PDF",
+          "page": 1,
+          "section_label": "Abstract and paragraph 1",
+          "quoted_fact_summary": "The order frames the case under the Andhra Pradesh Public Employment (Organization of Local Cadres and Regulation of Direct Recruitment) Orders, 1975."
+        }
+      ],
+      "required_doc_ids": ["2011SE_MS22.PDF"],
+      "required_sections": ["Abstract", "Paragraph 1"],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["mentions_presidential_order_1975", "mentions_local_cadres_or_direct_recruitment"],
+      "diagnostic_expectations": {
+        "answer_should": "answer",
+        "minimum_support_count": 1,
+        "common_failure_signals": ["returns only G.O.Ms.No.158", "omits legal framework"]
+      },
+      "likely_primary_failure_if_wrong": "RETRIEVAL",
+      "likely_secondary_failures_if_wrong": ["GROUNDING"],
+      "developer_fix_hint": "Ensure the abstract and opening frame remain available to the retriever for amendment orders."
+    },
+    {
+      "gold_id": "neg_q01",
+      "source_docs": ["2011SE_MS9.PDF"],
+      "question": "What was the teacher salary arrears budget in 2012 for Krishna district under this order?",
+      "question_type": "abstention",
+      "difficulty": "easy",
+      "gold_answer": "The order does not provide a 2012 teacher salary arrears budget for Krishna district, so the system should abstain.",
+      "gold_short_answer": "Abstain; not provided in the corpus.",
+      "supporting_evidence": [],
+      "required_doc_ids": [],
+      "required_sections": [],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["abstains", "does_not_invent_budget"],
+      "diagnostic_expectations": {
+        "answer_should": "abstain",
+        "minimum_support_count": 0,
+        "common_failure_signals": ["invented amount", "unsupported year-specific claim"]
+      },
+      "likely_primary_failure_if_wrong": "SUFFICIENCY",
+      "likely_secondary_failures_if_wrong": ["GROUNDING", "CONFIDENCE"],
+      "developer_fix_hint": "If the system answers here, unsupported numeric generation is not being blocked."
+    },
+    {
+      "gold_id": "neg_q02",
+      "source_docs": ["2011SE_MS15.PDF"],
+      "question": "Which union approved the SIET anomaly committee recommendations in 2012?",
+      "question_type": "abstention",
+      "difficulty": "easy",
+      "gold_answer": "The corpus does not identify any union approval in 2012, so the system should abstain.",
+      "gold_short_answer": "Abstain; no such union approval is stated.",
+      "supporting_evidence": [],
+      "required_doc_ids": [],
+      "required_sections": [],
+      "should_abstain_if_missing_support": true,
+      "answer_quality_checks": ["abstains", "does_not_invent_actor"],
+      "diagnostic_expectations": {
+        "answer_should": "abstain",
+        "minimum_support_count": 0,
+        "common_failure_signals": ["hallucinated union name", "unsupported approval process"]
+      },
+      "likely_primary_failure_if_wrong": "SUFFICIENCY",
+      "likely_secondary_failures_if_wrong": ["GROUNDING"],
+      "developer_fix_hint": "Review whether the model is overgeneralizing from committee language into ungrounded approval narratives."
+    }
+  ]
+}

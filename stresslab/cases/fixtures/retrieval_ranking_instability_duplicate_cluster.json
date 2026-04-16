@@ -1,0 +1,14 @@
+{
+  "case_id": "retrieval_ranking_instability_duplicate_cluster",
+  "document_set": ["2011SE_MS20.PDF", "2011SE_MS22.PDF", "2011SE_MS24.PDF"],
+  "query": "Which document contains the operative clause about district-level implementation rather than background language?",
+  "gold_answer": "The answer should identify the document with the operative district-level implementation clause even when multiple documents contain duplicate boilerplate.",
+  "gold_supporting_locations": ["2011SE_MS24.PDF#node:2"],
+  "pipeline_variant": "retrieval",
+  "failure_injection": "shuffle_duplicate_similarity_ties",
+  "expected_primary_failure": "retrieval_ranking_instability",
+  "expected_secondary_failures": ["embedding_semantic_drift"],
+  "expected_should_have_answered": true,
+  "severity": "medium",
+  "deterministic_or_query_dependent": "query_dependent"
+}

@@ -1,0 +1,14 @@
+{
+  "case_id": "parse_table_corruption_ms39",
+  "document_set": ["2011SE_MS39.PDF"],
+  "query": "Which adult education centres and post allocations are listed in the statement attached to MS39?",
+  "gold_answer": "The statement in MS39 lists adult education centres and their associated post allocations.",
+  "gold_supporting_locations": ["2011SE_MS39.PDF#table:table-1"],
+  "pipeline_variant": "parse-only",
+  "failure_injection": "flatten_statement_rows",
+  "expected_primary_failure": "parse_table_corruption",
+  "expected_secondary_failures": ["retrieval_missing_critical_context"],
+  "expected_should_have_answered": true,
+  "severity": "high",
+  "deterministic_or_query_dependent": "deterministic"
+}

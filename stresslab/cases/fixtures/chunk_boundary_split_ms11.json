@@ -1,0 +1,14 @@
+{
+  "case_id": "chunk_boundary_split_ms11",
+  "document_set": ["2011SE_MS11.PDF"],
+  "query": "Which eligibility condition in MS11 depends on language that spans two adjacent clauses?",
+  "gold_answer": "The answer requires a clause whose condition and exception are separated across an artificial chunk boundary.",
+  "gold_supporting_locations": ["2011SE_MS11.PDF#node:1", "2011SE_MS11.PDF#node:(i)"],
+  "pipeline_variant": "fixed-chunking",
+  "failure_injection": "force_clause_split",
+  "expected_primary_failure": "chunk_boundary_split",
+  "expected_secondary_failures": ["retrieval_missing_critical_context"],
+  "expected_should_have_answered": true,
+  "severity": "high",
+  "deterministic_or_query_dependent": "deterministic"
+}

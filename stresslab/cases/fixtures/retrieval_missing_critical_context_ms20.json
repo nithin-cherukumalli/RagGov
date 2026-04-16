@@ -1,0 +1,14 @@
+{
+  "case_id": "retrieval_missing_critical_context_ms20",
+  "document_set": ["2011SE_MS20.PDF"],
+  "query": "What is the neighbourhood school obligation and which exception modifies it in MS20?",
+  "gold_answer": "The answer must include both the main obligation and the modifying exception from the same rule set.",
+  "gold_supporting_locations": ["2011SE_MS20.PDF#node:3", "2011SE_MS20.PDF#node:(2)"],
+  "pipeline_variant": "retrieval",
+  "failure_injection": "top_k_excludes_exception_chunk",
+  "expected_primary_failure": "retrieval_missing_critical_context",
+  "expected_secondary_failures": ["chunk_boundary_split"],
+  "expected_should_have_answered": true,
+  "severity": "high",
+  "deterministic_or_query_dependent": "query_dependent"
+}

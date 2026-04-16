@@ -29,6 +29,11 @@ llm = [
     "openai>=1.0",
     "anthropic>=0.20",
 ]
+stresslab = [
+    "httpx>=0.27",
+    "numpy>=1.26",
+    "pdfplumber>=0.11",
+]
 
 [dependency-groups]
 dev = [
@@ -42,4 +47,4 @@ dev = [
 addopts = "-p no:asyncio"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/raggov"]
+packages = ["src/raggov", "stresslab"]

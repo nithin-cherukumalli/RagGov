@@ -1,0 +1,14 @@
+{
+  "case_id": "parse_hierarchy_loss_ms20",
+  "document_set": ["2011SE_MS20.PDF"],
+  "query": "What rule defines the age group eligible for neighbourhood school admission under the MS20 order?",
+  "gold_answer": "The order's rule hierarchy identifies the age-related admission rule within the Andhra Pradesh Right of Children to Free and Compulsory Education Rules.",
+  "gold_supporting_locations": ["2011SE_MS20.PDF#node:5", "2011SE_MS20.PDF#node:(4)"],
+  "pipeline_variant": "parse-only",
+  "failure_injection": "drop_parent_child_links",
+  "expected_primary_failure": "parse_hierarchy_loss",
+  "expected_secondary_failures": ["cross_section_reasoning"],
+  "expected_should_have_answered": true,
+  "severity": "high",
+  "deterministic_or_query_dependent": "deterministic"
+}

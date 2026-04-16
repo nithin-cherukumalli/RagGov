@@ -1,0 +1,14 @@
+{
+  "case_id": "undersegmentation_ms20",
+  "document_set": ["2011SE_MS20.PDF"],
+  "query": "What does MS20 require regarding maintaining school records for eligible children?",
+  "gold_answer": "The answer should identify the record-keeping requirement in the relevant rule of MS20.",
+  "gold_supporting_locations": ["2011SE_MS20.PDF#node:7"],
+  "pipeline_variant": "hierarchical-chunking",
+  "failure_injection": "merge_distinct_rules_into_single_chunk",
+  "expected_primary_failure": "undersegmentation",
+  "expected_secondary_failures": ["retrieval_ranking_instability"],
+  "expected_should_have_answered": true,
+  "severity": "medium",
+  "deterministic_or_query_dependent": "deterministic"
+}

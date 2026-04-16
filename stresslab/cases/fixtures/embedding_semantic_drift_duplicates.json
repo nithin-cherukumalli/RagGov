@@ -1,0 +1,14 @@
+{
+  "case_id": "embedding_semantic_drift_duplicates",
+  "document_set": ["2011SE_MS20.PDF", "2011SE_MS22.PDF"],
+  "query": "Which order specifically defines the school mapping obligation rather than repeating generic education policy language?",
+  "gold_answer": "The correct answer should point to the order that explicitly states the school mapping obligation and ignore semantically similar duplicate language.",
+  "gold_supporting_locations": ["2011SE_MS20.PDF#node:6"],
+  "pipeline_variant": "embedding-only",
+  "failure_injection": "duplicate_near_identical_chunks",
+  "expected_primary_failure": "embedding_semantic_drift",
+  "expected_secondary_failures": ["retrieval_ranking_instability"],
+  "expected_should_have_answered": true,
+  "severity": "high",
+  "deterministic_or_query_dependent": "query_dependent"
+}

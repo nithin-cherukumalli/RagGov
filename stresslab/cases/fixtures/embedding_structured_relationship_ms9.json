@@ -1,0 +1,14 @@
+{
+  "case_id": "embedding_structured_relationship_ms9",
+  "document_set": ["2011SE_MS9.PDF"],
+  "query": "Which authority approves the transfer and under what structured precondition in MS9?",
+  "gold_answer": "The answer requires preserving the relationship between approving authority and precondition stated in the order.",
+  "gold_supporting_locations": ["2011SE_MS9.PDF#node:3", "2011SE_MS9.PDF#node:(b)"],
+  "pipeline_variant": "embedding-only",
+  "failure_injection": "embed_fields_without_structure",
+  "expected_primary_failure": "embedding_structured_relationship",
+  "expected_secondary_failures": ["cross_section_reasoning"],
+  "expected_should_have_answered": true,
+  "severity": "high",
+  "deterministic_or_query_dependent": "query_dependent"
+}

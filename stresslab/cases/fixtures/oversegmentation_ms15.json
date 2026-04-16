@@ -1,0 +1,14 @@
+{
+  "case_id": "oversegmentation_ms15",
+  "document_set": ["2011SE_MS15.PDF"],
+  "query": "What combined condition in MS15 determines the sanctioned post and funding treatment?",
+  "gold_answer": "The answer depends on reading a condition and its consequence together rather than in isolated fragments.",
+  "gold_supporting_locations": ["2011SE_MS15.PDF#node:2", "2011SE_MS15.PDF#node:(2)"],
+  "pipeline_variant": "fixed-chunking",
+  "failure_injection": "split_every_sentence",
+  "expected_primary_failure": "oversegmentation",
+  "expected_secondary_failures": ["cross_section_reasoning"],
+  "expected_should_have_answered": true,
+  "severity": "medium",
+  "deterministic_or_query_dependent": "deterministic"
+}

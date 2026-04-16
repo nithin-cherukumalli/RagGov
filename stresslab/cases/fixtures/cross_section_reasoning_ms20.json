@@ -1,0 +1,14 @@
+{
+  "case_id": "cross_section_reasoning_ms20",
+  "document_set": ["2011SE_MS20.PDF"],
+  "query": "How do the admission rule and record-maintenance rule combine to govern follow-up when a child is newly identified?",
+  "gold_answer": "The answer requires combining the admission rule with the separate record-maintenance rule from MS20.",
+  "gold_supporting_locations": ["2011SE_MS20.PDF#node:5", "2011SE_MS20.PDF#node:7"],
+  "pipeline_variant": "retrieval-plus-answering",
+  "failure_injection": "retrieve_single_section_only",
+  "expected_primary_failure": "cross_section_reasoning",
+  "expected_secondary_failures": ["retrieval_missing_critical_context"],
+  "expected_should_have_answered": true,
+  "severity": "high",
+  "deterministic_or_query_dependent": "query_dependent"
+}

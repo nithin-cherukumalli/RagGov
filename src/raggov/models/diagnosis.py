@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -12,9 +12,14 @@ from pydantic import BaseModel, ConfigDict, Field
 class FailureStage(str, Enum):
     """Pipeline stages where a RagGov failure can originate."""
 
+    PARSING = "PARSING"
+    CHUNKING = "CHUNKING"
+    EMBEDDING = "EMBEDDING"
     RETRIEVAL = "RETRIEVAL"
+    RERANKING = "RERANKING"
     GROUNDING = "GROUNDING"
     SUFFICIENCY = "SUFFICIENCY"
+    GENERATION = "GENERATION"
     SECURITY = "SECURITY"
     CONFIDENCE = "CONFIDENCE"
     UNKNOWN = "UNKNOWN"
@@ -33,7 +38,14 @@ class FailureType(str, Enum):
     PROMPT_INJECTION = "PROMPT_INJECTION"
     SUSPICIOUS_CHUNK = "SUSPICIOUS_CHUNK"
     RETRIEVAL_ANOMALY = "RETRIEVAL_ANOMALY"
+    PRIVACY_VIOLATION = "PRIVACY_VIOLATION"
     LOW_CONFIDENCE = "LOW_CONFIDENCE"
+    PARSER_STRUCTURE_LOSS = "PARSER_STRUCTURE_LOSS"
+    CHUNKING_BOUNDARY_ERROR = "CHUNKING_BOUNDARY_ERROR"
+    EMBEDDING_DRIFT = "EMBEDDING_DRIFT"
+    RETRIEVAL_DEPTH_LIMIT = "RETRIEVAL_DEPTH_LIMIT"
+    RERANKER_FAILURE = "RERANKER_FAILURE"
+    GENERATION_IGNORE = "GENERATION_IGNORE"
     CLEAN = "CLEAN"
 
 
@@ -70,6 +82,9 @@ class AnalyzerResult(BaseModel):
     security_risk: SecurityRisk | None = None
     evidence: list[str] = Field(default_factory=list)
     remediation: str | None = None
+    attribution_stage: FailureStage | None = None
+    proposed_fix: str | None = None
+    fix_confidence: float | None = None
 
 
 class Diagnosis(BaseModel):
@@ -91,12 +106,59 @@ class Diagnosis(BaseModel):
     checks_skipped: list[str] = Field(default_factory=list)
     analyzer_results: list[AnalyzerResult] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    root_cause_attribution: str | None = None
+    proposed_fix: str | None = None
+    fix_confidence: float | None = None
+    layer6_report: dict[str, Any] | None = None
+    failure_chain: list[str] = Field(default_factory=list)
+    semantic_entropy: float | None = None
 
     def summary(self) -> str:
-        """Return a single human-readable paragraph summarizing the diagnosis."""
-        return (
-            f"Run {self.run_id}: {self.primary_failure.value} at "
-            f"{self.root_cause_stage.value} stage. Should have answered: "
-            f"{self.should_have_answered}. Security risk: {self.security_risk.value}. "
-            f"Recommended fix: {self.recommended_fix}"
+        """Return a multi-line human-readable summary of the diagnosis.
+
+        Format:
+            Run {run_id} | {primary_failure} | Stage: {root_cause_stage}
+            Should answer: {should_have_answered} | Risk: {security_risk} | Confidence: {confidence}
+            Failure chain: {failure_chain}
+            Root cause: {root_cause_attribution}
+            Fix: {proposed_fix or recommended_fix}
+        """
+        lines = []
+
+        # Line 1: Run ID, failure type, and stage
+        confidence_str = f"{self.confidence:.2f}" if self.confidence is not None else "N/A"
+        line1 = (
+            f"Run {self.run_id} | {self.primary_failure.value} | "
+            f"Stage: {self.root_cause_stage.value}"
         )
+        lines.append(line1)
+
+        # Line 2: Should answer, risk, confidence
+        line2 = (
+            f"Should answer: {self.should_have_answered} | "
+            f"Risk: {self.security_risk.value} | "
+            f"Confidence: {confidence_str}"
+        )
+        lines.append(line2)
+
+        # Line 3: Failure chain (if present)
+        if self.failure_chain:
+            chain_str = " → ".join(self.failure_chain)
+            lines.append(f"Failure chain: {chain_str}")
+
+        # Line 4: Semantic entropy (if present)
+        if self.semantic_entropy is not None:
+            lines.append(f"Semantic entropy: {self.semantic_entropy:.2f}")
+
+        # Line 5: Root cause (if present)
+        if self.root_cause_attribution:
+            lines.append(f"Root cause: {self.root_cause_attribution}")
+
+        # Line 6: Fix (proposed fix takes precedence over recommended fix)
+        fix_text = self.proposed_fix if self.proposed_fix else self.recommended_fix
+        if self.fix_confidence is not None:
+            lines.append(f"Fix ({self.fix_confidence:.0%} confidence): {fix_text}")
+        else:
+            lines.append(f"Fix: {fix_text}")
+
+        return "\n".join(lines)

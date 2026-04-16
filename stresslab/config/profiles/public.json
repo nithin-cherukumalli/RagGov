@@ -1,0 +1,9 @@
+{
+  "name": "public",
+  "llm_base_url": "http://103.44.12.98:8000",
+  "embedding_url": "http://103.44.12.98:8001/v1/embeddings",
+  "answer_model": "TODO",
+  "embedding_model": "TODO",
+  "top_k": 5,
+  "artifact_dir": "stresslab/artifacts"
+}
