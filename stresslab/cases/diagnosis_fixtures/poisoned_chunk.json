@@ -1,0 +1,9 @@
+{
+  "case_id": "poisoned_chunk",
+  "run_fixture": "fixtures/poisoned_chunk.json",
+  "expected_primary_failure": "SUSPICIOUS_CHUNK",
+  "expected_root_cause_stage": "SECURITY",
+  "expected_should_have_answered": false,
+  "expected_citation_faithfulness": "genuine",
+  "notes": "Poisoned corpus content should be attributed to security."
+}

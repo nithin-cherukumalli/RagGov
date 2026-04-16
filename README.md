@@ -1,52 +1,160 @@
-# RagGov
+# GovRAG
 
-Diagnose why your RAG answer failed, whether the evidence was unsafe, and whether the system should have answered at all.
+**Diagnosis for production RAG systems.**
 
-## What it does
+GovRAG tells you why a RAG answer failed, where the failure originated, whether the evidence was unsafe, and whether the system should have answered at all.
 
-RagGov takes a `RAGRun` object containing a query, retrieved chunks, citations, final answer, and optional corpus metadata. It runs deterministic analyzers for retrieval quality, context sufficiency, grounding, security, and confidence. It returns a structured `Diagnosis` with a primary failure, supporting evidence, security risk, abstention decision, and recommended fix.
+Most RAG tooling measures answer quality or traces execution. GovRAG is built for a different job: failure attribution.
 
-## Why it exists
+## Overview
 
-RAGAS, DeepEval, and LangSmith are useful when you need scoring, tracing, and evaluation workflows. RagGov focuses on the next question engineers ask after a score drops: what failed, where did it fail, and should the system have answered at all? It is built to produce an inspectable diagnosis rather than another black-box aggregate metric.
+Production RAG systems do not fail in one place.
 
-## Quick Install
+They fail because table structure was flattened during parsing, because chunk boundaries broke a governing clause, because embeddings collapsed near-duplicate records, because retrieval missed the controlling evidence, because the model ignored available context, or because unsafe content entered the context window and steered generation.
+
+Those are different engineering failures. They should not be collapsed into a single "hallucination" bucket.
+
+GovRAG sits on top of an existing RAG pipeline, accepts a normalized `RAGRun`, executes a diagnosis suite, and returns a structured `Diagnosis` that explains:
+
+- the primary failure
+- the root-cause stage
+- the secondary failures
+- whether the system should have answered
+- the security risk
+- the confidence level
+- the evidence supporting the diagnosis
+- the recommended next fix
+
+This is not a score wrapper. It is a diagnosis layer for systems that need to be debugged, governed, and improved deliberately.
+
+## Why GovRAG
+
+RAGAS, DeepEval, and similar frameworks are useful when the question is:
+
+> Was the answer good?
+
+Tracing and observability platforms such as LangSmith are useful when the question is:
+
+> What happened during execution?
+
+GovRAG is built for the next question:
+
+> What failed first, what followed from it, and what should the engineer fix?
+
+That distinction matters in practice. The same visibly bad answer can come from fundamentally different causes:
+
+- retrieval returned the wrong near-duplicate document
+- chunking separated the legal condition from the operative clause
+- the parser destroyed a table before retrieval ever ran
+- the model fabricated a detail despite relevant evidence being present
+- the retrieved context itself contained prompt-injection content
+
+Good engineering decisions depend on telling those apart.
+
+## What Is Novel
+
+GovRAG is built around an explicit failure model for RAG systems rather than a generic output-quality abstraction.
+
+### Layer 6-style Failure Taxonomy
+
+GovRAG uses a stage-aware taxonomy aligned with how complex RAG pipelines actually break:
+
+- parsing
+- chunking
+- embedding
+- retrieval
+- grounding
+- sufficiency
+- security
+- confidence
+
+The value of that taxonomy is practical. Downstream symptoms often obscure upstream causes. An unsupported claim may be a retrieval problem, a chunk-boundary problem, a parser problem, or a generation problem. GovRAG is designed to separate those cases.
+
+### A2P-style Attribution
+
+GovRAG is designed to move from symptom detection to attribution:
+
+- what failed
+- what likely caused it
+- what downstream issues were side effects
+- what action is most likely to improve the system
+
+The goal is not to stop at:
+
+> unsupported claim
+
+The goal is to say:
+
+> unsupported claim because retrieval missed the governing clause, likely due to chunk boundary loss, and the next intervention should be clause-preserving chunking or broader retrieval.
+
+That is the difference between an evaluation artifact and an engineering tool.
+
+### Entropy-based Confabulation Signals
+
+GovRAG’s direction includes uncertainty signals based on semantic instability, not just answer fluency.
+
+If repeated answers over the same evidence converge semantically, confidence should rise. If they diverge semantically, the system is confabulating even when each answer looks polished in isolation.
+
+That is a stronger production signal than surface-level confidence heuristics.
+
+## What GovRAG Checks
+
+GovRAG currently ships with deterministic analyzers across retrieval, sufficiency, grounding, security, and confidence.
+
+| Domain | Analyzer | Purpose |
+| --- | --- | --- |
+| Retrieval | `StaleRetrievalAnalyzer` | Detects outdated retrieved documents |
+| Retrieval | `CitationMismatchAnalyzer` | Detects citations outside the retrieved context window |
+| Retrieval | `InconsistentChunksAnalyzer` | Flags contradiction-like signals across retrieved chunks |
+| Retrieval | `ScopeViolationAnalyzer` | Detects off-topic retrieval relative to the query |
+| Sufficiency | `SufficiencyAnalyzer` | Determines whether the retrieved context is sufficient to answer reliably |
+| Grounding | `ClaimGroundingAnalyzer` | Checks whether answer claims are entailed, unsupported, or contradicted |
+| Security | `PromptInjectionAnalyzer` | Detects instruction-like, exfiltration, and jailbreak-style content in retrieved chunks |
+| Security | `RetrievalAnomalyAnalyzer` | Flags anomalous retrieval patterns consistent with manipulation or poisoning |
+| Security | `PoisoningHeuristicAnalyzer` | Detects answer-steering chunks with suspiciously strong retrieval characteristics |
+| Confidence | `ConfidenceAnalyzer` | Aggregates caller confidence, retrieval quality, and analyzer outcomes into a final trust signal |
+
+## Failure Taxonomy
+
+GovRAG uses typed failure classes so diagnoses are stable, inspectable, and automatable.
+
+| Failure Type | Meaning |
+| --- | --- |
+| `STALE_RETRIEVAL` | Retrieved material is outdated relative to the task |
+| `SCOPE_VIOLATION` | Retrieved context is likely off-topic |
+| `CITATION_MISMATCH` | The answer cites sources outside the retrieved context |
+| `INCONSISTENT_CHUNKS` | Retrieved chunks show contradiction-like signals |
+| `INSUFFICIENT_CONTEXT` | The retrieved context does not contain enough information to answer reliably |
+| `UNSUPPORTED_CLAIM` | The answer makes claims not supported by retrieved evidence |
+| `CONTRADICTED_CLAIM` | The answer conflicts with retrieved evidence |
+| `PROMPT_INJECTION` | Retrieved content contains instruction-like or adversarial prompt material |
+| `SUSPICIOUS_CHUNK` | A chunk exhibits poisoning-like answer-steering behavior |
+| `RETRIEVAL_ANOMALY` | Retrieval behavior shows statistical or structural anomalies |
+| `LOW_CONFIDENCE` | Aggregate signals indicate the output is not trustworthy |
+| `CLEAN` | No significant failure was detected |
+
+Every diagnosis also includes:
+
+- `root_cause_stage`
+- `should_have_answered`
+- `security_risk`
+- `confidence`
+- `evidence`
+- `recommended_fix`
+
+## Install
 
 ```bash
 pip install raggov
 ```
 
-## Quick Start
-
-### CLI
+For local development:
 
 ```bash
-raggov diagnose run.json
+pip install -e .[llm]
 ```
 
-Sample output:
-
-```text
-+--------------------------------------------------------------------------------+
-| Diagnosis: 9ad6b53c-cc9a-4d9d-b0e0-7157fd4c4c25                                 |
-+--------------------------------------------------------------------------------+
-| Run ID                 9ad6b53c-cc9a-4d9d-b0e0-7157fd4c4c25                       |
-| Timestamp              2026-04-10T11:22:04.118000+00:00                          |
-| Primary failure        PROMPT_INJECTION                                          |
-| Should have answered   No                                                        |
-| Security risk          HIGH                                                      |
-| Confidence             0.29                                                      |
-| Evidence               - prompt-injection-chunk-2: 5 hit(s): ignore previous...   |
-| Recommended fix        Retrieved chunk(s) contain instruction-like content        |
-|                        consistent with prompt injection. Sanitize corpus or add   |
-|                        a pre-retrieval content filter.                           |
-| Checks                 StaleRetrievalAnalyzer       pass                          |
-|                        CitationMismatchAnalyzer     pass                          |
-|                        PromptInjectionAnalyzer      fail  PROMPT_INJECTION        |
-|                        ConfidenceAnalyzer           fail  LOW_CONFIDENCE          |
-+--------------------------------------------------------------------------------+
-Wrote raw diagnosis JSON to ./9ad6b53c-cc9a-4d9d-b0e0-7157fd4c4c25_diagnosis.json
-```
+## Quick Start
 
 ### Python SDK
 
@@ -54,24 +162,40 @@ Wrote raw diagnosis JSON to ./9ad6b53c-cc9a-4d9d-b0e0-7157fd4c4c25_diagnosis.jso
 from raggov import RAGRun, RetrievedChunk, diagnose
 
 run = RAGRun(
-    query="Summarize the refund rules.",
+    query="What is the refund window?",
     retrieved_chunks=[
         RetrievedChunk(
             chunk_id="chunk-1",
-            text="Refunds are available within fourteen days.",
+            text="Refunds are available within fourteen days of purchase.",
             source_doc_id="doc-1",
-            score=0.91,
+            score=0.92,
         )
     ],
-    final_answer="Refunds are available within fourteen days.",
+    final_answer="Refunds are available within fourteen days of purchase.",
+    cited_doc_ids=["doc-1"],
 )
+
 diagnosis = diagnose(run)
-print(diagnosis.primary_failure, diagnosis.should_have_answered)
+
+print(diagnosis.summary())
+print(diagnosis.primary_failure)
+print(diagnosis.should_have_answered)
 ```
 
-### Sample Diagnosis JSON
+### CLI
 
-Prompt injection diagnosis:
+```bash
+raggov diagnose run.json
+```
+
+GovRAG will:
+
+1. validate the run input
+2. execute the analyzer suite
+3. print a structured diagnosis panel
+4. write raw diagnosis JSON to the working directory
+
+## Example Diagnosis
 
 ```json
 {
@@ -79,125 +203,130 @@ Prompt injection diagnosis:
   "primary_failure": "PROMPT_INJECTION",
   "secondary_failures": [
     "UNSUPPORTED_CLAIM",
-    "SCOPE_VIOLATION",
-    "INCONSISTENT_CHUNKS",
     "LOW_CONFIDENCE"
   ],
   "root_cause_stage": "SECURITY",
   "should_have_answered": false,
   "security_risk": "HIGH",
   "confidence": 0.29,
-  "claim_results": [],
   "evidence": [
-    "prompt-injection-chunk-2: 5 hit(s): ignore (all |previous |above |prior )?(instructions?|prompts?|context|rules?); you are now; system prompt; reveal (your |the )?(system|prompt|instruction); repeat (everything|all|the prompt)",
-    "prompt-injection-chunk-2 overlap=0.00",
-    "{\"claim_text\":\"Helio subscribers can request a refund within fourteen days of the initial purchase, and annual renewals are refundable only if premium features were not used after renewal.\",\"label\":\"contradicted\",\"supporting_chunk_ids\":[\"prompt-injection-chunk-1\"],\"confidence\":0.8181818181818182}",
-    "base score: 1.00",
-    "blended caller answer_confidence 0.77: score 0.89",
+    "prompt-injection-chunk-2: instruction-like content detected",
     "prior result PromptInjectionAnalyzer status fail: -0.20",
     "final score: 0.29"
   ],
-  "recommended_fix": "Retrieved chunk(s) contain instruction-like content consistent with prompt injection. Sanitize corpus or add a pre-retrieval content filter.",
-  "checks_run": [
-    "StaleRetrievalAnalyzer",
-    "CitationMismatchAnalyzer",
-    "InconsistentChunksAnalyzer",
-    "ScopeViolationAnalyzer",
-    "SufficiencyAnalyzer",
-    "ClaimGroundingAnalyzer",
-    "PromptInjectionAnalyzer",
-    "RetrievalAnomalyAnalyzer",
-    "PoisoningHeuristicAnalyzer",
-    "ConfidenceAnalyzer"
-  ],
-  "checks_skipped": [],
-  "analyzer_results": [
-    {
-      "analyzer_name": "PromptInjectionAnalyzer",
-      "status": "fail",
-      "failure_type": "PROMPT_INJECTION",
-      "stage": "SECURITY",
-      "score": null,
-      "security_risk": "HIGH",
-      "evidence": [
-        "prompt-injection-chunk-2: 5 hit(s): ignore (all |previous |above |prior )?(instructions?|prompts?|context|rules?); you are now; system prompt; reveal (your |the )?(system|prompt|instruction); repeat (everything|all|the prompt)"
-      ],
-      "remediation": "Retrieved chunk(s) contain instruction-like content consistent with prompt injection. Sanitize corpus or add a pre-retrieval content filter."
-    },
-    {
-      "analyzer_name": "ConfidenceAnalyzer",
-      "status": "fail",
-      "failure_type": "LOW_CONFIDENCE",
-      "stage": "CONFIDENCE",
-      "score": 0.29,
-      "security_risk": null,
-      "evidence": [
-        "base score: 1.00",
-        "blended caller answer_confidence 0.77: score 0.89",
-        "prior result PromptInjectionAnalyzer status fail: -0.20",
-        "final score: 0.29"
-      ],
-      "remediation": "Confidence too low to trust output. Consider abstaining, re-retrieving, or requesting human review."
-    }
-  ],
-  "created_at": "2026-04-10T11:22:04.118000Z"
+  "recommended_fix": "Retrieved chunk(s) contain instruction-like content consistent with prompt injection. Sanitize corpus or add a pre-retrieval content filter."
 }
 ```
 
-## What it checks
+The important point is not that the answer was bad. The important point is that the output identifies the mechanism of failure, the stage where it originated, and the next engineering action.
 
-| Analyzer | Description |
-| --- | --- |
-| `StaleRetrievalAnalyzer` | Detects retrieved documents older than a configurable freshness threshold. |
-| `CitationMismatchAnalyzer` | Detects answer citations that were not present in retrieved context. |
-| `InconsistentChunksAnalyzer` | Flags simple contradiction signals across retrieved chunks. |
-| `ScopeViolationAnalyzer` | Flags chunks that have weak keyword overlap with the query. |
-| `SufficiencyAnalyzer` | Checks whether retrieved context covers enough query terms to answer. |
-| `ClaimGroundingAnalyzer` | Extracts answer claims and checks support against retrieved chunks. |
-| `PromptInjectionAnalyzer` | Detects instruction-like and exfiltration text in retrieved chunks. |
-| `RetrievalAnomalyAnalyzer` | Detects score cliffs, outliers, and near-duplicate chunks. |
-| `PoisoningHeuristicAnalyzer` | Detects high-score answer-steering chunks. |
-| `ConfidenceAnalyzer` | Aggregates answer confidence, analyzer results, and retrieval scores. |
+## Core Data Model
 
-## Failure Taxonomy
+GovRAG is built around a small public contract so it can sit on top of existing RAG systems without forcing a framework rewrite.
 
-- `STALE_RETRIEVAL`: Retrieved documents are outdated and may not reflect current information.
-- `SCOPE_VIOLATION`: Retrieved documents appear off-topic for the user's query.
-- `CITATION_MISMATCH`: The answer cites sources that were not present in the retrieved context.
-- `INCONSISTENT_CHUNKS`: Retrieved chunks contain potentially inconsistent or conflicting information.
-- `INSUFFICIENT_CONTEXT`: Retrieved context does not contain enough information to answer reliably.
-- `UNSUPPORTED_CLAIM`: The answer contains claims that are not supported by retrieved evidence.
-- `CONTRADICTED_CLAIM`: The answer contains claims contradicted by retrieved evidence.
-- `PROMPT_INJECTION`: Retrieved content contains instruction-like text consistent with prompt injection.
-- `SUSPICIOUS_CHUNK`: A retrieved chunk shows signs of answer-steering or corpus poisoning.
-- `RETRIEVAL_ANOMALY`: Retrieval results show statistical anomalies that may indicate manipulation.
-- `LOW_CONFIDENCE`: Available confidence signals indicate the output may not be trustworthy.
-- `CLEAN`: No diagnostic failure was detected.
+### `RAGRun`
+
+Represents one end-to-end RAG execution:
+
+- query
+- retrieved chunks
+- final answer
+- cited document ids
+- optional answer confidence
+- optional trace
+- optional corpus entries
+
+### `Diagnosis`
+
+Represents GovRAG’s output:
+
+- primary failure
+- secondary failures
+- root-cause stage
+- abstention decision
+- security risk
+- confidence
+- evidence
+- recommended fix
+- analyzer results
+
+## Public API
+
+GovRAG exposes a deliberately small top-level SDK:
+
+```python
+from raggov import (
+    diagnose,
+    diagnose_dict,
+    diagnose_file,
+    RAGRun,
+    RetrievedChunk,
+    CorpusEntry,
+    Diagnosis,
+)
+```
 
 ## Architecture
 
 ```text
 src/raggov/
-├── models/        # Pydantic schemas for runs, chunks, corpus entries, and diagnoses
-├── analyzers/     # Deterministic checks for retrieval, sufficiency, grounding, security, and confidence
-├── connectors/    # Input connectors for external run formats
-├── io/            # JSON serialization and append-only audit logging
+├── analyzers/     # Failure detectors across retrieval, sufficiency, grounding, security, and confidence
+├── models/        # Pydantic models for runs, chunks, corpus entries, and diagnoses
+├── io/            # Serialization and audit logging
+├── connectors/    # Input adapters
 ├── plugins/       # Extension interfaces and registry
-├── cli.py         # Typer/Rich command-line interface
-├── engine.py      # Analyzer orchestration and diagnosis merging
-└── taxonomy.py    # Failure vocabulary, stage descriptions, priorities, and default remediations
+├── engine.py      # Analyzer orchestration and diagnosis synthesis
+├── taxonomy.py    # Failure vocabulary, priority ordering, and default remediations
+└── cli.py         # Command-line interface
 ```
+
+## Intended Use
+
+GovRAG is a strong fit when:
+
+- answer correctness alone is not enough
+- you need failure localization rather than only scoring
+- abstention behavior matters
+- retrieved evidence can itself be unsafe
+- your team needs machine-readable diagnoses for CI, audits, or automated triage
+- debugging time matters and generic "hallucination" labels are no longer useful
+
+It is particularly well suited for:
+
+- public-sector and enterprise RAG
+- legal, policy, and regulatory retrieval systems
+- internal knowledge systems with compliance requirements
+- high-stakes search-and-answer products
+- multi-stage RAG pipelines where reliability work needs to be prioritized
+
+## Positioning
+
+If answer-quality frameworks ask:
+
+> Was the answer good?
+
+and tracing tools ask:
+
+> What happened during execution?
+
+GovRAG asks:
+
+> What failed, where did it fail, and what should the engineer fix first?
+
+That is the category.
+
+GovRAG is not trying to replace answer evaluation, tracing, or experiment management. It is the diagnosis layer that sits between them and the engineering decisions that follow.
 
 ## Roadmap
 
-- `v1.0`: Deterministic diagnostic core, CLI, SDK, fixtures, audit JSONL, and baseline analyzers.
-- `v1.1`: Plugin registration, richer connector support, and configurable analyzer suites.
-- `v1.5`: Semantic NLI grounding, semantic inconsistency checks, and optional LLM judge improvements.
-- `v2`: Calibrated confidence, semantic entropy, conformal-style abstention, and production trace integrations.
+- `v1.0`: deterministic diagnosis core, CLI, SDK, taxonomy, and baseline analyzers
+- `v1.1`: stronger connectors, richer plugin configuration, and improved operational integration
+- `v1.5`: deeper grounding, contradiction detection, and entropy-informed uncertainty signals
+- `v2`: broader attribution coverage, stronger parser and chunking diagnosis, and production-scale diagnosis workflows
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md).
+See [CONTRIBUTING.md](/Users/nitin/Desktop/RagGov/CONTRIBUTING.md).
 
 ## License
 

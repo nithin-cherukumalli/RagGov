@@ -24,8 +24,11 @@ from stresslab.retrieval import RetrievalService
 from stresslab.mutations import (
     flatten_hierarchy,
     collapse_tables,
+    swap_header_lines,
     duplicate_chunks,
     constrain_top_k,
+    erase_structural_markers,
+    normalize_failure_injection,
     oversegment,
     undersegment,
 )
@@ -81,14 +84,17 @@ class _DryRunEmbeddingClient:
 def run_case(case_id: str, profile: str, dry_run: bool = False) -> RunCaseResult:
     case = load_case(case_id)
     runtime_profile = load_profile(profile)
+    mutation = normalize_failure_injection(case.failure_injection)
 
     parsed_documents = [_parse_source_document(name) for name in case.document_set]
 
     # Apply parser-level mutations if specified
-    if case.failure_injection == "drop_parent_child_links":
+    if mutation == "drop_parent_child_links":
         parsed_documents = [flatten_hierarchy(doc) for doc in parsed_documents]
-    elif case.failure_injection == "flatten_statement_rows" or case.failure_injection == "collapse_statement_columns":
+    elif mutation == "collapse_tables":
         parsed_documents = [collapse_tables(doc) for doc in parsed_documents]
+    elif mutation == "swap_header_lines":
+        parsed_documents = [swap_header_lines(doc) for doc in parsed_documents]
 
     chunker = HierarchicalChunker()
     chunks = [
@@ -98,12 +104,14 @@ def run_case(case_id: str, profile: str, dry_run: bool = False) -> RunCaseResult
     ]
 
     # Apply chunker-level mutations
-    if case.failure_injection == "duplicate_near_identical_chunks":
+    if mutation == "duplicate_near_identical_chunks":
         chunks = duplicate_chunks(chunks)
-    elif case.failure_injection == "oversegmentation" or case.failure_injection == "oversegmentation_ms15":
+    elif mutation == "oversegment":
         chunks = oversegment(chunks)
-    elif case.failure_injection == "undersegmentation" or case.failure_injection == "undersegmentation_ms20":
+    elif mutation == "undersegment":
         chunks = undersegment(chunks)
+    elif mutation == "erase_structural_markers":
+        chunks = erase_structural_markers(chunks)
 
     embedding_client = _DryRunEmbeddingClient() if dry_run else _build_embedding_client(runtime_profile)
     try:
@@ -111,7 +119,7 @@ def run_case(case_id: str, profile: str, dry_run: bool = False) -> RunCaseResult
 
         # Apply retrieval-level mutations
         retrieval_top_k = runtime_profile.top_k
-        if case.failure_injection == "top_k_excludes_exception_chunk":
+        if mutation == "constrain_top_k":
             # Reduce top-k to exclude comprehensive chunks
             retrieval_top_k = max(1, runtime_profile.top_k - 2)
 
@@ -173,6 +181,7 @@ def run_case(case_id: str, profile: str, dry_run: bool = False) -> RunCaseResult
             "dry_run": dry_run,
             "pipeline_variant": case.pipeline_variant,
             "failure_injection": case.failure_injection,
+            "normalized_failure_injection": mutation,
             "expected_primary_failure": case.expected_primary_failure,
         },
     )

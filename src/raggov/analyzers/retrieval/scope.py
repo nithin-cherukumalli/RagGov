@@ -46,6 +46,8 @@ STOPWORDS = {
 class ScopeViolationAnalyzer(BaseAnalyzer):
     """Detect retrieved chunks that are off-topic relative to the query."""
 
+    weight = 0.75
+
     def analyze(self, run: RAGRun) -> AnalyzerResult:
         if not run.retrieved_chunks:
             return self.skip("no retrieved chunks available")

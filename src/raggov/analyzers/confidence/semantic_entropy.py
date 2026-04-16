@@ -14,9 +14,16 @@ import math
 from collections.abc import Callable
 from typing import Any
 
+from pydantic import ValidationError
+
 from raggov.analyzers.base import BaseAnalyzer
 from raggov.models.diagnosis import AnalyzerResult, ClaimResult, FailureStage, FailureType
 from raggov.models.run import RAGRun
+
+CLAIM_LABELS = ("entailed", "unsupported", "contradicted")
+LOW_ENTROPY_THRESHOLD = 0.5
+DEFAULT_HIGH_ENTROPY_THRESHOLD = 1.2
+JACCARD_EQUIVALENCE_THRESHOLD = 0.5
 
 
 def jaccard_similarity(s1: str, s2: str) -> float:
@@ -47,6 +54,11 @@ def jaccard_similarity(s1: str, s2: str) -> float:
 
 def _cluster_samples(samples: list[str], similarity_threshold: float = 0.5) -> list[list[int]]:
     """Cluster samples by semantic equivalence using Jaccard similarity.
+
+    Farquhar et al. cluster generations with bidirectional NLI entailment.
+    This implementation uses Jaccard token overlap as a lightweight proxy.
+    A threshold of 0.5 approximates "same meaning" at token level, but an
+    NLI model should replace this for higher-fidelity semantic clustering.
 
     Args:
         samples: List of sample strings
@@ -132,87 +144,69 @@ class SemanticEntropyAnalyzer(BaseAnalyzer):
             return self._analyze_deterministic(run)
 
     def _analyze_deterministic(self, run: RAGRun) -> AnalyzerResult:
-        """Deterministic fallback using claim results from prior grounding analyzer."""
-        # Extract claim results from prior analyzers
-        prior_results = self.config.get("prior_results", [])
-
-        # Look for ClaimGroundingAnalyzer in prior results
-        claim_results = None
-        for result in prior_results:
-            if result.analyzer_name == "ClaimGroundingAnalyzer":
-                # Try to extract claim results from the result
-                # ClaimGroundingAnalyzer stores claim_results in Diagnosis later
-                # For now, check if we can get them from evidence (as JSON)
-                try:
-                    import json
-                    if result.evidence:
-                        # Try to parse evidence as JSON containing claim results
-                        evidence_str = result.evidence[0] if result.evidence else "{}"
-                        evidence_data = json.loads(evidence_str)
-                        if "claim_results" in evidence_data:
-                            from raggov.models.diagnosis import ClaimResult
-                            claim_results = [ClaimResult(**cr) for cr in evidence_data["claim_results"]]
-                            break
-                except (json.JSONDecodeError, KeyError, TypeError):
-                    pass
-
-        # If we couldn't extract claim results, check run metadata
-        if claim_results is None:
-            claim_results = run.metadata.get("claim_results")
-
+        """Approximate semantic entropy via Shannon entropy over claim-grounding labels."""
+        claim_results = self._get_claim_results(run)
         if not claim_results:
-            return self.skip("no claim results available for deterministic analysis")
+            return self.skip("no claim results available for claim-label entropy")
 
-        # Compute disagreement ratio
-        total_claims = len(claim_results)
-        if total_claims == 0:
+        n_claims = len(claim_results)
+        if n_claims == 0:
             return self.skip("no claims to analyze")
 
-        disagreed_claims = sum(
-            1 for claim in claim_results if claim.label in ("unsupported", "contradicted")
+        label_counts = {label: 0 for label in CLAIM_LABELS}
+        for claim_result in claim_results:
+            label_counts[claim_result.label] = label_counts.get(claim_result.label, 0) + 1
+
+        entropy = 0.0
+        for count in label_counts.values():
+            if count == 0:
+                continue
+            probability = count / n_claims
+            entropy -= probability * math.log2(probability)
+
+        high_entropy_threshold = float(
+            self.config.get("entropy_threshold", DEFAULT_HIGH_ENTROPY_THRESHOLD)
         )
-
-        disagreement_ratio = disagreed_claims / total_claims
-
-        # Map to pseudo-entropy: 0 disagreement = 0.0, 100% disagreement = 2.0
-        pseudo_entropy = disagreement_ratio * 2.0
-
-        # Get threshold
-        entropy_threshold = float(self.config.get("entropy_threshold", 1.2))
-
-        # Build evidence
+        low_entropy_threshold = float(
+            self.config.get("low_entropy_threshold", LOW_ENTROPY_THRESHOLD)
+        )
+        max_entropy = math.log2(len(CLAIM_LABELS))
         evidence = [
-            f"Pseudo-entropy: {pseudo_entropy:.2f} (disagreement ratio: {disagreement_ratio:.2%})"
+            (
+                f"Claim-label entropy: {entropy:.2f} / {max_entropy:.2f} "
+                f"(entailed={label_counts.get('entailed', 0)}, "
+                f"unsupported={label_counts.get('unsupported', 0)}, "
+                f"contradicted={label_counts.get('contradicted', 0)})"
+            )
         ]
 
-        # Interpret
-        if pseudo_entropy < 0.5:
-            evidence.append("LOW uncertainty — claims are well-grounded")
+        if entropy < low_entropy_threshold:
+            evidence.append("LOW uncertainty — claim labels are semantically consistent")
             return AnalyzerResult(
                 analyzer_name=self.name(),
                 status="pass",
-                score=pseudo_entropy,
+                score=entropy,
                 evidence=evidence,
             )
-        elif pseudo_entropy <= entropy_threshold:
-            evidence.append("MEDIUM uncertainty — some claim disagreement")
+        if entropy <= high_entropy_threshold:
+            evidence.append("MEDIUM uncertainty — claim labels split across meaning-groups")
             return AnalyzerResult(
                 analyzer_name=self.name(),
                 status="warn",
-                score=pseudo_entropy,
+                score=entropy,
                 evidence=evidence,
                 remediation="Moderate uncertainty detected. Consider additional verification.",
             )
-        else:
-            evidence.append("HIGH uncertainty — many claims unsupported, confabulation likely")
-            result = self._fail(
-                failure_type=FailureType.LOW_CONFIDENCE,
-                stage=FailureStage.CONFIDENCE,
-                evidence=evidence,
-                remediation="High response variance detected. Do not serve this answer. Consider retrieval expansion or abstention.",
-            )
-            result.score = pseudo_entropy
-            return result
+
+        evidence.append("HIGH uncertainty — claim labels strongly disagree, confabulation likely")
+        result = self._fail(
+            failure_type=FailureType.LOW_CONFIDENCE,
+            stage=FailureStage.CONFIDENCE,
+            evidence=evidence,
+            remediation="High response variance detected. Do not serve this answer. Consider retrieval expansion or abstention.",
+        )
+        result.score = entropy
+        return result
 
     def _analyze_with_llm(self, run: RAGRun) -> AnalyzerResult:
         """LLM-based semantic entropy analysis."""
@@ -249,7 +243,7 @@ class SemanticEntropyAnalyzer(BaseAnalyzer):
                 return self.skip(f"LLM sampling failed: {exc}")
 
         # Step 2: Cluster by semantic equivalence
-        clusters = _cluster_samples(samples, similarity_threshold=0.5)
+        clusters = _cluster_samples(samples, similarity_threshold=JACCARD_EQUIVALENCE_THRESHOLD)
         n_clusters = len(clusters)
 
         # Step 3: Compute entropy
@@ -295,3 +289,54 @@ class SemanticEntropyAnalyzer(BaseAnalyzer):
             )
             result.score = entropy
             return result
+
+    def _get_claim_results(self, run: RAGRun) -> list[ClaimResult]:
+        """Return normalized claim results from prior grounding output or run metadata."""
+        prior_results = self.config.get("prior_results", [])
+        for result in prior_results:
+            if result.analyzer_name != "ClaimGroundingAnalyzer":
+                continue
+            claim_results = self._claim_results_from_evidence(result.evidence)
+            if claim_results:
+                return claim_results
+
+        return self._normalize_claim_results(run.metadata.get("claim_results"))
+
+    def _claim_results_from_evidence(self, evidence: list[str]) -> list[ClaimResult]:
+        """Parse ClaimGroundingAnalyzer evidence into claim results."""
+        if not evidence:
+            return []
+
+        parsed_results: list[ClaimResult] = []
+        for item in evidence:
+            try:
+                parsed = json.loads(item)
+            except json.JSONDecodeError:
+                continue
+
+            if isinstance(parsed, dict) and "claim_results" in parsed:
+                return self._normalize_claim_results(parsed["claim_results"])
+            if isinstance(parsed, dict):
+                try:
+                    parsed_results.append(ClaimResult(**parsed))
+                except (TypeError, ValidationError):
+                    continue
+
+        return parsed_results
+
+    def _normalize_claim_results(self, raw_claim_results: Any) -> list[ClaimResult]:
+        """Normalize claim results from models or dict payloads."""
+        if not raw_claim_results:
+            return []
+
+        normalized: list[ClaimResult] = []
+        for item in raw_claim_results:
+            if isinstance(item, ClaimResult):
+                normalized.append(item)
+                continue
+            if isinstance(item, dict):
+                try:
+                    normalized.append(ClaimResult(**item))
+                except (TypeError, ValidationError):
+                    continue
+        return normalized

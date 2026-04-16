@@ -10,6 +10,8 @@ from raggov.models.run import RAGRun
 class CitationMismatchAnalyzer(BaseAnalyzer):
     """Detect citations that reference documents outside retrieved context."""
 
+    weight = 1.0
+
     def analyze(self, run: RAGRun) -> AnalyzerResult:
         if not run.retrieved_chunks:
             return self.skip("no retrieved chunks available")

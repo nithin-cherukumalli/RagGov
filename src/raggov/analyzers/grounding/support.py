@@ -24,6 +24,27 @@ from raggov.models.run import RAGRun
 
 
 NEGATION_SIGNALS = {"not", "never", "no", "no longer", "contrary to"}
+ANCHOR_WEIGHT = 0.6
+CONTENT_TERM_NORMALIZATIONS = {
+    "grew": "increase",
+    "grow": "increase",
+    "growing": "increase",
+    "increased": "increase",
+    "increasing": "increase",
+    "increases": "increase",
+    "rose": "increase",
+    "rising": "increase",
+    "declined": "decrease",
+    "decline": "decrease",
+    "decreasing": "decrease",
+    "decreased": "decrease",
+    "falls": "decrease",
+    "fell": "decrease",
+    "annually": "annual",
+    "yearly": "annual",
+    "yoy": "annual",
+    "yearoveryear": "annual",
+}
 REMEDIATION = (
     "{failed} of {total} claims are unsupported by retrieved context. "
     "Review retrieval quality or add source verification."
@@ -32,6 +53,8 @@ REMEDIATION = (
 
 class ClaimGroundingAnalyzer(BaseAnalyzer):
     """Assess whether generated claims are grounded in retrieved chunks."""
+
+    weight = 0.9
 
     def analyze(self, run: RAGRun) -> AnalyzerResult:
         if not run.retrieved_chunks:
@@ -102,7 +125,15 @@ class ClaimGroundingAnalyzer(BaseAnalyzer):
     def _evaluate_claim_deterministic(
         self, claim: str, chunks: list[RetrievedChunk]
     ) -> ClaimResult:
-        claim_terms = self._terms(claim)
+        """Score grounding via normalized content-term coverage plus factual anchors.
+
+        This is still deterministic, but it is less brittle than raw token overlap:
+        content terms approximate the claim predicate, while anchors (numbers, dates,
+        and likely named entities) are weighted more heavily because factual support
+        usually depends on matching those verifiable anchors.
+        """
+        claim_terms = self._content_terms(claim)
+        claim_anchors = self._extract_anchors(claim)
         if not claim_terms:
             return ClaimResult(
                 claim_text=claim,
@@ -112,12 +143,23 @@ class ClaimGroundingAnalyzer(BaseAnalyzer):
             )
 
         best_chunk: RetrievedChunk | None = None
-        best_ratio = 0.0
+        best_score = 0.0
+        term_weight = 1.0 - float(self.config.get("anchor_weight", ANCHOR_WEIGHT))
+        anchor_weight = float(self.config.get("anchor_weight", ANCHOR_WEIGHT))
         for chunk in chunks:
-            chunk_terms = self._terms(chunk.text)
-            overlap_ratio = len(claim_terms & chunk_terms) / len(claim_terms)
-            if overlap_ratio > best_ratio:
-                best_ratio = overlap_ratio
+            chunk_terms = self._content_terms(chunk.text)
+            term_coverage = len(claim_terms & chunk_terms) / len(claim_terms)
+
+            if claim_anchors:
+                chunk_anchors = set(self._extract_anchors(chunk.text))
+                anchor_hits = len(set(claim_anchors) & chunk_anchors)
+                anchor_coverage = anchor_hits / len(set(claim_anchors))
+                score = (term_weight * term_coverage) + (anchor_weight * anchor_coverage)
+            else:
+                score = term_coverage
+
+            if score > best_score:
+                best_score = score
                 best_chunk = chunk
 
         if best_chunk is not None and self._contains_negation_of_terms(
@@ -127,11 +169,11 @@ class ClaimGroundingAnalyzer(BaseAnalyzer):
                 claim_text=claim,
                 label="contradicted",
                 supporting_chunk_ids=[best_chunk.chunk_id],
-                confidence=best_ratio,
+                confidence=best_score,
             )
 
         supporting_chunk_ids = [best_chunk.chunk_id] if best_chunk is not None else []
-        if best_ratio >= 0.5:
+        if best_score >= 0.5:
             label: Literal["entailed", "unsupported", "contradicted"] = "entailed"
         else:
             label = "unsupported"
@@ -139,8 +181,8 @@ class ClaimGroundingAnalyzer(BaseAnalyzer):
         return ClaimResult(
             claim_text=claim,
             label=label,
-            supporting_chunk_ids=supporting_chunk_ids if best_ratio >= 0.2 else [],
-            confidence=best_ratio,
+            supporting_chunk_ids=supporting_chunk_ids if best_score >= 0.2 else [],
+            confidence=best_score,
         )
 
     def _evaluate_claim_with_llm(
@@ -201,9 +243,10 @@ class ClaimGroundingAnalyzer(BaseAnalyzer):
     def _contains_negation_of_terms(self, text: str, terms: set[str]) -> bool:
         tokens = self._tokens(text)
         for index, token in enumerate(tokens):
+            normalized_token = self._normalize_content_term(token)
             window = tokens[max(0, index - 5) : index + 6]
             window_text = " ".join(window)
-            if token in terms and any(
+            if normalized_token in terms and any(
                 re.search(rf"\b{re.escape(signal)}\b", window_text)
                 for signal in NEGATION_SIGNALS
             ):
@@ -216,6 +259,57 @@ class ClaimGroundingAnalyzer(BaseAnalyzer):
             for token in self._tokens(text)
             if token not in STOPWORDS
         }
+
+    def _content_terms(self, text: str) -> set[str]:
+        """Return normalized content-bearing terms for deterministic grounding."""
+        content_terms = set()
+        for token in self._tokens(text):
+            if token in STOPWORDS:
+                continue
+            normalized = self._normalize_content_term(token)
+            if not normalized:
+                continue
+            if normalized.isdigit() or len(normalized) > 2:
+                content_terms.add(normalized)
+        return content_terms
+
+    def _normalize_content_term(self, token: str) -> str:
+        """Normalize light morphological variants used in factual paraphrases."""
+        if not token:
+            return ""
+        normalized = CONTENT_TERM_NORMALIZATIONS.get(token, token)
+        if normalized.endswith("ies") and len(normalized) > 4:
+            return normalized[:-3] + "y"
+        if normalized.endswith("s") and len(normalized) > 4 and not normalized.endswith("ss"):
+            return normalized[:-1]
+        return normalized
+
+    def _extract_anchors(self, text: str) -> list[str]:
+        """Extract verifiable anchors such as numbers, dates, and likely named entities."""
+        anchors: list[str] = []
+        lowered = text.lower()
+
+        anchors.extend(
+            match.group(0)
+            for match in re.finditer(r"(?:[$€£])?\d[\d,]*(?:\.\d+)?%?", lowered)
+        )
+
+        for match in re.finditer(r"\b(?:[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b", text):
+            value = match.group(0)
+            if " " in value or match.start() > 0:
+                anchors.append(value.lower())
+
+        for match in re.finditer(r"\b[A-Z]{2,}(?:\s+[A-Z]{2,})*\b", text):
+            anchors.append(match.group(0).lower())
+
+        deduped: list[str] = []
+        seen: set[str] = set()
+        for anchor in anchors:
+            if anchor in seen:
+                continue
+            seen.add(anchor)
+            deduped.append(anchor)
+        return deduped
 
     def _tokens(self, text: str) -> list[str]:
         return re.findall(r"[a-z0-9]+", text.lower())

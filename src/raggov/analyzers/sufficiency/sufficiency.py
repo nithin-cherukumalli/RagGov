@@ -25,6 +25,8 @@ REMEDIATION = (
 class SufficiencyAnalyzer(BaseAnalyzer):
     """Determine whether retrieved context is sufficient to answer the query."""
 
+    weight = 0.9
+
     def analyze(self, run: RAGRun) -> AnalyzerResult:
         if not run.retrieved_chunks:
             return self.skip("no retrieved chunks available")

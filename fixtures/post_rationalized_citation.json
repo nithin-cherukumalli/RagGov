@@ -1,0 +1,32 @@
+{
+  "run_id": "post-rationalized-citation-run",
+  "query": "How do I submit a warranty claim?",
+  "retrieved_chunks": [
+    {
+      "chunk_id": "post-rat-chunk-1",
+      "text": "Support portal submission with proof of purchase is required for warranty claims. Use claim code ORX442 and RMA token ZX9.",
+      "source_doc_id": "post-rat-doc-1",
+      "score": 0.91
+    },
+    {
+      "chunk_id": "post-rat-chunk-2",
+      "text": "Support portal submission with proof of purchase is required for warranty claims. Include service tag ALPHA7 and verification code BETA8.",
+      "source_doc_id": "post-rat-doc-2",
+      "score": 0.88
+    }
+  ],
+  "final_answer": "Submit the warranty claim through the support portal with proof of purchase.",
+  "cited_doc_ids": [
+    "post-rat-doc-1",
+    "post-rat-doc-2"
+  ],
+  "answer_confidence": 0.95,
+  "trace": {
+    "retriever": "fixture-vector-search",
+    "top_k": 2
+  },
+  "metadata": {
+    "scenario": "post_rationalized_citation",
+    "expected_primary_failure": "POST_RATIONALIZED_CITATION"
+  }
+}

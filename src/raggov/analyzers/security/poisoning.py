@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from typing import Final
 
 from raggov.analyzers.base import BaseAnalyzer
 from raggov.models.diagnosis import (
@@ -14,12 +15,16 @@ from raggov.models.diagnosis import (
 from raggov.models.run import RAGRun
 
 
-ANSWER_STEERING_PATTERNS = [
-    r"the answer is",
-    r"the correct answer",
-    r"you should (say|respond|answer)",
-    r"\$[\d,]+|\d+%|\d+ (million|billion|thousand)",
-    r"(official|definitive|correct|true) (answer|response|statement)",
+ANSWER_STEERING_PATTERNS: Final[list[tuple[str, str]]] = [
+    (
+        r"(?i)^(the\s+)?(correct\s+|right\s+|only\s+)?(answer|response)\s+is\b",
+        "answer_assertion",
+    ),
+    (
+        r"(?i)\b(you\s+should|you\s+must|always)\s+(say|respond|answer|state)\b",
+        "response_directive",
+    ),
+    (r"(?i)\breplace\s+\[.*?\]\s+with\b", "template_fill"),
 ]
 
 REMEDIATION = (
@@ -29,31 +34,28 @@ REMEDIATION = (
 
 
 class PoisoningHeuristicAnalyzer(BaseAnalyzer):
-    """Detect simple high-score answer-steering poisoning signals."""
+    """Detect dual-condition poisoning signals in retrieved chunks."""
+
+    weight = 0.95
 
     def analyze(self, run: RAGRun) -> AnalyzerResult:
         if not run.retrieved_chunks:
             return self.skip("no retrieved chunks available")
 
-        if not any(chunk.score is not None for chunk in run.retrieved_chunks):
+        scores = [chunk.score for chunk in run.retrieved_chunks if chunk.score is not None]
+        if not scores:
             return self.skip("no retrieval scores available")
 
         dual_condition_evidence: list[str] = []
         steering_only_evidence: list[str] = []
 
         for chunk in run.retrieved_chunks:
-            matches = [
-                pattern
-                for pattern in ANSWER_STEERING_PATTERNS
-                if re.search(pattern, chunk.text, flags=re.IGNORECASE)
-            ]
+            matches = self._answer_steering_matches(chunk.text)
             if not matches:
                 continue
             score = chunk.score or 0.0
-            evidence = (
-                f"{chunk.chunk_id} score={score:.2f} matched: {'; '.join(matches)}"
-            )
-            if score > 0.85:
+            evidence = f"{chunk.chunk_id} score={score:.2f} matched: {'; '.join(matches)}"
+            if self._is_score_anomalous(score, scores):
                 dual_condition_evidence.append(evidence)
             else:
                 steering_only_evidence.append(evidence)
@@ -84,3 +86,36 @@ class PoisoningHeuristicAnalyzer(BaseAnalyzer):
             status="pass",
             security_risk=SecurityRisk.NONE,
         )
+
+    def _answer_steering_matches(self, text: str) -> list[str]:
+        return [
+            label
+            for pattern, label in ANSWER_STEERING_PATTERNS
+            if re.search(pattern, text)
+        ]
+
+    def _is_score_anomalous(self, chunk_score: float, all_scores: list[float]) -> bool:
+        """Return whether a chunk score is an outlier within the retrieved set."""
+        if len(all_scores) < 3:
+            threshold = float(self.config.get("absolute_score_threshold", 0.92))
+            return chunk_score > threshold
+
+        sorted_scores = sorted(all_scores)
+        q1 = self._percentile(sorted_scores, 0.25)
+        q3 = self._percentile(sorted_scores, 0.75)
+        iqr = q3 - q1
+        upper_fence = q3 + 1.5 * iqr
+        return chunk_score > upper_fence
+
+    def _percentile(self, sorted_values: list[float], quantile: float) -> float:
+        """Return a linearly interpolated percentile for a sorted numeric sample."""
+        if len(sorted_values) == 1:
+            return sorted_values[0]
+
+        position = (len(sorted_values) - 1) * quantile
+        lower_index = int(position)
+        upper_index = min(lower_index + 1, len(sorted_values) - 1)
+        fraction = position - lower_index
+        lower_value = sorted_values[lower_index]
+        upper_value = sorted_values[upper_index]
+        return lower_value + (upper_value - lower_value) * fraction

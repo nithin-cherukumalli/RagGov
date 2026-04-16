@@ -6,6 +6,32 @@ from stresslab.ingest.models import ParsedDocument, ParsedNode
 from stresslab.chunking import ChunkRecord
 
 
+FAILURE_INJECTION_ALIASES = {
+    "drop_parent_child_links": "drop_parent_child_links",
+    "flatten_statement_rows": "collapse_tables",
+    "collapse_statement_columns": "collapse_tables",
+    "swap_header_lines": "swap_header_lines",
+    "duplicate_near_identical_chunks": "duplicate_near_identical_chunks",
+    "shuffle_duplicate_similarity_ties": "duplicate_near_identical_chunks",
+    "force_clause_split": "oversegment",
+    "split_every_sentence": "oversegment",
+    "oversegmentation": "oversegment",
+    "oversegmentation_ms15": "oversegment",
+    "merge_distinct_rules_into_single_chunk": "undersegment",
+    "undersegmentation": "undersegment",
+    "undersegmentation_ms20": "undersegment",
+    "top_k_excludes_exception_chunk": "constrain_top_k",
+    "retrieve_single_section_only": "constrain_top_k",
+    "embed_fields_without_structure": "erase_structural_markers",
+    "ask_for_non_public_personal_detail": "ask_for_non_public_personal_detail",
+}
+
+
+def normalize_failure_injection(name: str) -> str:
+    """Return the canonical mutation family for a fixture-level injection name."""
+    return FAILURE_INJECTION_ALIASES.get(name, name)
+
+
 def flatten_hierarchy(doc: ParsedDocument) -> ParsedDocument:
     """Flatten rule hierarchy by removing parent-child relationships.
 
@@ -33,6 +59,29 @@ def flatten_hierarchy(doc: ParsedDocument) -> ParsedDocument:
         source_path=doc.source_path,
         title=doc.title,
         nodes=flattened_nodes,
+    )
+
+
+def swap_header_lines(doc: ParsedDocument) -> ParsedDocument:
+    """Scramble top-level metadata to simulate parser-level metadata loss."""
+    if not doc.nodes:
+        return doc
+
+    scrambled_nodes = list(doc.nodes)
+    first = scrambled_nodes[0]
+    scrambled_nodes[0] = ParsedNode(
+        node_id=first.node_id,
+        label=first.label,
+        text="Order details omitted and section labels misplaced.",
+        page_start=first.page_start,
+        page_end=first.page_end,
+        section_path=["MISSING_METADATA"],
+    )
+    return ParsedDocument(
+        doc_id=doc.doc_id,
+        source_path=doc.source_path,
+        title=(doc.go_number or doc.title or "Order"),
+        nodes=scrambled_nodes,
     )
 
 
@@ -107,6 +156,28 @@ def constrain_top_k(chunks: list[ChunkRecord], exclude_indices: set[int]) -> lis
     # Keep all chunks but mark excluded ones as unretrievable
     # In real implementation, would remove from index
     return [chunk for i, chunk in enumerate(chunks) if i not in exclude_indices]
+
+
+def erase_structural_markers(chunks: list[ChunkRecord]) -> list[ChunkRecord]:
+    """Strip labels and punctuation that preserve structured relationships."""
+    flattened: list[ChunkRecord] = []
+    for chunk in chunks:
+        normalized_text = " ".join(
+            chunk.text.replace("(", " ").replace(")", " ").replace(":", " ").split()
+        )
+        flattened.append(
+            ChunkRecord(
+                chunk_id=chunk.chunk_id,
+                text=normalized_text,
+                source_doc_id=chunk.source_doc_id,
+                page_start=chunk.page_start,
+                page_end=chunk.page_end,
+                section_path=["FLAT"],
+                parent_node_id=None,
+                chunk_strategy=chunk.chunk_strategy,
+            )
+        )
+    return flattened
 
 
 def oversegment(chunks: list[ChunkRecord]) -> list[ChunkRecord]:

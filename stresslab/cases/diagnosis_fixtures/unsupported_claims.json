@@ -1,0 +1,12 @@
+{
+  "case_id": "unsupported_claims",
+  "run_fixture": "fixtures/unsupported_claims.json",
+  "expected_primary_failure": "UNSUPPORTED_CLAIM",
+  "expected_root_cause_stage": "GROUNDING",
+  "expected_should_have_answered": true,
+  "expected_secondary_failures": [
+    "POST_RATIONALIZED_CITATION"
+  ],
+  "expected_citation_faithfulness": "post_rationalized",
+  "notes": "Grounding should catch unsupported answer claims."
+}

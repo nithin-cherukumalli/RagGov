@@ -111,6 +111,7 @@ def test_diagnosis_models_defaults_enums_and_summary() -> None:
         failure_type=FailureType.UNSUPPORTED_CLAIM,
         stage=FailureStage.GROUNDING,
         evidence=["No supporting source."],
+        citation_probe_results=[{"doc_id": "doc-1", "probe": "anchor", "passed": True, "anchor_terms_found": ["alpha"]}],
     )
     diagnosis = Diagnosis(
         run_id="run-1",
@@ -119,6 +120,9 @@ def test_diagnosis_models_defaults_enums_and_summary() -> None:
         should_have_answered=False,
         security_risk=SecurityRisk.LOW,
         confidence=0.42,
+        pipeline_health_score=0.6,
+        first_failing_node="CLAIM_GROUNDING",
+        citation_faithfulness="partial",
         claim_results=[claim_result],
         evidence=["The answer lacks support."],
         recommended_fix="Retrieve stronger evidence.",
@@ -127,15 +131,22 @@ def test_diagnosis_models_defaults_enums_and_summary() -> None:
 
     assert FailureStage.RETRIEVAL == "RETRIEVAL"
     assert FailureType.CLEAN == "CLEAN"
+    assert FailureType.POST_RATIONALIZED_CITATION == "POST_RATIONALIZED_CITATION"
+    assert FailureType.TABLE_STRUCTURE_LOSS == "TABLE_STRUCTURE_LOSS"
+    assert FailureType.HIERARCHY_FLATTENING == "HIERARCHY_FLATTENING"
+    assert FailureType.METADATA_LOSS == "METADATA_LOSS"
     assert SecurityRisk.HIGH == "HIGH"
     assert diagnosis.created_at.tzinfo is not None
     assert diagnosis.secondary_failures == []
     assert diagnosis.checks_run == []
     assert diagnosis.checks_skipped == []
+    assert diagnosis.citation_faithfulness == "partial"
+    assert diagnosis.analyzer_results[0].citation_probe_results is not None
     assert diagnosis.summary() == (
-        "Run run-1: UNSUPPORTED_CLAIM at GROUNDING stage. "
-        "Should have answered: False. Security risk: LOW. "
-        "Recommended fix: Retrieve stronger evidence."
+        "Run run-1 | UNSUPPORTED_CLAIM | Stage: GROUNDING\n"
+        "Should answer: False | Risk: LOW | Confidence: 0.42\n"
+        "Pipeline health: 60% | First failure: CLAIM_GROUNDING\n"
+        "Fix: Retrieve stronger evidence."
     )
 
 

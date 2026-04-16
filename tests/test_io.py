@@ -45,8 +45,12 @@ def sample_diagnosis() -> Diagnosis:
         should_have_answered=True,
         security_risk=SecurityRisk.NONE,
         confidence=0.9,
+        ncv_report={"pipeline_health_score": 1.0},
+        pipeline_health_score=1.0,
+        first_failing_node=None,
+        citation_faithfulness="genuine",
         recommended_fix="No remediation is required.",
-        checks_run=["ConfidenceAnalyzer"],
+        checks_run=["SemanticEntropyAnalyzer"],
         created_at=datetime(2026, 4, 10, 12, 5, tzinfo=UTC),
     )
 
@@ -59,6 +63,9 @@ def test_run_and_diagnosis_to_dict_use_iso_datetime_strings() -> None:
     assert diagnosis_dict["created_at"] == "2026-04-10T12:05:00Z"
     assert diagnosis_dict["primary_failure"] == "CLEAN"
     assert diagnosis_dict["security_risk"] == "NONE"
+    assert diagnosis_dict["pipeline_health_score"] == 1.0
+    assert diagnosis_dict["ncv_report"] == {"pipeline_health_score": 1.0}
+    assert diagnosis_dict["citation_faithfulness"] == "genuine"
 
 
 def test_diagnosis_to_json_returns_json_string() -> None:
@@ -104,6 +111,6 @@ def test_audit_log_appends_reads_and_tails_entries(tmp_path: Path) -> None:
         "should_have_answered": True,
         "confidence": 0.9,
         "created_at": "2026-04-10T12:05:00Z",
-        "checks_run": ["ConfidenceAnalyzer"],
+        "checks_run": ["SemanticEntropyAnalyzer"],
     }
     assert log.tail(1) == [entries[-1]]

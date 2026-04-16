@@ -58,7 +58,8 @@ def test_deterministic_insufficient_context_with_low_scores() -> None:
     assert result.proposed_fix is not None
     assert "top-k" in result.proposed_fix.lower() or "retrieval" in result.proposed_fix.lower()
     assert result.fix_confidence is not None
-    assert result.fix_confidence > 0.0
+    assert result.fix_confidence == 0.78
+    assert any("confidence basis:" in evidence.lower() for evidence in result.evidence)
 
 
 def test_deterministic_inconsistent_chunks() -> None:
@@ -93,6 +94,37 @@ def test_deterministic_inconsistent_chunks() -> None:
     assert result.proposed_fix is not None
     assert "chunk" in result.proposed_fix.lower()
     assert result.fix_confidence is not None
+
+
+def test_deterministic_parser_structure_loss_preserves_parsing_stage() -> None:
+    """Parser failures should not be re-attributed to retrieval."""
+    remediation = (
+        "Use a structure-preserving parser (unstructured.io, docling, pymupdf4llm) "
+        "before chunking. Tables must preserve row-column bindings."
+    )
+    prior_results = [
+        AnalyzerResult(
+            analyzer_name="ParserValidationAnalyzer",
+            status="fail",
+            failure_type=FailureType.TABLE_STRUCTURE_LOSS,
+            stage=FailureStage.PARSING,
+            evidence=["Table keywords detected but structural separators absent in chunk chunk-1"],
+            remediation=remediation,
+        )
+    ]
+
+    analyzer = A2PAttributionAnalyzer(
+        {"use_llm": False, "prior_results": prior_results}
+    )
+    result = analyzer.analyze(
+        run_with_chunks([chunk("chunk-1", "District Vacancies Category Warangal 5 Grade A", 0.8)])
+    )
+
+    assert result.status == "fail"
+    assert result.failure_type == FailureType.TABLE_STRUCTURE_LOSS
+    assert result.stage == FailureStage.PARSING
+    assert result.attribution_stage == FailureStage.PARSING
+    assert result.proposed_fix == remediation
 
 
 def test_deterministic_unsupported_claim_with_high_scores() -> None:
@@ -162,6 +194,54 @@ def test_deterministic_retrieval_anomaly() -> None:
     assert result.proposed_fix is not None
     assert "embedding" in result.proposed_fix.lower()
     assert result.fix_confidence is not None
+    assert result.fix_confidence == 0.82
+    assert any("confidence basis:" in evidence.lower() for evidence in result.evidence)
+
+
+def test_weighted_prior_results_prefer_stronger_generation_signal() -> None:
+    """Weighted evidence should beat heuristic check order in deterministic mode."""
+    weighted_prior_results = [
+        AnalyzerResult(
+            analyzer_name="ClaimGroundingAnalyzer",
+            status="fail",
+            failure_type=FailureType.UNSUPPORTED_CLAIM,
+            stage=FailureStage.GROUNDING,
+            evidence=["Claim not supported"],
+            remediation="Verify sources",
+        ),
+        AnalyzerResult(
+            analyzer_name="InconsistentChunksAnalyzer",
+            status="fail",
+            failure_type=FailureType.INCONSISTENT_CHUNKS,
+            stage=FailureStage.RETRIEVAL,
+            evidence=["Chunks contain inconsistencies"],
+            remediation="Review chunks",
+        ),
+    ]
+
+    analyzer = A2PAttributionAnalyzer(
+        {
+            "use_llm": False,
+            "prior_results": list(reversed(weighted_prior_results)),
+            "weighted_prior_results": weighted_prior_results,
+            "analyzer_weights": {
+                "ClaimGroundingAnalyzer": 0.9,
+                "InconsistentChunksAnalyzer": 0.5,
+            },
+        }
+    )
+    result = analyzer.analyze(
+        run_with_chunks(
+            [
+                chunk("chunk-1", "Contains relevant info", 0.9),
+                chunk("chunk-2", "More relevant info", 0.85),
+            ]
+        )
+    )
+
+    assert result.status == "fail"
+    assert result.failure_type == FailureType.GENERATION_IGNORE
+    assert result.stage == FailureStage.GENERATION
 
 
 def test_deterministic_default_fallback() -> None:
@@ -188,23 +268,24 @@ def test_deterministic_default_fallback() -> None:
     assert result.failure_type == FailureType.RETRIEVAL_DEPTH_LIMIT
     assert result.stage == FailureStage.RETRIEVAL
     assert result.attribution_stage == FailureStage.RETRIEVAL
+    assert result.fix_confidence == 0.45
 
 
 def test_llm_mode_with_valid_json_response() -> None:
     """LLM mode parses JSON and returns structured attribution."""
 
     def mock_llm(prompt: str) -> str:
-        assert "ABDUCTION" in prompt
-        assert "ACTION" in prompt
-        assert "PREDICTION" in prompt
+        assert "STEP 1 — ABDUCTION" in prompt
+        assert "STEP 2 — ACTION" in prompt
+        assert "STEP 3 — PREDICTION" in prompt
+        assert "confidence_basis" in prompt
         return """{
+            "abduction": "Chunks split logical units incorrectly",
             "root_cause_stage": "CHUNKING",
-            "root_cause_type": "CHUNKING_BOUNDARY_ERROR",
-            "abduction_reasoning": "Chunks split logical units incorrectly",
             "action": "Adjust chunk boundaries to preserve paragraphs",
-            "prediction": "LIKELY",
-            "prediction_reasoning": "Would preserve context",
-            "confidence": 0.85
+            "prediction": "Applying the chunking fix would likely preserve context and resolve the observed inconsistency.",
+            "confidence": 0.73,
+            "confidence_basis": "Medium confidence because inconsistent chunks can also arise from parsing loss, but the evidence points most strongly to boundary errors."
         }"""
 
     prior_results = [
@@ -230,9 +311,10 @@ def test_llm_mode_with_valid_json_response() -> None:
     assert result.stage == FailureStage.CHUNKING
     assert result.attribution_stage == FailureStage.CHUNKING
     assert result.proposed_fix == "Adjust chunk boundaries to preserve paragraphs"
-    assert result.fix_confidence == 0.85
+    assert result.fix_confidence == 0.73
     assert "Chunks split logical units incorrectly" in result.evidence
-    assert "Prediction: LIKELY — Would preserve context" in result.evidence
+    assert any("Prediction:" in evidence for evidence in result.evidence)
+    assert any("Confidence basis:" in evidence for evidence in result.evidence)
 
 
 def test_llm_mode_falls_back_on_json_parse_error() -> None:
@@ -358,9 +440,10 @@ def test_a2p_evidence_structure() -> None:
         run_with_chunks([chunk("chunk-1", "Text", 0.5)])
     )
 
-    assert len(result.evidence) == 3
-    # Evidence should contain: abduction reasoning, proposed fix, prediction
+    assert len(result.evidence) == 4
+    # Evidence should contain: abduction reasoning, proposed fix, prediction, confidence basis
     # First item is the reasoning (doesn't need specific keywords)
     assert len(result.evidence[0]) > 0  # Has reasoning text
     assert "Proposed fix:" in result.evidence[1]
     assert "Prediction:" in result.evidence[2]
+    assert "Confidence basis:" in result.evidence[3]

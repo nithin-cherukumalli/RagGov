@@ -1,0 +1,9 @@
+{
+  "case_id": "parser_hierarchy_loss",
+  "run_fixture": "fixtures/parser_hierarchy_loss.json",
+  "expected_primary_failure": "HIERARCHY_FLATTENING",
+  "expected_root_cause_stage": "PARSING",
+  "expected_should_have_answered": true,
+  "expected_citation_faithfulness": "genuine",
+  "notes": "Merged rule/list structure should be attributed to parsing."
+}

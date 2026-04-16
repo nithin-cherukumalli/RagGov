@@ -1,0 +1,12 @@
+{
+  "case_id": "post_rationalized_citation",
+  "run_fixture": "fixtures/post_rationalized_citation.json",
+  "expected_primary_failure": "POST_RATIONALIZED_CITATION",
+  "expected_root_cause_stage": "GROUNDING",
+  "expected_should_have_answered": true,
+  "expected_citation_faithfulness": "post_rationalized",
+  "engine_config": {
+    "suspicious_threshold": 1
+  },
+  "notes": "Citations should fail faithfulness probing even when lexical overlap looks superficially plausible."
+}

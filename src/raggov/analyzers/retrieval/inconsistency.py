@@ -46,8 +46,47 @@ STOPWORDS = {
 }
 
 
+def tokens(text: str) -> list[str]:
+    """Tokenize free text for inconsistency heuristics."""
+    return re.findall(r"[a-z0-9]+", text.lower())
+
+
+def terms(text: str) -> set[str]:
+    """Extract non-stopword terms for inconsistency heuristics."""
+    return {token for token in tokens(text) if token not in STOPWORDS}
+
+
+def has_nearby_negation(text: str, candidate_terms: set[str]) -> bool:
+    """Return whether any shared term appears near a negation signal."""
+    token_list = tokens(text)
+    for index, token in enumerate(token_list):
+        window = token_list[max(0, index - 5) : index + 6]
+        window_text = " ".join(window)
+        if token in candidate_terms and any(
+            re.search(rf"\b{re.escape(signal)}\b", window_text)
+            for signal in NEGATION_SIGNALS
+        ):
+            return True
+    return False
+
+
+def has_suspicious_negation_pair(left: RetrievedChunk, right: RetrievedChunk) -> bool:
+    """Return whether two chunks show a contradiction-style negation pattern."""
+    left_terms = terms(left.text)
+    right_terms = terms(right.text)
+    shared_terms = left_terms & right_terms
+    if not shared_terms:
+        return False
+
+    return has_nearby_negation(left.text, shared_terms) or has_nearby_negation(
+        right.text, shared_terms
+    )
+
+
 class InconsistentChunksAnalyzer(BaseAnalyzer):
     """Detect simple contradiction signals across retrieved chunks."""
+
+    weight = 0.5
 
     def analyze(self, run: RAGRun) -> AnalyzerResult:
         if not run.retrieved_chunks:
@@ -58,7 +97,7 @@ class InconsistentChunksAnalyzer(BaseAnalyzer):
 
         for index, left in enumerate(chunks):
             for right in chunks[index + 1 :]:
-                if self._has_suspicious_negation_pair(left, right):
+                if has_suspicious_negation_pair(left, right):
                     evidence.append(f"{left.chunk_id} <-> {right.chunk_id}")
 
         if evidence:
@@ -71,34 +110,3 @@ class InconsistentChunksAnalyzer(BaseAnalyzer):
             )
 
         return self._pass()
-
-    def _has_suspicious_negation_pair(
-        self, left: RetrievedChunk, right: RetrievedChunk
-    ) -> bool:
-        left_terms = self._terms(left.text)
-        right_terms = self._terms(right.text)
-        shared_terms = left_terms & right_terms
-        if not shared_terms:
-            return False
-
-        return self._has_nearby_negation(left.text, shared_terms) or self._has_nearby_negation(
-            right.text, shared_terms
-        )
-
-    def _has_nearby_negation(self, text: str, terms: set[str]) -> bool:
-        tokens = self._tokens(text)
-        for index, token in enumerate(tokens):
-            window = tokens[max(0, index - 5) : index + 6]
-            window_text = " ".join(window)
-            if token in terms and any(
-                re.search(rf"\b{re.escape(signal)}\b", window_text)
-                for signal in NEGATION_SIGNALS
-            ):
-                return True
-        return False
-
-    def _terms(self, text: str) -> set[str]:
-        return {token for token in self._tokens(text) if token not in STOPWORDS}
-
-    def _tokens(self, text: str) -> list[str]:
-        return re.findall(r"[a-z0-9]+", text.lower())

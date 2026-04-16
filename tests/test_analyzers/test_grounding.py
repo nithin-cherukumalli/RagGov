@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from raggov.analyzers.grounding.claims import ClaimExtractor
@@ -203,3 +204,58 @@ def test_claim_grounding_llm_mode_falls_back_per_claim_on_failure() -> None:
 
     assert result.status == "pass"
     assert "entailed" in result.evidence[0]
+
+
+def test_claim_grounding_deterministic_supports_paraphrased_numeric_claim() -> None:
+    analyzer = ClaimGroundingAnalyzer()
+
+    result = analyzer._evaluate_claim_deterministic(
+        "Revenue grew 15% YoY.",
+        [chunk("chunk-1", "Revenue increased 15% annually.")],
+    )
+
+    assert result.label == "entailed"
+    assert result.supporting_chunk_ids == ["chunk-1"]
+    assert result.confidence is not None
+    assert result.confidence >= 0.5
+
+
+def test_claim_grounding_deterministic_requires_numeric_anchor_match() -> None:
+    analyzer = ClaimGroundingAnalyzer()
+
+    result = analyzer._evaluate_claim_deterministic(
+        "Revenue grew 15% YoY.",
+        [chunk("chunk-1", "Revenue grew 12% annually.")],
+    )
+
+    assert result.label == "unsupported"
+    assert result.supporting_chunk_ids == ["chunk-1"]
+    assert result.confidence is not None
+    assert result.confidence < 0.5
+
+
+def test_claim_grounding_deterministic_preserves_negation_contradictions() -> None:
+    analyzer = ClaimGroundingAnalyzer()
+
+    result = analyzer._evaluate_claim_deterministic(
+        "Warranty covers accidental damage.",
+        [chunk("chunk-1", "Warranty does not cover accidental damage.")],
+    )
+
+    assert result.label == "contradicted"
+    assert result.supporting_chunk_ids == ["chunk-1"]
+
+
+def test_claim_grounding_evidence_includes_soft_coverage_confidence() -> None:
+    run = run_with_answer(
+        "Company revenue grew 15% YoY during the fiscal year.",
+        [chunk("chunk-1", "Company revenue increased 15% annually during the fiscal year.")],
+    )
+
+    result = ClaimGroundingAnalyzer().analyze(run)
+    claim_result = json.loads(result.evidence[0])
+
+    assert result.status == "pass"
+    assert claim_result["label"] == "entailed"
+    assert claim_result["supporting_chunk_ids"] == ["chunk-1"]
+    assert claim_result["confidence"] >= 0.5

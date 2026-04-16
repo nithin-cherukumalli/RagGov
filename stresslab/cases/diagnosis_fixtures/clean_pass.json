@@ -1,0 +1,9 @@
+{
+  "case_id": "clean_pass",
+  "run_fixture": "fixtures/clean_pass.json",
+  "expected_primary_failure": "CLEAN",
+  "expected_root_cause_stage": "UNKNOWN",
+  "expected_should_have_answered": true,
+  "expected_citation_faithfulness": "genuine",
+  "notes": "Baseline healthy run should remain clean."
+}

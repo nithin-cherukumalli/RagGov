@@ -1,0 +1,12 @@
+{
+  "case_id": "citation_mismatch",
+  "run_fixture": "fixtures/citation_mismatch.json",
+  "expected_primary_failure": "CITATION_MISMATCH",
+  "expected_root_cause_stage": "RETRIEVAL",
+  "expected_should_have_answered": true,
+  "expected_secondary_failures": [
+    "POST_RATIONALIZED_CITATION"
+  ],
+  "expected_citation_faithfulness": "post_rationalized",
+  "notes": "Mismatched citation IDs should be flagged directly."
+}

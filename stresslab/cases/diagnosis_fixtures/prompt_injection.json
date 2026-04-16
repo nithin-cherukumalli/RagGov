@@ -1,0 +1,12 @@
+{
+  "case_id": "prompt_injection",
+  "run_fixture": "fixtures/prompt_injection.json",
+  "expected_primary_failure": "PROMPT_INJECTION",
+  "expected_root_cause_stage": "SECURITY",
+  "expected_should_have_answered": false,
+  "expected_secondary_failures": [
+    "SCOPE_VIOLATION"
+  ],
+  "expected_citation_faithfulness": "genuine",
+  "notes": "Security failures should force abstention."
+}

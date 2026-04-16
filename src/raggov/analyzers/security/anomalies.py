@@ -20,6 +20,8 @@ REMEDIATION = (
 class RetrievalAnomalyAnalyzer(BaseAnalyzer):
     """Detect suspicious retrieval score and duplication patterns."""
 
+    weight = 0.7
+
     def analyze(self, run: RAGRun) -> AnalyzerResult:
         if not run.retrieved_chunks:
             return self.skip("no retrieved chunks available")

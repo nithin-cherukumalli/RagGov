@@ -1,0 +1,25 @@
+{
+  "run_id": "parser-hierarchy-loss-run",
+  "query": "Rule 5 definition exception application",
+  "retrieved_chunks": [
+    {
+      "chunk_id": "parser-hierarchy-loss-chunk-1",
+      "text": "Rule 5 (1) Definition (2) Exception (3) Application all on one line",
+      "source_doc_id": "parser-hierarchy-doc-1",
+      "score": 0.9
+    }
+  ],
+  "final_answer": "Rule 5 includes definition, exception, and application.",
+  "cited_doc_ids": [
+    "parser-hierarchy-doc-1"
+  ],
+  "answer_confidence": 0.88,
+  "trace": {
+    "retriever": "fixture-vector-search",
+    "top_k": 1
+  },
+  "metadata": {
+    "scenario": "parser_hierarchy_loss",
+    "expected_primary_failure": "HIERARCHY_FLATTENING"
+  }
+}

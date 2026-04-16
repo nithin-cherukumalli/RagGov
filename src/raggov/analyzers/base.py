@@ -12,6 +12,8 @@ from raggov.models.run import RAGRun
 class BaseAnalyzer(ABC):
     """Minimal contract shared by all RagGov analyzers."""
 
+    weight: float = 1.0
+
     def __init__(self, config: dict[str, Any] | None = None) -> None:
         self.config = config or {}
 

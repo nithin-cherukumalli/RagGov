@@ -40,6 +40,10 @@ class FailureType(str, Enum):
     RETRIEVAL_ANOMALY = "RETRIEVAL_ANOMALY"
     PRIVACY_VIOLATION = "PRIVACY_VIOLATION"
     LOW_CONFIDENCE = "LOW_CONFIDENCE"
+    TABLE_STRUCTURE_LOSS = "TABLE_STRUCTURE_LOSS"
+    HIERARCHY_FLATTENING = "HIERARCHY_FLATTENING"
+    METADATA_LOSS = "METADATA_LOSS"
+    POST_RATIONALIZED_CITATION = "POST_RATIONALIZED_CITATION"
     PARSER_STRUCTURE_LOSS = "PARSER_STRUCTURE_LOSS"
     CHUNKING_BOUNDARY_ERROR = "CHUNKING_BOUNDARY_ERROR"
     EMBEDDING_DRIFT = "EMBEDDING_DRIFT"
@@ -85,6 +89,7 @@ class AnalyzerResult(BaseModel):
     attribution_stage: FailureStage | None = None
     proposed_fix: str | None = None
     fix_confidence: float | None = None
+    citation_probe_results: list[dict[str, Any]] | None = None
 
 
 class Diagnosis(BaseModel):
@@ -110,6 +115,10 @@ class Diagnosis(BaseModel):
     proposed_fix: str | None = None
     fix_confidence: float | None = None
     layer6_report: dict[str, Any] | None = None
+    ncv_report: dict[str, Any] | None = None
+    pipeline_health_score: float | None = None
+    first_failing_node: str | None = None
+    citation_faithfulness: str | None = None
     failure_chain: list[str] = Field(default_factory=list)
     semantic_entropy: float | None = None
 
@@ -141,20 +150,30 @@ class Diagnosis(BaseModel):
         )
         lines.append(line2)
 
-        # Line 3: Failure chain (if present)
+        # Line 3: NCV pipeline health (if present)
+        if self.pipeline_health_score is not None or self.first_failing_node is not None:
+            health_text = (
+                f"{self.pipeline_health_score:.0%}"
+                if self.pipeline_health_score is not None
+                else "N/A"
+            )
+            first_failure = self.first_failing_node if self.first_failing_node is not None else "None"
+            lines.append(f"Pipeline health: {health_text} | First failure: {first_failure}")
+
+        # Line 4: Failure chain (if present)
         if self.failure_chain:
             chain_str = " → ".join(self.failure_chain)
             lines.append(f"Failure chain: {chain_str}")
 
-        # Line 4: Semantic entropy (if present)
+        # Line 5: Semantic entropy (if present)
         if self.semantic_entropy is not None:
             lines.append(f"Semantic entropy: {self.semantic_entropy:.2f}")
 
-        # Line 5: Root cause (if present)
+        # Line 6: Root cause (if present)
         if self.root_cause_attribution:
             lines.append(f"Root cause: {self.root_cause_attribution}")
 
-        # Line 6: Fix (proposed fix takes precedence over recommended fix)
+        # Line 7: Fix (proposed fix takes precedence over recommended fix)
         fix_text = self.proposed_fix if self.proposed_fix else self.recommended_fix
         if self.fix_confidence is not None:
             lines.append(f"Fix ({self.fix_confidence:.0%} confidence): {fix_text}")

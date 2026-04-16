@@ -42,6 +42,18 @@ FAILURE_MESSAGES: dict[FailureType, str] = {
     FailureType.LOW_CONFIDENCE: (
         "Available confidence signals indicate the output may not be trustworthy."
     ),
+    FailureType.TABLE_STRUCTURE_LOSS: (
+        "Table rows and columns were flattened into unstructured text during parsing."
+    ),
+    FailureType.HIERARCHY_FLATTENING: (
+        "Document hierarchy markers were merged or flattened during parsing."
+    ),
+    FailureType.METADATA_LOSS: (
+        "Document identifiers or section metadata were stripped during parsing."
+    ),
+    FailureType.POST_RATIONALIZED_CITATION: (
+        "The model appears to have cited documents superficially after generating the answer."
+    ),
     FailureType.PARSER_STRUCTURE_LOSS: (
         "Document parser lost structural information before chunking."
     ),
@@ -116,6 +128,23 @@ DEFAULT_REMEDIATIONS: dict[FailureType, str] = {
     FailureType.LOW_CONFIDENCE: (
         "Consider abstaining, re-retrieving, or requesting human review."
     ),
+    FailureType.TABLE_STRUCTURE_LOSS: (
+        "Use a structure-preserving parser (unstructured.io, docling, pymupdf4llm) "
+        "before chunking. Tables must preserve row-column bindings."
+    ),
+    FailureType.HIERARCHY_FLATTENING: (
+        "Parser lost document hierarchy. Use heading-aware parsing. Preserve "
+        "numbered list structure in chunk boundaries."
+    ),
+    FailureType.METADATA_LOSS: (
+        "Document identifiers and section labels not found in chunks. Verify "
+        "parser preserves metadata. Add metadata injection at chunk level."
+    ),
+    FailureType.POST_RATIONALIZED_CITATION: (
+        "Citations appear superficial. Model may be generating from parametric "
+        "knowledge. Add explicit grounding instructions: require the model to "
+        "quote the specific chunk text it is using."
+    ),
     FailureType.PARSER_STRUCTURE_LOSS: (
         "Use a structure-preserving parser that maintains document hierarchy and tables."
     ),
@@ -139,6 +168,9 @@ DEFAULT_REMEDIATIONS: dict[FailureType, str] = {
 
 
 FAILURE_PRIORITY: list[FailureType] = [
+    FailureType.TABLE_STRUCTURE_LOSS,
+    FailureType.HIERARCHY_FLATTENING,
+    FailureType.METADATA_LOSS,
     FailureType.PROMPT_INJECTION,
     FailureType.SUSPICIOUS_CHUNK,
     FailureType.PRIVACY_VIOLATION,
@@ -154,6 +186,7 @@ FAILURE_PRIORITY: list[FailureType] = [
     FailureType.UNSUPPORTED_CLAIM,
     FailureType.CITATION_MISMATCH,
     FailureType.STALE_RETRIEVAL,
+    FailureType.POST_RATIONALIZED_CITATION,
     FailureType.SCOPE_VIOLATION,
     FailureType.INCONSISTENT_CHUNKS,
     FailureType.LOW_CONFIDENCE,

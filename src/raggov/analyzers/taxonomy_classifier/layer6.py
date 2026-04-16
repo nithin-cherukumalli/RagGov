@@ -18,6 +18,15 @@ from raggov.models.diagnosis import AnalyzerResult, FailureStage, FailureType
 from raggov.models.run import RAGRun
 
 
+# Retrieval quality bands for cosine similarity over retrieved chunks.
+# These are calibrated ranges, not paper-proven absolutes:
+# - Scores above 0.75 are treated as likely relevant.
+# - Scores below 0.60 are treated as likely irrelevant.
+# - Scores in 0.60-0.75 remain ambiguous and should not be forced into a single cause.
+SCORE_BAND_HIGH = 0.75
+SCORE_BAND_LOW = 0.60
+
+
 @dataclass
 class StageFailure:
     """Represents a failure at a specific RAG pipeline stage."""
@@ -38,8 +47,21 @@ class Layer6FailureReport:
     engineer_action: str  # one concrete thing to fix
 
 
+@dataclass
+class WeightedStageFailure:
+    """Internal stage failure paired with source authority metadata."""
+
+    failure: StageFailure
+    weight: float
+    order: int
+    remediation: str | None = None
+
+
 # Engineer action recommendations for each failure mode
 ENGINEER_ACTIONS = {
+    # PARSING failures
+    "lost_structure": "Use a structure-aware parser (unstructured.io, docling) before chunking.",
+    "metadata_loss": "Verify parser preserves document identifiers and section metadata.",
     # RETRIEVAL failures
     "missing_relevant_docs": "Increase retrieval top-k and review embedding model quality.",
     "off_topic_retrieval": "Audit embedding model on your domain. Add query expansion or HyDE.",
@@ -47,12 +69,12 @@ ENGINEER_ACTIONS = {
     "top_k_too_small": "Increase top-k to at least 5-8. Add MMR for diversity.",
     # CHUNKING failures
     "boundary_errors": "Review chunking strategy. Use semantic chunking or smaller fixed chunks with overlap.",
-    "lost_structure": "Use a structure-aware parser (unstructured.io, docling) before chunking.",
     "oversized_chunks": "Reduce chunk size. Target 256-512 tokens with 10-15% overlap.",
     # GENERATION failures
     "context_ignored": "Add explicit grounding instructions to system prompt. Consider RAG-specific fine-tuning.",
     "over_extraction": "Improve chunk quality and reranking. Add citation verification post-generation.",
     "hallucination": "Improve retrieval recall. Add RefChecker-style claim verification post-generation.",
+    "mixed_quality": "Ambiguous: could be retrieval miss or context ignored. Check reranker quality and grounding prompt strength.",
     # SECURITY failures
     "prompt_injection": "Add input sanitization layer. Scan corpus for instruction-like content at ingest time.",
     "corpus_poisoning": "Audit corpus for anomalous documents. Add retrieval score monitoring.",
@@ -60,6 +82,9 @@ ENGINEER_ACTIONS = {
 
 # Severity mapping based on failure type
 SEVERITY_MAP = {
+    FailureType.TABLE_STRUCTURE_LOSS: "HIGH",
+    FailureType.HIERARCHY_FLATTENING: "MEDIUM",
+    FailureType.METADATA_LOSS: "LOW",
     FailureType.PROMPT_INJECTION: "CRITICAL",
     FailureType.PRIVACY_VIOLATION: "CRITICAL",
     FailureType.RETRIEVAL_ANOMALY: "HIGH",
@@ -87,59 +112,57 @@ STAGE_ORDER = {
     "CONFIDENCE": 9,
 }
 
+NCV_STAGE_FAILURES = {
+    "QUERY_UNDERSTANDING": ("RETRIEVAL", "off_topic_retrieval"),
+    "RETRIEVAL_QUALITY": ("RETRIEVAL", "missing_relevant_docs"),
+    "CONTEXT_ASSEMBLY": ("CHUNKING", "boundary_errors"),
+    "CLAIM_GROUNDING": ("GENERATION", "hallucination"),
+    "ANSWER_COMPLETENESS": ("GENERATION", "hallucination"),
+}
+
 
 class Layer6TaxonomyClassifier(BaseAnalyzer):
     """Maps prior analyzer results to Layer6 failure taxonomy."""
 
     def analyze(self, run: RAGRun) -> AnalyzerResult:
         """Analyze a RAG run and classify failures into Layer6 taxonomy."""
-        # Get prior results from config
-        prior_results = self.config.get("prior_results", [])
+        weighted_mode = bool(self.config.get("weighted_prior_results"))
+        prior_results = self.config.get("weighted_prior_results") or self.config.get("prior_results", [])
+        analyzer_weights = self.config.get("analyzer_weights", {})
+        ncv_report = self.config.get("ncv_report")
 
-        # Check if there are any failures to classify
         failed_results = [r for r in prior_results if r.status in ("fail", "warn")]
         if not failed_results:
             return self.skip("no prior failures to classify")
 
-        # Extract chunk scores
         chunk_scores = [
             chunk.score for chunk in run.retrieved_chunks if chunk.score is not None
         ]
 
-        # Detect failures for each stage
-        stage_failures: list[StageFailure] = []
-        stage_failures.extend(self._detect_retrieval_failures(prior_results, chunk_scores))
-        stage_failures.extend(self._detect_chunking_failures(prior_results, chunk_scores))
-        stage_failures.extend(self._detect_generation_failures(prior_results, chunk_scores))
-        stage_failures.extend(self._detect_security_failures(prior_results))
+        stage_failures: list[WeightedStageFailure] = []
+        stage_failures.extend(self._detect_parsing_failures(prior_results, analyzer_weights))
+        stage_failures.extend(self._detect_retrieval_failures(prior_results, chunk_scores, analyzer_weights))
+        stage_failures.extend(self._detect_chunking_failures(prior_results, chunk_scores, analyzer_weights))
+        stage_failures.extend(self._detect_generation_failures(prior_results, chunk_scores, analyzer_weights))
+        stage_failures.extend(self._detect_security_failures(prior_results, analyzer_weights))
+        stage_failures = self._dedupe_failures(stage_failures)
+        stage_failures = self._apply_ncv_tiebreaker(stage_failures, ncv_report, analyzer_weights)
 
         if not stage_failures:
             return self.skip("no Layer6 failure modes detected")
 
-        # Build failure chain (ordered by stage)
         failure_chain = self._build_failure_chain(stage_failures)
-
-        # Identify primary stage (earliest in chain)
         primary_stage = self._identify_primary_stage(stage_failures)
+        primary_failure = self._identify_primary_failure(stage_failures, primary_stage)
+        engineer_action = self._engineer_action(primary_failure, prefer_source_remediation=weighted_mode)
 
-        # Get engineer action for primary failure
-        primary_failure_mode = next(
-            (f.failure_mode for f in stage_failures if f.stage == primary_stage), None
-        )
-        engineer_action = ENGINEER_ACTIONS.get(
-            primary_failure_mode or "",
-            "Review retrieval and generation pipeline for issues.",
-        )
-
-        # Build Layer6 report
         report = Layer6FailureReport(
-            stage_failures=stage_failures,
+            stage_failures=[failure.failure for failure in stage_failures],
             primary_stage=primary_stage,
             failure_chain=failure_chain,
             engineer_action=engineer_action,
         )
 
-        # Serialize report to evidence as JSON
         report_dict = {
             "stage_failures": [asdict(f) for f in report.stage_failures],
             "primary_stage": report.primary_stage,
@@ -147,7 +170,6 @@ class Layer6TaxonomyClassifier(BaseAnalyzer):
             "engineer_action": report.engineer_action,
         }
 
-        # Map primary stage back to FailureStage enum
         stage_map = {
             "PARSING": FailureStage.PARSING,
             "CHUNKING": FailureStage.CHUNKING,
@@ -161,241 +183,420 @@ class Layer6TaxonomyClassifier(BaseAnalyzer):
         return AnalyzerResult(
             analyzer_name=self.name(),
             status="fail",
-            failure_type=None,  # Layer6 is meta-classification, not a specific failure
+            failure_type=None,
             stage=stage_map.get(primary_stage, FailureStage.UNKNOWN),
             evidence=[json.dumps(report_dict)],
             remediation=engineer_action,
         )
 
-    def _detect_retrieval_failures(
-        self, prior_results: list[AnalyzerResult], chunk_scores: list[float]
-    ) -> list[StageFailure]:
-        """Detect RETRIEVAL stage failures."""
-        failures: list[StageFailure] = []
+    def _detect_parsing_failures(
+        self,
+        prior_results: list[AnalyzerResult],
+        analyzer_weights: dict[str, float],
+    ) -> list[WeightedStageFailure]:
+        """Detect PARSING stage failures."""
+        failures: list[WeightedStageFailure] = []
 
-        # Calculate average chunk score
+        for order, result in enumerate(prior_results):
+            if result.status not in ("fail", "warn") or result.failure_type is None:
+                continue
+
+            if result.failure_type in (
+                FailureType.TABLE_STRUCTURE_LOSS,
+                FailureType.HIERARCHY_FLATTENING,
+            ):
+                failures.append(
+                    self._candidate(
+                        result,
+                        analyzer_weights,
+                        order,
+                        stage="PARSING",
+                        failure_mode="lost_structure",
+                        severity=SEVERITY_MAP.get(result.failure_type, "MEDIUM"),
+                    )
+                )
+            elif result.failure_type == FailureType.METADATA_LOSS:
+                failures.append(
+                    self._candidate(
+                        result,
+                        analyzer_weights,
+                        order,
+                        stage="PARSING",
+                        failure_mode="metadata_loss",
+                        severity=SEVERITY_MAP.get(result.failure_type, "LOW"),
+                    )
+                )
+
+        return self._dedupe_failures(failures)
+
+    def _detect_retrieval_failures(
+        self,
+        prior_results: list[AnalyzerResult],
+        chunk_scores: list[float],
+        analyzer_weights: dict[str, float],
+    ) -> list[WeightedStageFailure]:
+        """Detect RETRIEVAL stage failures."""
+        failures: list[WeightedStageFailure] = []
         avg_score = statistics.mean(chunk_scores) if chunk_scores else 0.0
 
-        for result in prior_results:
+        for order, result in enumerate(prior_results):
             if result.status not in ("fail", "warn"):
                 continue
 
-            # off_topic_retrieval: SCOPE_VIOLATION
             if result.failure_type == FailureType.SCOPE_VIOLATION:
                 failures.append(
-                    StageFailure(
+                    self._candidate(
+                        result,
+                        analyzer_weights,
+                        order,
                         stage="RETRIEVAL",
                         failure_mode="off_topic_retrieval",
-                        evidence=result.evidence,
                         severity=SEVERITY_MAP.get(result.failure_type, "MEDIUM"),
                     )
                 )
-
-            # stale_docs: STALE_RETRIEVAL
             elif result.failure_type == FailureType.STALE_RETRIEVAL:
                 failures.append(
-                    StageFailure(
+                    self._candidate(
+                        result,
+                        analyzer_weights,
+                        order,
                         stage="RETRIEVAL",
                         failure_mode="stale_docs",
-                        evidence=result.evidence,
                         severity=SEVERITY_MAP.get(result.failure_type, "MEDIUM"),
                     )
                 )
-
-            # missing_relevant_docs or top_k_too_small: INSUFFICIENT_CONTEXT
             elif result.failure_type == FailureType.INSUFFICIENT_CONTEXT:
-                # Check if scores are low
                 if avg_score < 0.65:
                     failures.append(
-                        StageFailure(
+                        self._candidate(
+                            result,
+                            analyzer_weights,
+                            order,
                             stage="RETRIEVAL",
                             failure_mode="missing_relevant_docs",
-                            evidence=result.evidence,
                             severity=SEVERITY_MAP.get(result.failure_type, "MEDIUM"),
                         )
                     )
-                # Check if top-k is too small (fewer than 3 chunks + varying scores)
                 elif len(chunk_scores) < 3:
                     score_variance = statistics.stdev(chunk_scores) if len(chunk_scores) > 1 else 0
-                    if score_variance > 0.2:  # Scores vary widely
+                    if score_variance > 0.2:
                         failures.append(
-                            StageFailure(
+                            self._candidate(
+                                result,
+                                analyzer_weights,
+                                order,
                                 stage="RETRIEVAL",
                                 failure_mode="top_k_too_small",
-                                evidence=result.evidence,
                                 severity=SEVERITY_MAP.get(result.failure_type, "MEDIUM"),
                             )
                         )
                     else:
-                        # Default to top_k_too_small if we have few chunks
                         failures.append(
-                            StageFailure(
+                            self._candidate(
+                                result,
+                                analyzer_weights,
+                                order,
                                 stage="RETRIEVAL",
                                 failure_mode="top_k_too_small",
-                                evidence=result.evidence,
                                 severity=SEVERITY_MAP.get(result.failure_type, "MEDIUM"),
                             )
                         )
                 else:
-                    # Default to missing_relevant_docs for other cases
                     failures.append(
-                        StageFailure(
+                        self._candidate(
+                            result,
+                            analyzer_weights,
+                            order,
                             stage="RETRIEVAL",
                             failure_mode="missing_relevant_docs",
-                            evidence=result.evidence,
                             severity=SEVERITY_MAP.get(result.failure_type, "MEDIUM"),
                         )
                     )
 
-        return failures
+        return self._dedupe_failures(failures)
 
     def _detect_chunking_failures(
-        self, prior_results: list[AnalyzerResult], chunk_scores: list[float]
-    ) -> list[StageFailure]:
+        self,
+        prior_results: list[AnalyzerResult],
+        chunk_scores: list[float],
+        analyzer_weights: dict[str, float],
+    ) -> list[WeightedStageFailure]:
         """Detect CHUNKING stage failures."""
-        failures: list[StageFailure] = []
+        failures: list[WeightedStageFailure] = []
 
         avg_score = statistics.mean(chunk_scores) if chunk_scores else 0.0
 
-        for result in prior_results:
+        for order, result in enumerate(prior_results):
             if result.status not in ("fail", "warn"):
                 continue
 
-            # boundary_errors: INCONSISTENT_CHUNKS
             if result.failure_type == FailureType.INCONSISTENT_CHUNKS:
                 failures.append(
-                    StageFailure(
+                    self._candidate(
+                        result,
+                        analyzer_weights,
+                        order,
                         stage="CHUNKING",
                         failure_mode="boundary_errors",
-                        evidence=result.evidence,
                         severity=SEVERITY_MAP.get(result.failure_type, "MEDIUM"),
                     )
                 )
 
-            # lost_structure: UNSUPPORTED_CLAIM + moderate retrieval scores (0.65 < score <= 0.75)
-            # Only detect chunking issue if scores are moderate (not very high)
-            elif (
-                result.failure_type == FailureType.UNSUPPORTED_CLAIM
-                and 0.65 < avg_score <= 0.75
-            ):
-                failures.append(
-                    StageFailure(
-                        stage="CHUNKING",
-                        failure_mode="lost_structure",
-                        evidence=result.evidence,
-                        severity=SEVERITY_MAP.get(result.failure_type, "HIGH"),
-                    )
-                )
-
-            # oversized_chunks: low average chunk score despite non-empty retrieval
-            # This is hard to detect from prior results alone, skip for now
-
-        return failures
+        return self._dedupe_failures(failures)
 
     def _detect_generation_failures(
-        self, prior_results: list[AnalyzerResult], chunk_scores: list[float]
-    ) -> list[StageFailure]:
-        """Detect GENERATION stage failures."""
-        failures: list[StageFailure] = []
+        self,
+        prior_results: list[AnalyzerResult],
+        chunk_scores: list[float],
+        analyzer_weights: dict[str, float],
+    ) -> list[WeightedStageFailure]:
+        """Detect GENERATION stage failures.
+
+        Score bands are calibrated ranges, not precise guarantees:
+        - avg_score > 0.75: retrieval was likely strong, so unsupported output points to context_ignored.
+        - avg_score <= 0.60: retrieval was likely weak, so unsupported output points to hallucination.
+        - 0.60 < avg_score <= 0.75: ambiguous mixed_quality zone.
+        """
+        failures: list[WeightedStageFailure] = []
 
         avg_score = statistics.mean(chunk_scores) if chunk_scores else 0.0
 
-        for result in prior_results:
+        for order, result in enumerate(prior_results):
             if result.status not in ("fail", "warn"):
                 continue
 
-            # context_ignored: UNSUPPORTED_CLAIM + high retrieval scores (> 0.75)
-            if result.failure_type == FailureType.UNSUPPORTED_CLAIM and avg_score > 0.75:
+            if result.failure_type == FailureType.UNSUPPORTED_CLAIM and avg_score > SCORE_BAND_HIGH:
                 failures.append(
-                    StageFailure(
+                    self._candidate(
+                        result,
+                        analyzer_weights,
+                        order,
                         stage="GENERATION",
                         failure_mode="context_ignored",
-                        evidence=result.evidence,
                         severity=SEVERITY_MAP.get(result.failure_type, "HIGH"),
                     )
                 )
-
-            # hallucination: UNSUPPORTED_CLAIM + low retrieval scores (<= 0.65)
-            elif result.failure_type == FailureType.UNSUPPORTED_CLAIM and avg_score <= 0.65:
+            elif result.failure_type == FailureType.UNSUPPORTED_CLAIM and avg_score <= SCORE_BAND_LOW:
                 failures.append(
-                    StageFailure(
+                    self._candidate(
+                        result,
+                        analyzer_weights,
+                        order,
                         stage="GENERATION",
                         failure_mode="hallucination",
-                        evidence=result.evidence,
                         severity=SEVERITY_MAP.get(result.failure_type, "HIGH"),
                     )
                 )
-
-            # over_extraction: CONTRADICTED_CLAIM
+            elif (
+                result.failure_type == FailureType.UNSUPPORTED_CLAIM
+                and SCORE_BAND_LOW < avg_score <= SCORE_BAND_HIGH
+            ):
+                failures.append(
+                    self._candidate(
+                        result,
+                        analyzer_weights,
+                        order,
+                        stage="GENERATION",
+                        failure_mode="mixed_quality",
+                        severity=SEVERITY_MAP.get(result.failure_type, "HIGH"),
+                    )
+                )
             elif result.failure_type == FailureType.CONTRADICTED_CLAIM:
                 failures.append(
-                    StageFailure(
+                    self._candidate(
+                        result,
+                        analyzer_weights,
+                        order,
                         stage="GENERATION",
                         failure_mode="over_extraction",
-                        evidence=result.evidence,
                         severity=SEVERITY_MAP.get(result.failure_type, "HIGH"),
                     )
                 )
 
-        return failures
+        return self._dedupe_failures(failures)
 
     def _detect_security_failures(
-        self, prior_results: list[AnalyzerResult]
-    ) -> list[StageFailure]:
+        self,
+        prior_results: list[AnalyzerResult],
+        analyzer_weights: dict[str, float],
+    ) -> list[WeightedStageFailure]:
         """Detect SECURITY stage failures."""
-        failures: list[StageFailure] = []
+        failures: list[WeightedStageFailure] = []
 
-        for result in prior_results:
+        for order, result in enumerate(prior_results):
             if result.status not in ("fail", "warn"):
                 continue
 
-            # prompt_injection: PROMPT_INJECTION
             if result.failure_type == FailureType.PROMPT_INJECTION:
                 failures.append(
-                    StageFailure(
+                    self._candidate(
+                        result,
+                        analyzer_weights,
+                        order,
                         stage="SECURITY",
                         failure_mode="prompt_injection",
-                        evidence=result.evidence,
                         severity=SEVERITY_MAP.get(result.failure_type, "CRITICAL"),
                     )
                 )
-
-            # corpus_poisoning: SUSPICIOUS_CHUNK or RETRIEVAL_ANOMALY
             elif result.failure_type in (
                 FailureType.SUSPICIOUS_CHUNK,
                 FailureType.RETRIEVAL_ANOMALY,
             ):
                 failures.append(
-                    StageFailure(
+                    self._candidate(
+                        result,
+                        analyzer_weights,
+                        order,
                         stage="SECURITY",
                         failure_mode="corpus_poisoning",
-                        evidence=result.evidence,
                         severity=SEVERITY_MAP.get(result.failure_type, "HIGH"),
                     )
                 )
 
-        return failures
+        return self._dedupe_failures(failures)
 
-    def _build_failure_chain(self, stage_failures: list[StageFailure]) -> list[str]:
+    def _build_failure_chain(self, stage_failures: list[WeightedStageFailure]) -> list[str]:
         """Build ordered failure chain showing how failures propagated."""
-        # Sort failures by stage order
         sorted_failures = sorted(
-            stage_failures, key=lambda f: STAGE_ORDER.get(f.stage, 999)
+            stage_failures,
+            key=lambda failure: (
+                STAGE_ORDER.get(failure.failure.stage, 999),
+                failure.order,
+            ),
         )
+        return [
+            f"{failure.failure.stage} → {failure.failure.failure_mode}"
+            for failure in sorted_failures
+        ]
 
-        # Build chain strings: "STAGE → failure_mode"
-        chain = [f"{f.stage} → {f.failure_mode}" for f in sorted_failures]
-
-        return chain
-
-    def _identify_primary_stage(self, stage_failures: list[StageFailure]) -> str:
-        """Identify the primary (earliest) failure stage."""
+    def _identify_primary_stage(
+        self,
+        stage_failures: list[WeightedStageFailure],
+    ) -> str:
+        """Identify the primary stage using earliest causal precedence."""
         if not stage_failures:
             return "UNKNOWN"
+        return sorted(
+            stage_failures,
+            key=lambda failure: (STAGE_ORDER.get(failure.failure.stage, 999), failure.order),
+        )[0].failure.stage
 
-        # Sort by stage order and return the earliest
-        sorted_failures = sorted(
-            stage_failures, key=lambda f: STAGE_ORDER.get(f.stage, 999)
+    def _identify_primary_failure(
+        self,
+        stage_failures: list[WeightedStageFailure],
+        primary_stage: str,
+    ) -> WeightedStageFailure:
+        """Identify the strongest failure within the chosen primary stage."""
+        if not stage_failures:
+            raise ValueError("stage_failures must not be empty")
+        stage_specific_failures = [
+            failure for failure in stage_failures if failure.failure.stage == primary_stage
+        ]
+        candidates = stage_specific_failures or stage_failures
+        return sorted(
+            candidates,
+            key=lambda failure: (-failure.weight, failure.order),
+        )[0]
+
+    def _apply_ncv_tiebreaker(
+        self,
+        stage_failures: list[WeightedStageFailure],
+        ncv_report: dict[str, Any] | None,
+        analyzer_weights: dict[str, float],
+    ) -> list[WeightedStageFailure]:
+        """Add an earlier NCV bottleneck without overriding explicit parsing or security."""
+        if not ncv_report:
+            return stage_failures
+
+        first_failing_node = ncv_report.get("first_failing_node")
+        if first_failing_node not in NCV_STAGE_FAILURES:
+            return stage_failures
+
+        if any(failure.failure.stage == "PARSING" for failure in stage_failures):
+            return stage_failures
+        if any(failure.failure.stage == "SECURITY" for failure in stage_failures):
+            return stage_failures
+
+        ncv_stage, failure_mode = NCV_STAGE_FAILURES[first_failing_node]
+        current_primary_stage = (
+            self._identify_primary_stage(stage_failures)
+            if stage_failures
+            else "UNKNOWN"
+        )
+        if stage_failures and STAGE_ORDER.get(ncv_stage, 999) >= STAGE_ORDER.get(current_primary_stage, 999):
+            return stage_failures
+        ncv_failure = WeightedStageFailure(
+            failure=StageFailure(
+                stage=ncv_stage,
+                failure_mode=failure_mode,
+                evidence=[
+                    ncv_report.get(
+                        "bottleneck_description",
+                        "NCV identified an earlier-stage pipeline bottleneck",
+                    )
+                ],
+                severity="MEDIUM",
+            ),
+            weight=float(analyzer_weights.get("NCVPipelineVerifier", 1.0)),
+            order=-1,
+        )
+        return self._dedupe_failures([ncv_failure, *stage_failures])
+
+    def _engineer_action(
+        self,
+        primary_failure: WeightedStageFailure,
+        *,
+        prefer_source_remediation: bool,
+    ) -> str:
+        """Choose engineer action, preferring the strongest supporting remediation."""
+        if primary_failure.failure.stage == "PARSING" and primary_failure.remediation:
+            return primary_failure.remediation
+        if prefer_source_remediation and primary_failure.remediation:
+            return primary_failure.remediation
+        return ENGINEER_ACTIONS.get(
+            primary_failure.failure.failure_mode,
+            "Review retrieval and generation pipeline for issues.",
         )
 
-        return sorted_failures[0].stage
+    def _candidate(
+        self,
+        result: AnalyzerResult,
+        analyzer_weights: dict[str, float],
+        order: int,
+        *,
+        stage: str,
+        failure_mode: str,
+        severity: str,
+    ) -> WeightedStageFailure:
+        return WeightedStageFailure(
+            failure=StageFailure(
+                stage=stage,
+                failure_mode=failure_mode,
+                evidence=result.evidence,
+                severity=severity,
+            ),
+            weight=self._result_weight(result, analyzer_weights),
+            order=order,
+            remediation=result.remediation,
+        )
+
+    def _dedupe_failures(
+        self,
+        stage_failures: list[WeightedStageFailure],
+    ) -> list[WeightedStageFailure]:
+        best_failures: dict[tuple[str, str], WeightedStageFailure] = {}
+        for failure in stage_failures:
+            key = (failure.failure.stage, failure.failure.failure_mode)
+            current = best_failures.get(key)
+            if current is None or failure.weight > current.weight or (
+                failure.weight == current.weight and failure.order < current.order
+            ):
+                best_failures[key] = failure
+        return list(best_failures.values())
+
+    def _result_weight(
+        self,
+        result: AnalyzerResult,
+        analyzer_weights: dict[str, float],
+    ) -> float:
+        return float(analyzer_weights.get(result.analyzer_name, 1.0))

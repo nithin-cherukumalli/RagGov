@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 from raggov.analyzers.confidence.semantic_entropy import (
     SemanticEntropyAnalyzer,
     jaccard_similarity,
@@ -74,7 +76,7 @@ def test_jaccard_similarity_case_insensitive() -> None:
 
 
 def test_deterministic_mode_all_claims_supported() -> None:
-    """Deterministic mode: all claims supported → low pseudo-entropy → pass."""
+    """Deterministic mode: one claim-label cluster → zero entropy → pass."""
     # Mock prior results with all claims entailed
     prior_results = [
         AnalyzerResult(
@@ -101,14 +103,14 @@ def test_deterministic_mode_all_claims_supported() -> None:
 
     assert result.status == "pass"
     assert result.score is not None
-    assert result.score < 0.5  # Low entropy
-    # Check that evidence mentions low uncertainty or 0 disagreement
+    assert result.score == 0.0
     evidence_text = " ".join(result.evidence).lower()
-    assert "low uncertainty" in evidence_text or "0.00%" in evidence_text
+    assert "claim-label entropy" in evidence_text
+    assert "low uncertainty" in evidence_text
 
 
 def test_deterministic_mode_all_claims_unsupported() -> None:
-    """Deterministic mode: all claims unsupported → high pseudo-entropy → fail."""
+    """Deterministic mode: consistent unsupported labels still yield zero entropy."""
     prior_results = [
         AnalyzerResult(
             analyzer_name="ClaimGroundingAnalyzer",
@@ -135,17 +137,18 @@ def test_deterministic_mode_all_claims_unsupported() -> None:
 
     result = analyzer.analyze(test_run)
 
-    assert result.status == "fail"
-    assert result.failure_type == FailureType.LOW_CONFIDENCE
-    assert result.stage == FailureStage.CONFIDENCE
+    assert result.status == "pass"
+    assert result.failure_type is None
+    assert result.stage is None
     assert result.score is not None
-    assert result.score > 1.2  # High pseudo-entropy
+    assert result.score == 0.0
     evidence_text = " ".join(result.evidence).lower()
-    assert "high uncertainty" in evidence_text or "confabulation" in evidence_text
+    assert "claim-label entropy" in evidence_text
+    assert "low uncertainty" in evidence_text
 
 
 def test_deterministic_mode_mixed_claims() -> None:
-    """Deterministic mode: mixed claims → medium pseudo-entropy → warn."""
+    """Deterministic mode: two label clusters → medium entropy → warn."""
     prior_results = []
 
     # Mixed: 2 entailed, 1 unsupported
@@ -161,10 +164,36 @@ def test_deterministic_mode_mixed_claims() -> None:
 
     result = analyzer.analyze(test_run)
 
-    # Should be warn with medium entropy
-    assert result.status in ("warn", "pass")
+    assert result.status == "warn"
     assert result.score is not None
-    assert 0.5 <= result.score <= 1.2  # Medium entropy range
+    assert math.isclose(result.score, 0.9182958340544896)
+    assert 0.5 <= result.score <= 1.2
+    evidence_text = " ".join(result.evidence).lower()
+    assert "medium uncertainty" in evidence_text
+
+
+def test_deterministic_mode_three_label_split_fails() -> None:
+    """Deterministic mode: three equally sized label clusters → high entropy → fail."""
+    claim_results = [
+        ClaimResult(claim_text="Claim 1", label="entailed", supporting_chunk_ids=["c1"]),
+        ClaimResult(claim_text="Claim 2", label="unsupported", supporting_chunk_ids=[]),
+        ClaimResult(claim_text="Claim 3", label="contradicted", supporting_chunk_ids=[]),
+    ]
+
+    analyzer = SemanticEntropyAnalyzer({"use_llm": False, "entropy_threshold": 1.2})
+
+    test_run = run_with_chunks([chunk("c1", "Context", 0.8)], claim_results=claim_results)
+
+    result = analyzer.analyze(test_run)
+
+    assert result.status == "fail"
+    assert result.failure_type == FailureType.LOW_CONFIDENCE
+    assert result.stage == FailureStage.CONFIDENCE
+    assert result.score is not None
+    assert result.score > 1.2
+    evidence_text = " ".join(result.evidence).lower()
+    assert "high uncertainty" in evidence_text
+    assert "claim-label entropy" in evidence_text
 
 
 def test_llm_mode_identical_answers() -> None:
@@ -348,7 +377,7 @@ def test_no_claim_results_in_deterministic_mode() -> None:
     result = analyzer.analyze(test_run)
 
     assert result.status == "skip"
-    assert "no claim results" in result.evidence[0].lower()
+    assert "claim-label entropy" in result.evidence[0].lower()
 
 
 def test_empty_chunks_handled_gracefully() -> None:

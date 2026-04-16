@@ -12,6 +12,8 @@ from raggov.models.run import RAGRun
 class StaleRetrievalAnalyzer(BaseAnalyzer):
     """Detect retrieved chunks backed by stale corpus entries."""
 
+    weight = 0.95
+
     def analyze(self, run: RAGRun) -> AnalyzerResult:
         if not run.retrieved_chunks:
             return self.skip("no retrieved chunks available")
