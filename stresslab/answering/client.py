@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import subprocess
 from typing import Any
 
 import httpx
@@ -19,6 +21,7 @@ class AnsweringClient:
     ) -> None:
         self._base_url = base_url
         self._model = model
+        self._timeout = timeout
         self._owns_client = http_client is None
         self._http_client = http_client or httpx.Client(timeout=timeout)
 
@@ -34,7 +37,16 @@ class AnsweringClient:
                 },
             )
         except httpx.HTTPError as exc:
-            raise RuntimeError(f"Answering request failed: {exc}") from exc
+            try:
+                payload = self._curl_post(
+                    {
+                        "model": self._model,
+                        "messages": [{"role": "user", "content": prompt}],
+                    }
+                )
+            except RuntimeError:
+                raise RuntimeError(f"Answering request failed: {exc}") from exc
+            return self._parse_content(payload)
 
         if response.status_code >= 400:
             detail = response.text.strip()
@@ -75,6 +87,31 @@ class AnsweringClient:
             return content
 
         raise RuntimeError("Answering response missing choices[0].message.content")
+
+    def _curl_post(self, payload: dict[str, Any]) -> Any:
+        result = subprocess.run(
+            [
+                "curl",
+                "-sS",
+                "--max-time",
+                str(int(self._timeout)),
+                "-H",
+                "Content-Type: application/json",
+                "-d",
+                json.dumps(payload),
+                self._base_url,
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            detail = result.stderr.strip() or result.stdout.strip()
+            raise RuntimeError(f"Answering curl fallback failed: {detail}")
+        try:
+            return json.loads(result.stdout)
+        except ValueError as exc:
+            raise RuntimeError("Answering response was not valid JSON") from exc
 
     def __enter__(self) -> AnsweringClient:
         return self

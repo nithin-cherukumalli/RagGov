@@ -132,3 +132,124 @@ def test_stresslab_diagnosis_command_enforces_min_match_rate(
     )
 
     assert result.exit_code != 0
+
+
+def test_stresslab_claim_diagnosis_command_writes_json_report(tmp_path: Path) -> None:
+    output_dir = tmp_path / "claim-diagnosis"
+    gold_path = Path("stresslab/cases/golden/claim_diagnosis_gold_v0.json")
+
+    result = runner.invoke(
+        app,
+        [
+            "stresslab-claim-diagnosis",
+            "--gold-set",
+            str(gold_path),
+            "--output-dir",
+            str(output_dir),
+            "--format",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    json_path = output_dir / "claim_diagnosis_report.json"
+    assert json_path.exists()
+
+    payload = json.loads(json_path.read_text(encoding="utf-8"))
+    assert payload["evaluation_status"] == "diagnostic_gold_v0_small_unvalidated"
+    assert payload["a2p_mode"] == "v1"
+    assert "aggregate_metrics" in payload
+    assert "claim_label_accuracy" in payload["aggregate_metrics"]
+
+
+def test_stresslab_claim_diagnosis_command_writes_markdown_with_mismatch_section(tmp_path: Path) -> None:
+    output_dir = tmp_path / "claim-diagnosis"
+    gold_path = Path("stresslab/cases/golden/claim_diagnosis_gold_v0.json")
+
+    result = runner.invoke(
+        app,
+        [
+            "stresslab-claim-diagnosis",
+            "--gold-set",
+            str(gold_path),
+            "--output-dir",
+            str(output_dir),
+            "--format",
+            "markdown",
+        ],
+    )
+
+    assert result.exit_code == 0
+    md_path = output_dir / "claim_diagnosis_report.md"
+    assert md_path.exists()
+    markdown = md_path.read_text(encoding="utf-8")
+    assert "# Claim-Level Diagnostic Evaluation Report" in markdown
+    assert "## Mismatches" in markdown
+
+
+def test_stresslab_claim_diagnosis_command_defaults_to_v1_gold_set(tmp_path: Path) -> None:
+    output_dir = tmp_path / "claim-diagnosis"
+
+    result = runner.invoke(
+        app,
+        [
+            "stresslab-claim-diagnosis",
+            "--output-dir",
+            str(output_dir),
+            "--format",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads((output_dir / "claim_diagnosis_report.json").read_text(encoding="utf-8"))
+    assert payload["evaluation_status"] == "diagnostic_gold_v1_large_unvalidated"
+    assert payload["a2p_mode"] == "v1"
+    assert payload["case_count"] >= 50
+    assert "category_metrics" in payload
+
+
+def test_stresslab_claim_diagnosis_command_accepts_enable_a2p_v2(tmp_path: Path) -> None:
+    output_dir = tmp_path / "claim-diagnosis"
+    gold_path = Path("stresslab/cases/golden/claim_diagnosis_gold_v0.json")
+
+    result = runner.invoke(
+        app,
+        [
+            "stresslab-claim-diagnosis",
+            "--gold-set",
+            str(gold_path),
+            "--output-dir",
+            str(output_dir),
+            "--enable-a2p-v2",
+            "--format",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads((output_dir / "claim_diagnosis_report.json").read_text(encoding="utf-8"))
+    assert payload["a2p_mode"] == "v2"
+
+
+def test_stresslab_claim_diagnosis_command_rejects_no_enable_a2p_with_enable_a2p_v2(tmp_path: Path) -> None:
+    output_dir = tmp_path / "claim-diagnosis"
+    gold_path = Path("stresslab/cases/golden/claim_diagnosis_gold_v0.json")
+
+    result = runner.invoke(
+        app,
+        [
+            "stresslab-claim-diagnosis",
+            "--gold-set",
+            str(gold_path),
+            "--output-dir",
+            str(output_dir),
+            "--no-enable-a2p",
+            "--enable-a2p-v2",
+            "--format",
+            "json",
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "--enable-a2p-v2 requires A2P to be enabled" in result.stdout

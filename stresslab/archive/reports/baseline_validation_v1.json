@@ -1,0 +1,207 @@
+{
+  "validation_type": "Phase 1A: Baseline Validation (RAW METRICS ONLY)",
+  "total_golden_set_items": 48,
+  "cases_with_fixtures": 10,
+  "cases_matched": 9,
+  "coverage_gap": 38,
+  "match_rate": 0.9,
+  "failure_type_accuracy": {
+    "CITATION_MISMATCH": 1.0,
+    "CLEAN": 1.0,
+    "INSUFFICIENT_CONTEXT": 1.0,
+    "HIERARCHY_FLATTENING": 1.0,
+    "TABLE_STRUCTURE_LOSS": 1.0,
+    "SUSPICIOUS_CHUNK": 1.0,
+    "POST_RATIONALIZED_CITATION": 1.0,
+    "PROMPT_INJECTION": 1.0,
+    "STALE_RETRIEVAL": 1.0,
+    "UNSUPPORTED_CLAIM": 1.0
+  },
+  "failure_stage_accuracy": {
+    "RETRIEVAL": 1.0,
+    "UNKNOWN": 1.0,
+    "SUFFICIENCY": 1.0,
+    "PARSING": 1.0,
+    "SECURITY": 1.0,
+    "GROUNDING": 1.0
+  },
+  "analyzer_confusion_matrices": {
+    "ParserValidationAnalyzer": {
+      "analyzer_name": "ParserValidationAnalyzer",
+      "total_cases": 10,
+      "true_positives": 2,
+      "false_positives": 0,
+      "true_negatives": 1,
+      "false_negatives": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "accuracy": 0.3
+    },
+    "SufficiencyAnalyzer": {
+      "analyzer_name": "SufficiencyAnalyzer",
+      "total_cases": 10,
+      "true_positives": 1,
+      "false_positives": 0,
+      "true_negatives": 1,
+      "false_negatives": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "accuracy": 0.2
+    },
+    "ScopeViolationAnalyzer": {
+      "analyzer_name": "ScopeViolationAnalyzer",
+      "total_cases": 10,
+      "true_positives": 1,
+      "false_positives": 0,
+      "true_negatives": 1,
+      "false_negatives": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "accuracy": 0.2
+    },
+    "StaleRetrievalAnalyzer": {
+      "analyzer_name": "StaleRetrievalAnalyzer",
+      "total_cases": 10,
+      "true_positives": 1,
+      "false_positives": 0,
+      "true_negatives": 1,
+      "false_negatives": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "accuracy": 0.2
+    },
+    "CitationMismatchAnalyzer": {
+      "analyzer_name": "CitationMismatchAnalyzer",
+      "total_cases": 10,
+      "true_positives": 1,
+      "false_positives": 0,
+      "true_negatives": 1,
+      "false_negatives": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "accuracy": 0.2
+    },
+    "ClaimGroundingAnalyzer": {
+      "analyzer_name": "ClaimGroundingAnalyzer",
+      "total_cases": 10,
+      "true_positives": 4,
+      "false_positives": 0,
+      "true_negatives": 1,
+      "false_negatives": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "accuracy": 0.5
+    },
+    "CitationFaithfulnessProbe": {
+      "analyzer_name": "CitationFaithfulnessProbe",
+      "total_cases": 10,
+      "true_positives": 5,
+      "false_positives": 0,
+      "true_negatives": 0,
+      "false_negatives": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "accuracy": 0.5
+    },
+    "PromptInjectionAnalyzer": {
+      "analyzer_name": "PromptInjectionAnalyzer",
+      "total_cases": 10,
+      "true_positives": 1,
+      "false_positives": 0,
+      "true_negatives": 1,
+      "false_negatives": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "accuracy": 0.2
+    },
+    "PoisoningHeuristicAnalyzer": {
+      "analyzer_name": "PoisoningHeuristicAnalyzer",
+      "total_cases": 10,
+      "true_positives": 1,
+      "false_positives": 0,
+      "true_negatives": 1,
+      "false_negatives": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "accuracy": 0.2
+    },
+    "RetrievalAnomalyAnalyzer": {
+      "analyzer_name": "RetrievalAnomalyAnalyzer",
+      "total_cases": 10,
+      "true_positives": 0,
+      "false_positives": 0,
+      "true_negatives": 1,
+      "false_negatives": 0,
+      "precision": null,
+      "recall": null,
+      "accuracy": 0.1
+    },
+    "PrivacyAnalyzer": {
+      "analyzer_name": "PrivacyAnalyzer",
+      "total_cases": 10,
+      "true_positives": 0,
+      "false_positives": 0,
+      "true_negatives": 1,
+      "false_negatives": 0,
+      "precision": null,
+      "recall": null,
+      "accuracy": 0.1
+    },
+    "Layer6TaxonomyClassifier": {
+      "analyzer_name": "Layer6TaxonomyClassifier",
+      "total_cases": 10,
+      "true_positives": 8,
+      "false_positives": 0,
+      "true_negatives": 0,
+      "false_negatives": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "accuracy": 0.8
+    },
+    "SemanticEntropyAnalyzer": {
+      "analyzer_name": "SemanticEntropyAnalyzer",
+      "total_cases": 10,
+      "true_positives": 0,
+      "false_positives": 0,
+      "true_negatives": 1,
+      "false_negatives": 0,
+      "precision": null,
+      "recall": null,
+      "accuracy": 0.1
+    }
+  },
+  "unstable_analyzers": [
+    "ParserValidationAnalyzer",
+    "SufficiencyAnalyzer",
+    "ScopeViolationAnalyzer",
+    "StaleRetrievalAnalyzer",
+    "CitationMismatchAnalyzer",
+    "ClaimGroundingAnalyzer",
+    "CitationFaithfulnessProbe",
+    "PromptInjectionAnalyzer",
+    "PoisoningHeuristicAnalyzer",
+    "RetrievalAnomalyAnalyzer",
+    "PrivacyAnalyzer",
+    "SemanticEntropyAnalyzer"
+  ],
+  "mismatched_cases": [
+    {
+      "case_id": "clean_pass",
+      "expected_primary": "CLEAN",
+      "observed_primary": "CLEAN",
+      "expected_stage": "UNKNOWN",
+      "observed_stage": "UNKNOWN",
+      "notes": [
+        "citation faithfulness mismatch: expected genuine, observed partial"
+      ]
+    }
+  ],
+  "run_timestamp": "2026-04-23T10:37:47.074360+00:00",
+  "calibration_status": "NOT_CALIBRATED",
+  "notes": [
+    "Sample size (10) is INSUFFICIENT for threshold calibration",
+    "ARESCalibrator recommends 150-300 samples for serious calibration",
+    "Coverage gap: 38 golden set items lack fixtures",
+    "All thresholds derived from this run should be marked PROVISIONAL"
+  ]
+}

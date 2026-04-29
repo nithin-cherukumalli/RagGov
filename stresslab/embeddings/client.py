@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import subprocess
 from hashlib import sha256
 from typing import Any
 
@@ -18,6 +20,7 @@ class EmbeddingClient:
     ) -> None:
         self._base_url = base_url
         self._model = model
+        self._timeout = timeout
         self._owns_client = http_client is None
         self._http_client = http_client or httpx.Client(timeout=timeout)
         self._cache: dict[str, list[float]] = {}
@@ -60,7 +63,11 @@ class EmbeddingClient:
                 json={"input": texts, "model": self._model},
             )
         except httpx.HTTPError as exc:
-            raise RuntimeError(f"Embedding request failed: {exc}") from exc
+            try:
+                payload = self._curl_post({"input": texts, "model": self._model})
+            except RuntimeError:
+                raise RuntimeError(f"Embedding request failed: {exc}") from exc
+            return self._parse_embeddings_payload(payload, texts)
 
         if response.status_code >= 400:
             detail = response.text.strip()
@@ -74,6 +81,13 @@ class EmbeddingClient:
         except ValueError as exc:
             raise RuntimeError("Embedding response was not valid JSON") from exc
 
+        return self._parse_embeddings_payload(payload, texts)
+
+    def _parse_embeddings_payload(
+        self,
+        payload: Any,
+        texts: list[str],
+    ) -> list[list[float]]:
         data = payload.get("data")
         if not isinstance(data, list):
             raise RuntimeError("Embedding response missing data list")
@@ -109,6 +123,31 @@ class EmbeddingClient:
             raise RuntimeError(
                 f"Embedding response missing data[{exc.args[0]}].embedding"
             ) from exc
+
+    def _curl_post(self, payload: dict[str, Any]) -> Any:
+        result = subprocess.run(
+            [
+                "curl",
+                "-sS",
+                "--max-time",
+                str(int(self._timeout)),
+                "-H",
+                "Content-Type: application/json",
+                "-d",
+                json.dumps(payload),
+                self._base_url,
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            detail = result.stderr.strip() or result.stdout.strip()
+            raise RuntimeError(f"Embedding curl fallback failed: {detail}")
+        try:
+            return json.loads(result.stdout)
+        except ValueError as exc:
+            raise RuntimeError("Embedding response was not valid JSON") from exc
 
     def _cache_key(self, text: str) -> str:
         return f"{self._model}:{sha256(text.encode('utf-8')).hexdigest()}"

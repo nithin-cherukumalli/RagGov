@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from raggov.analyzers.sufficiency.claim_aware import ClaimAwareSufficiencyAnalyzer
 from raggov.analyzers.sufficiency.sufficiency import SufficiencyAnalyzer
 from raggov.models.chunk import RetrievedChunk
-from raggov.models.diagnosis import FailureStage, FailureType
+from raggov.models.diagnosis import AnalyzerResult, ClaimResult, FailureStage, FailureType
 from raggov.models.run import RAGRun
 
 
@@ -161,3 +162,163 @@ def test_llm_mode_falls_back_to_deterministic_when_client_fails() -> None:
         "LLM sufficiency judge failed; fell back to deterministic mode: client unavailable",
         "Query term coverage: 50%. Terms not found in context: warranty",
     ]
+
+
+def test_old_behavior_still_works_without_claim_results() -> None:
+    run = run_with_context(
+        "refund policy",
+        [chunk("The refund policy explains returns and credits.")],
+    )
+
+    result = SufficiencyAnalyzer({"min_coverage_ratio": 1.0}).analyze(run)
+
+    assert result.status == "pass"
+    assert result.sufficiency_result is None
+    assert result.evidence == ["Query term coverage: 100%. Terms not found in context: none"]
+
+
+def test_claim_aware_sufficiency_flags_unsupported_claims_with_no_support() -> None:
+    run = run_with_context("refund policy", [chunk("refund policy details")])
+    prior = AnalyzerResult(
+        analyzer_name="ClaimGroundingAnalyzer",
+        status="fail",
+        claim_results=[
+            ClaimResult(
+                claim_text="Hardware returns are allowed for 45 days.",
+                label="unsupported",
+                supporting_chunk_ids=[],
+            )
+        ],
+    )
+
+    result = SufficiencyAnalyzer(
+        {"min_coverage_ratio": 0.0, "prior_results": [prior]}
+    ).analyze(run)
+
+    assert result.status == "pass"
+    assert result.sufficiency_result is not None
+    assert result.sufficiency_result.sufficient is False
+    assert result.sufficiency_result.missing_evidence == [
+        "Hardware returns are allowed for 45 days."
+    ]
+    assert result.sufficiency_result.affected_claims == [
+        "Hardware returns are allowed for 45 days."
+    ]
+    assert result.sufficiency_result.evidence_chunk_ids == []
+    assert result.sufficiency_result.method == "heuristic_claim_aware_v0"
+    assert result.sufficiency_result.calibration_status == "uncalibrated"
+
+
+def test_claim_aware_sufficiency_distinguishes_contradicted_from_missing_evidence() -> None:
+    run = run_with_context("refund policy", [chunk("refund policy details")])
+    prior = AnalyzerResult(
+        analyzer_name="ClaimGroundingAnalyzer",
+        status="fail",
+        claim_results=[
+            ClaimResult(
+                claim_text="Claim unsupported no source.",
+                label="unsupported",
+                supporting_chunk_ids=[],
+            ),
+            ClaimResult(
+                claim_text="Claim contradicted by chunk.",
+                label="contradicted",
+                supporting_chunk_ids=[],
+                candidate_chunk_ids=["chunk-1"],
+                contradicting_chunk_ids=["chunk-1"],
+            ),
+        ],
+    )
+
+    result = SufficiencyAnalyzer(
+        {"min_coverage_ratio": 0.0, "prior_results": [prior]}
+    ).analyze(run)
+
+    assert result.sufficiency_result is not None
+    assert result.sufficiency_result.missing_evidence == ["Claim unsupported no source."]
+    assert "Claim contradicted by chunk." not in result.sufficiency_result.missing_evidence
+    assert set(result.sufficiency_result.affected_claims) == {
+        "Claim unsupported no source.",
+        "Claim contradicted by chunk.",
+    }
+    assert result.sufficiency_result.evidence_chunk_ids == ["chunk-1"]
+
+
+def test_sufficiency_structured_result_present_when_claim_results_available() -> None:
+    run = run_with_context("refund policy", [chunk("refund policy details")])
+    prior = AnalyzerResult(
+        analyzer_name="ClaimGroundingAnalyzer",
+        status="pass",
+        claim_results=[
+            ClaimResult(
+                claim_text="Claim entailed.",
+                label="entailed",
+                supporting_chunk_ids=["chunk-1"],
+            )
+        ],
+    )
+
+    result = SufficiencyAnalyzer(
+        {"min_coverage_ratio": 0.0, "prior_results": [prior]}
+    ).analyze(run)
+
+    assert result.sufficiency_result is not None
+    assert result.sufficiency_result.sufficient is True
+
+
+def test_claim_aware_sufficiency_unsupported_with_candidate_but_no_support_is_insufficient() -> None:
+    run = run_with_context("refund policy", [chunk("refund policy details")])
+    prior = AnalyzerResult(
+        analyzer_name="ClaimGroundingAnalyzer",
+        status="fail",
+        claim_results=[
+            ClaimResult(
+                claim_text="Warranty includes international on-site repairs.",
+                label="unsupported",
+                supporting_chunk_ids=[],
+                candidate_chunk_ids=["chunk-1"],
+                contradicting_chunk_ids=[],
+            )
+        ],
+    )
+
+    result = ClaimAwareSufficiencyAnalyzer({"prior_results": [prior]}).analyze(run)
+
+    assert result.sufficiency_result is not None
+    assert result.sufficiency_result.sufficient is False
+    assert result.sufficiency_result.missing_evidence == [
+        "Warranty includes international on-site repairs."
+    ]
+    assert result.sufficiency_result.evidence_chunk_ids == ["chunk-1"]
+
+
+def test_claim_aware_sufficiency_analyzer_emits_sufficiency_result_from_prior_claims() -> None:
+    run = run_with_context("refund policy", [chunk("refund policy details")])
+    prior = AnalyzerResult(
+        analyzer_name="ClaimGroundingAnalyzer",
+        status="fail",
+        claim_results=[
+            ClaimResult(
+                claim_text="Claim unsupported no source.",
+                label="unsupported",
+                supporting_chunk_ids=[],
+            )
+        ],
+    )
+
+    result = ClaimAwareSufficiencyAnalyzer({"prior_results": [prior]}).analyze(run)
+
+    assert result.status == "pass"
+    assert result.sufficiency_result is not None
+    assert result.sufficiency_result.sufficient is False
+    assert result.sufficiency_result.missing_evidence == ["Claim unsupported no source."]
+
+
+def test_claim_aware_sufficiency_analyzer_skips_without_prior_claim_results() -> None:
+    run = run_with_context("refund policy", [chunk("refund policy details")])
+
+    result = ClaimAwareSufficiencyAnalyzer({"prior_results": []}).analyze(run)
+
+    assert result.status == "skip"
+    assert result.sufficiency_result is None
+    assert "no grounding claim_results available" in result.evidence[0]

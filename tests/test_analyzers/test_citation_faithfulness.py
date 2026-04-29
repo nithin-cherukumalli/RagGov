@@ -68,6 +68,8 @@ def test_answer_with_rare_anchor_terms_passes() -> None:
     assert result.status == "pass"
     assert result.failure_type is None
     assert result.citation_probe_results is not None
+    assert any(probe["probe"] == "anchor" for probe in result.citation_probe_results)
+    assert any(probe["probe"] == "unique_predicate" for probe in result.citation_probe_results)
 
 
 def test_cited_doc_without_unique_term_use_fails() -> None:
@@ -98,6 +100,44 @@ def test_cited_doc_without_unique_term_use_fails() -> None:
     assert result.status == "fail"
     assert result.failure_type == FailureType.POST_RATIONALIZED_CITATION
     assert result.stage == FailureStage.GROUNDING
+
+
+def test_anchor_probe_fails_when_cited_doc_misses_answer_anchor() -> None:
+    run = run_with_answer(
+        "The policy allows refunds within 30 days.",
+        [
+            chunk(
+                "chunk-1",
+                "The cited handbook says refunds are processed within 45 days.",
+                source_doc_id="doc-1",
+            ),
+            chunk(
+                "chunk-2",
+                "The uncited FAQ says refunds are allowed within 30 days.",
+                source_doc_id="doc-2",
+            ),
+        ],
+        cited_doc_ids=["doc-1"],
+    )
+
+    result = CitationFaithfulnessProbe().analyze(run)
+
+    assert result.status == "fail"
+    assert any("anchor probe" in evidence.lower() for evidence in result.evidence)
+
+
+def test_unconfident_answer_without_citations_skips() -> None:
+    run = run_with_answer(
+        "The policy allows refunds within thirty days.",
+        [chunk("chunk-1", "Refund policy text.", source_doc_id="doc-1")],
+        cited_doc_ids=[],
+        answer_confidence=0.4,
+    )
+
+    result = CitationFaithfulnessProbe().analyze(run)
+
+    assert result.status == "skip"
+    assert result.evidence == ["no cited_doc_ids provided"]
 
 
 def test_empty_citations_with_confident_answer_fails() -> None:
@@ -142,3 +182,17 @@ def test_integration_fixture_citation_mismatch_triggers_probe() -> None:
     assert result.status == "fail"
     assert result.failure_type == FailureType.POST_RATIONALIZED_CITATION
     assert result.citation_probe_results is not None
+
+
+def test_probe_skips_without_answer_or_chunks() -> None:
+    no_answer = CitationFaithfulnessProbe().analyze(
+        run_with_answer("", [chunk("chunk-1", "Text", source_doc_id="doc-1")], cited_doc_ids=["doc-1"])
+    )
+    no_chunks = CitationFaithfulnessProbe().analyze(
+        run_with_answer("A complete answer exists.", [], cited_doc_ids=["doc-1"])
+    )
+
+    assert no_answer.status == "skip"
+    assert no_answer.evidence == ["no final answer to probe"]
+    assert no_chunks.status == "skip"
+    assert no_chunks.evidence == ["no retrieved chunks available"]

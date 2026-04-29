@@ -9,6 +9,11 @@ legal), this enables auditable claims like:
     "Faithfulness = 0.72 [95% CI: 0.68–0.76]"
 
 No other RAG diagnostic tool offers this capability.
+
+IMPORTANT: Sample size requirements for honest calibration claims:
+- Minimum: 30 samples (statistical minimum for inference)
+- Provisional: 30-150 samples (tentative thresholds, may not generalize)
+- Recommended: 150-300 samples (stable operating points with confidence intervals)
 """
 
 from __future__ import annotations
@@ -18,6 +23,19 @@ from pathlib import Path
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
+
+# Import after pydantic to avoid circular dependency
+try:
+    from raggov.calibration_status import CalibrationStatus
+except ImportError:
+    # Fallback for when calibration_status doesn't exist yet
+    from enum import Enum
+
+    class CalibrationStatus(str, Enum):
+        CALIBRATED = "CALIBRATED"
+        PROVISIONAL = "PROVISIONAL"
+        NOT_CALIBRATED = "NOT_CALIBRATED"
+        DETERMINISTIC = "DETERMINISTIC"
 
 
 class CalibrationSample(BaseModel):
@@ -177,6 +195,7 @@ class ARESCalibrator:
     """
 
     MIN_SAMPLES = 30  # Statistical minimum for valid inference
+    RECOMMENDED_SAMPLES = 150  # Recommended minimum for stable thresholds
 
     def __init__(self, confidence_level: float = 0.95) -> None:
         """Initialize calibrator.
@@ -240,6 +259,65 @@ class ARESCalibrator:
             )
 
         return results
+
+    def calibrate_with_status(self) -> tuple[list[ConfidenceInterval], CalibrationStatus, list[str]]:
+        """Compute PPI intervals with explicit calibration status and warnings.
+
+        Returns calibration status based on sample size:
+        - NOT_CALIBRATED: < MIN_SAMPLES (30)
+        - PROVISIONAL: MIN_SAMPLES to RECOMMENDED_SAMPLES (30-150)
+        - CALIBRATED: >= RECOMMENDED_SAMPLES (150+)
+
+        Returns:
+            Tuple of:
+            - List of ConfidenceInterval for each metric
+            - CalibrationStatus indicating sample adequacy
+            - List of warning strings about sample size limitations
+
+        Raises:
+            ValueError: If fewer than MIN_SAMPLES (30) samples provided.
+
+        Example:
+            >>> intervals, status, warnings = calibrator.calibrate_with_status()
+            >>> print(f"Status: {status}")
+            Status: PROVISIONAL
+            >>> for warning in warnings:
+            ...     print(f"⚠️  {warning}")
+            ⚠️  Sample size (48) below recommended minimum (150) for stable thresholds
+            ⚠️  Thresholds should be marked PROVISIONAL - may not generalize
+        """
+        n = len(self._samples)
+        warnings: list[str] = []
+
+        if n < self.MIN_SAMPLES:
+            raise ValueError(
+                f"Calibration requires at least {self.MIN_SAMPLES} samples, got {n}. "
+                f"Cannot compute confidence intervals."
+            )
+
+        # Determine calibration status based on sample size
+        if n >= self.RECOMMENDED_SAMPLES:
+            status = CalibrationStatus.CALIBRATED
+        else:
+            status = CalibrationStatus.PROVISIONAL
+            warnings.append(
+                f"Sample size ({n}) below recommended minimum ({self.RECOMMENDED_SAMPLES}) "
+                f"for stable thresholds"
+            )
+            warnings.append("Thresholds should be marked PROVISIONAL - may not generalize")
+            warnings.append(
+                f"Collect {self.RECOMMENDED_SAMPLES - n} more labeled samples for CALIBRATED status"
+            )
+
+        # Compute intervals using existing method
+        intervals = self.calibrate()
+
+        # Add sample size warnings to interval metadata
+        for interval in intervals:
+            interval.n_labeled = n
+            interval.n_total = n
+
+        return intervals, status, warnings
 
     def summary(self) -> str:
         """Return a human-readable summary of calibration results.

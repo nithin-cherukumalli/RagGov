@@ -1,7 +1,7 @@
 {
   "name": "lan",
-  "llm_base_url": "http://192.168.0.207:8000",
-  "embedding_url": "http://192.168.0.207:8001/v1/embeddings",
+  "llm_base_url": "http://192.168.100.207:8000",
+  "embedding_url": "http://192.168.100.207:8001/v1/embeddings",
   "answer_model": "policy-local-llm",
   "embedding_model": "bge-large-en-v1.5",
   "top_k": 5,

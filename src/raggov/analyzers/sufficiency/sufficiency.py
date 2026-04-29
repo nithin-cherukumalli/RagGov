@@ -12,7 +12,13 @@ logger = logging.getLogger(__name__)
 
 from raggov.analyzers.base import BaseAnalyzer
 from raggov.analyzers.retrieval.scope import STOPWORDS
-from raggov.models.diagnosis import AnalyzerResult, FailureStage, FailureType
+from raggov.models.diagnosis import (
+    AnalyzerResult,
+    ClaimResult,
+    FailureStage,
+    FailureType,
+    SufficiencyResult,
+)
 from raggov.models.run import RAGRun
 
 
@@ -46,17 +52,33 @@ class SufficiencyAnalyzer(BaseAnalyzer):
         missing_terms = sorted(query_terms - covered_terms)
         coverage_ratio = len(covered_terms) / len(query_terms)
         coverage_evidence = self._coverage_evidence(coverage_ratio, missing_terms)
+        claim_sidecar = self._claim_aware_sufficiency(run)
         evidence = [*(warning_evidence or []), coverage_evidence]
-
-        if coverage_ratio < float(self.config.get("min_coverage_ratio", 0.3)):
-            return self._fail(
-                FailureType.INSUFFICIENT_CONTEXT,
-                FailureStage.SUFFICIENCY,
-                evidence,
-                self._abstain_remediation(),
+        if claim_sidecar is not None:
+            evidence.append(
+                "Claim-aware sufficiency: "
+                f"sufficient={claim_sidecar.sufficient}; "
+                f"missing_evidence={len(claim_sidecar.missing_evidence)}; "
+                f"affected_claims={len(claim_sidecar.affected_claims)}"
             )
 
-        return self._pass(evidence)
+        if coverage_ratio < float(self.config.get("min_coverage_ratio", 0.3)):
+            return AnalyzerResult(
+                analyzer_name=self.name(),
+                status="fail",
+                failure_type=FailureType.INSUFFICIENT_CONTEXT,
+                stage=FailureStage.SUFFICIENCY,
+                evidence=evidence,
+                sufficiency_result=claim_sidecar,
+                remediation=self._abstain_remediation(),
+            )
+
+        return AnalyzerResult(
+            analyzer_name=self.name(),
+            status="pass",
+            evidence=evidence,
+            sufficiency_result=claim_sidecar,
+        )
 
     def _analyze_with_llm(self, run: RAGRun) -> AnalyzerResult:
         try:
@@ -76,21 +98,32 @@ class SufficiencyAnalyzer(BaseAnalyzer):
 
         if not sufficient:
             evidence = [f"LLM judge missing: {missing or 'unspecified'}"]
-            return self._fail(
-                FailureType.INSUFFICIENT_CONTEXT,
-                FailureStage.SUFFICIENCY,
-                evidence,
-                self._abstain_remediation(),
+            return AnalyzerResult(
+                analyzer_name=self.name(),
+                status="fail",
+                failure_type=FailureType.INSUFFICIENT_CONTEXT,
+                stage=FailureStage.SUFFICIENCY,
+                evidence=evidence,
+                sufficiency_result=self._claim_aware_sufficiency(run),
+                remediation=self._abstain_remediation(),
             )
         if confidence < 0.6:
-            return self._warn(
-                FailureType.INSUFFICIENT_CONTEXT,
-                FailureStage.SUFFICIENCY,
-                [f"LLM judge confidence: {confidence:.2f}"],
-                REMEDIATION,
+            return AnalyzerResult(
+                analyzer_name=self.name(),
+                status="warn",
+                failure_type=FailureType.INSUFFICIENT_CONTEXT,
+                stage=FailureStage.SUFFICIENCY,
+                evidence=[f"LLM judge confidence: {confidence:.2f}"],
+                sufficiency_result=self._claim_aware_sufficiency(run),
+                remediation=REMEDIATION,
             )
 
-        return self._pass([f"LLM judge confidence: {confidence:.2f}"])
+        return AnalyzerResult(
+            analyzer_name=self.name(),
+            status="pass",
+            evidence=[f"LLM judge confidence: {confidence:.2f}"],
+            sufficiency_result=self._claim_aware_sufficiency(run),
+        )
 
     def _call_llm(self, run: RAGRun) -> dict[str, Any]:
         client = self.config["llm_client"]
@@ -139,6 +172,43 @@ class SufficiencyAnalyzer(BaseAnalyzer):
 
     def _abstain_remediation(self) -> str:
         return f"{REMEDIATION} should_abstain=True"
+
+    def _claim_aware_sufficiency(self, run: RAGRun) -> SufficiencyResult | None:
+        claim_results = self._prior_claim_results()
+        if not claim_results:
+            return None
+
+        missing_evidence: list[str] = []
+        affected_claims: list[str] = []
+        evidence_chunk_ids: set[str] = set()
+
+        for claim in claim_results:
+            if claim.label == "unsupported" and not claim.supporting_chunk_ids:
+                missing_evidence.append(claim.claim_text)
+                affected_claims.append(claim.claim_text)
+            elif claim.label == "contradicted":
+                affected_claims.append(claim.claim_text)
+            evidence_chunk_ids.update(claim.supporting_chunk_ids)
+            evidence_chunk_ids.update(claim.candidate_chunk_ids)
+            evidence_chunk_ids.update(claim.contradicting_chunk_ids)
+
+        return SufficiencyResult(
+            sufficient=len(missing_evidence) == 0,
+            missing_evidence=missing_evidence,
+            affected_claims=affected_claims,
+            evidence_chunk_ids=sorted(evidence_chunk_ids),
+            method="heuristic_claim_aware_v0",
+            calibration_status="uncalibrated",
+        )
+
+    def _prior_claim_results(self) -> list[ClaimResult]:
+        prior_results = self.config.get("prior_results", [])
+        for result in prior_results:
+            if result.analyzer_name != "ClaimGroundingAnalyzer":
+                continue
+            if result.claim_results:
+                return result.claim_results
+        return []
 
     def _terms(self, text: str) -> set[str]:
         return {

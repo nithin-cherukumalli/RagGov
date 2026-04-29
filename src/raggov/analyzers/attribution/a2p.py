@@ -7,7 +7,27 @@ from collections.abc import Callable
 from typing import Any
 
 from raggov.analyzers.base import BaseAnalyzer
-from raggov.models.diagnosis import AnalyzerResult, FailureStage, FailureType
+from raggov.analyzers.attribution.trace import extract_attribution_trace
+from raggov.analyzers.attribution.candidates import (
+    identify_claims_needing_attribution,
+    generate_candidate_causes,
+)
+from raggov.analyzers.attribution.scoring import score_all_candidates
+from raggov.analyzers.attribution.selection import (
+    select_primary_and_secondary_causes,
+    build_evidence_summary,
+    build_composite_fix_recommendation,
+)
+from raggov.models.diagnosis import (
+    AnalyzerResult,
+    CandidateCause,
+    ClaimAttribution,
+    ClaimAttributionV2,
+    ClaimResult,
+    FailureStage,
+    FailureType,
+    SufficiencyResult,
+)
 from raggov.models.run import RAGRun
 
 
@@ -86,13 +106,447 @@ class A2PAttributionAnalyzer(BaseAnalyzer):
         if not failed_results:
             return self.skip("no prior failures to attribute")
 
+        # Check for v2 mode
+        use_v2 = self.config.get("use_a2p_v2", False)
+        if use_v2:
+            claim_level_result_v2 = self._claim_level_mode_v2(run, prior_results)
+            if claim_level_result_v2 is not None:
+                return claim_level_result_v2
+
+        # v1 claim-level mode (backward compatibility)
+        claim_level_result = self._claim_level_mode(run, prior_results)
+        if claim_level_result is not None:
+            return claim_level_result
+
         use_llm = self.config.get("use_llm", False)
         llm_fn = self.config.get("llm_fn")
 
         if use_llm and llm_fn:
             return self._llm_mode(run, prior_results, llm_fn)
         else:
-            return self._deterministic_mode(run, prior_results)
+            return self._attach_legacy_claim_fallback(
+                self._deterministic_mode(run, prior_results)
+            )
+
+    def _claim_level_mode(
+        self, run: RAGRun, prior_results: list[AnalyzerResult]
+    ) -> AnalyzerResult | None:
+        claim_results = self._claim_results_from_prior(prior_results)
+        attributed_claims = [
+            claim
+            for claim in claim_results
+            if self._claim_needs_attribution(claim, prior_results)
+        ]
+        if not attributed_claims:
+            return None
+
+        sufficiency_result = self._sufficiency_from_prior(prior_results)
+        failure_types_present = {
+            result.failure_type
+            for result in prior_results
+            if result.status in {"fail", "warn"} and result.failure_type is not None
+        }
+        has_citation_mismatch = FailureType.CITATION_MISMATCH in failure_types_present
+        has_stale_retrieval = FailureType.STALE_RETRIEVAL in failure_types_present
+        has_post_rationalized_citation = FailureType.POST_RATIONALIZED_CITATION in failure_types_present or any(
+            result.analyzer_name == "CitationFaithfulnessProbe" and result.status in {"fail", "warn"}
+            for result in prior_results
+        )
+        has_security_failure = any(
+            result.failure_type in SECURITY_FAILURE_TYPES and result.status in {"fail", "warn"}
+            for result in prior_results
+        )
+
+        attributions: list[ClaimAttribution] = []
+        for claim in attributed_claims:
+            attribution = self._attribute_claim(
+                claim=claim,
+                sufficiency_result=sufficiency_result,
+                has_citation_mismatch=has_citation_mismatch,
+                has_stale_retrieval=has_stale_retrieval,
+                has_post_rationalized_citation=has_post_rationalized_citation,
+                has_security_failure=has_security_failure,
+            )
+            attributions.append(attribution)
+
+        strongest = self._strongest_claim_attribution(attributions)
+        top_failure_type, top_stage, top_fix, top_conf = self._map_primary_cause_to_top_level(
+            strongest.primary_cause
+        )
+        summary = (
+            f"Claim-level A2P ({strongest.attribution_method}) primary cause: "
+            f"{strongest.primary_cause} for claim '{strongest.claim_text}'. "
+            f"Predicted intervention effect: {strongest.predict}"
+        )
+        evidence = [
+            summary,
+            f"Proposed fix: {top_fix}",
+            f"Prediction: {strongest.predict}",
+            "Confidence basis: Heuristic claim-level attribution (uncalibrated).",
+        ]
+
+        return AnalyzerResult(
+            analyzer_name=self.name(),
+            status="fail",
+            failure_type=top_failure_type,
+            stage=top_stage,
+            evidence=evidence,
+            claim_attributions=attributions,
+            remediation=top_fix,
+            attribution_stage=top_stage,
+            proposed_fix=top_fix,
+            fix_confidence=top_conf,
+            score=top_conf,
+        )
+
+    def _claim_level_mode_v2(
+        self, run: RAGRun, prior_results: list[AnalyzerResult]
+    ) -> AnalyzerResult | None:
+        """A2P v2: Multi-hypothesis attribution with transparent scoring and primary/secondary selection."""
+        # Step 1: Extract structured trace
+        trace = extract_attribution_trace(run, prior_results)
+
+        # Step 2: Identify claims needing attribution (failed or risky)
+        claims_needing_attribution = identify_claims_needing_attribution(trace)
+        if not claims_needing_attribution:
+            return None
+
+        # Step 3: Generate attributions for each claim
+        attributions_v2: list[ClaimAttributionV2] = []
+        for claim, reason in claims_needing_attribution:
+            # Generate candidate causes
+            candidates = generate_candidate_causes(claim, reason, trace)
+            if not candidates:
+                continue
+
+            # Score candidates
+            scored_candidates = score_all_candidates(candidates)
+
+            # Select primary and secondary causes
+            primary_cause, secondary_causes = select_primary_and_secondary_causes(scored_candidates)
+
+            # Find primary candidate object
+            primary_candidate = next((c for c in scored_candidates if c.cause_type == primary_cause), None)
+            if not primary_candidate:
+                continue
+
+            # Find secondary candidate objects
+            secondary_candidates = [c for c in scored_candidates if c.cause_type in secondary_causes]
+
+            # Build evidence summary
+            evidence_summary = build_evidence_summary(primary_candidate, secondary_candidates)
+
+            # Build composite fix recommendation
+            recommended_fix, recommended_fix_category = build_composite_fix_recommendation(
+                primary_candidate, secondary_candidates
+            )
+
+            # Create ClaimAttributionV2
+            attribution_v2 = ClaimAttributionV2(
+                claim_text=claim.claim_text,
+                claim_label=claim.label,
+                primary_cause=primary_cause,
+                secondary_causes=secondary_causes,
+                candidate_causes=scored_candidates,
+                evidence_summary=evidence_summary,
+                recommended_fix=recommended_fix,
+                recommended_fix_category=recommended_fix_category,
+                attribution_method="claim_level_counterfactual_a2p_v2",
+                fallback_used=False,
+                calibration_status="uncalibrated",
+            )
+            attributions_v2.append(attribution_v2)
+
+        if not attributions_v2:
+            return None
+
+        # Step 4: Select strongest attribution for top-level output
+        strongest = self._strongest_claim_attribution_v2(attributions_v2)
+        top_failure_type, top_stage, top_fix, top_conf = self._map_primary_cause_to_top_level(
+            strongest.primary_cause
+        )
+
+        summary = (
+            f"Claim-level A2P v2 ({strongest.attribution_method}) primary cause: "
+            f"{strongest.primary_cause} for claim '{strongest.claim_text}'"
+        )
+        if strongest.secondary_causes:
+            summary += f" (secondary: {', '.join(strongest.secondary_causes[:2])})"
+
+        evidence = [summary] + strongest.evidence_summary[:5]
+
+        return AnalyzerResult(
+            analyzer_name=self.name(),
+            status="fail",
+            failure_type=top_failure_type,
+            stage=top_stage,
+            evidence=evidence,
+            claim_attributions_v2=attributions_v2,
+            remediation=top_fix,
+            attribution_stage=top_stage,
+            proposed_fix=top_fix,
+            fix_confidence=top_conf,
+            score=top_conf,
+        )
+
+    def _strongest_claim_attribution_v2(
+        self, attributions: list[ClaimAttributionV2]
+    ) -> ClaimAttributionV2:
+        """Select strongest attribution from v2 attributions by primary cause priority."""
+        priority = {
+            "generation_contradicted_retrieved_evidence": 0,
+            "insufficient_context_or_retrieval_miss": 1,
+            "weak_or_ambiguous_evidence": 2,
+            "stale_source_usage": 3,
+            "citation_mismatch": 4,
+            "post_rationalized_citation": 5,
+            "verification_uncertainty": 6,
+            "adversarial_context": 7,
+        }
+        return sorted(
+            attributions,
+            key=lambda item: priority.get(item.primary_cause, 99),
+        )[0]
+
+    def _attribute_claim(
+        self,
+        claim: ClaimResult,
+        sufficiency_result: SufficiencyResult | None,
+        has_citation_mismatch: bool,
+        has_stale_retrieval: bool,
+        has_post_rationalized_citation: bool,
+        has_security_failure: bool,
+    ) -> ClaimAttribution:
+        candidate_causes: list[str] = []
+        evidence = [claim.evidence_reason] if claim.evidence_reason else []
+        affected_chunk_ids = sorted(
+            {
+                *claim.supporting_chunk_ids,
+                *claim.candidate_chunk_ids,
+                *claim.contradicting_chunk_ids,
+            }
+        )
+
+        if claim.label == "unsupported" and not claim.supporting_chunk_ids and (
+            sufficiency_result is not None and sufficiency_result.sufficient is False
+        ):
+            primary_cause = "insufficient_context_or_retrieval_miss"
+            abduct = (
+                "Claim is unsupported with no supporting chunks while sufficiency indicates missing evidence; "
+                "the likely hidden cause is retrieval/context insufficiency."
+            )
+            act = "Increase retrieval depth and query recall to surface missing supporting evidence."
+            predict = (
+                "If retrieval/context is improved, this claim is expected to become verifiable "
+                "or be correctly abstained."
+            )
+        elif claim.label == "unsupported" and claim.candidate_chunk_ids and (
+            "weak" in (claim.evidence_reason or "").lower()
+            or "partial" in (claim.evidence_reason or "").lower()
+            or "below support threshold" in (claim.evidence_reason or "").lower()
+        ):
+            primary_cause = "weak_or_ambiguous_evidence"
+            abduct = (
+                "Claim has candidate chunks but evidence quality is weak/ambiguous, indicating noisy or partial retrieval support."
+            )
+            act = "Tighten retrieval filters and require stronger evidence alignment before answer generation."
+            predict = (
+                "Stronger evidence filtering is predicted to reduce unsupported claims driven by ambiguous context."
+            )
+        elif claim.label == "contradicted" and claim.contradicting_chunk_ids:
+            primary_cause = "generation_contradicted_retrieved_evidence"
+            abduct = (
+                "Claim contradicts retrieved evidence in identified chunks, pointing to generation-stage drift from context."
+            )
+            act = "Enforce context-grounded generation with contradiction-aware decoding/citation checks."
+            predict = (
+                "With stricter grounded generation, contradicted claims are expected to be removed or corrected."
+            )
+        elif claim.label == "entailed" and has_security_failure:
+            primary_cause = "adversarial_context"
+            abduct = (
+                "Claim is textually entailed, but security analyzers detected adversarial or poisoned context, "
+                "so the governance risk is that unsafe context influenced the answer path."
+            )
+            act = "Remove or quarantine adversarial chunks and require security filtering before answer generation."
+            predict = (
+                "If adversarial context is removed, the answer should remain supported without inheriting security risk."
+            )
+        elif claim.label == "entailed" and has_citation_mismatch:
+            primary_cause = "citation_mismatch"
+            abduct = (
+                "Claim is textually entailed, but citations do not map to retrieved evidence, indicating provenance failure."
+            )
+            act = "Require citations to resolve to retrieved chunk/document IDs before returning the answer."
+            predict = (
+                "Repairing citation provenance should preserve claim truth while fixing governance and traceability."
+            )
+        elif claim.label == "entailed" and has_post_rationalized_citation:
+            primary_cause = "post_rationalized_citation"
+            abduct = (
+                "Claim is textually entailed, but citation faithfulness signals imply citations were attached after generation."
+            )
+            act = "Enforce faithfulness checks so cited evidence must causally support the generated answer."
+            predict = (
+                "If post-rationalized citations are blocked, the answer should either cite valid support or be revised."
+            )
+        elif claim.label == "entailed" and has_stale_retrieval:
+            primary_cause = "stale_source_usage"
+            abduct = (
+                "Claim is textually entailed by retrieved evidence, but that evidence is stale and may no longer be governing."
+            )
+            act = "Filter or down-rank stale sources and prefer current document versions during retrieval."
+            predict = (
+                "Using fresh sources should preserve valid claims and surface superseded ones for correction."
+            )
+        else:
+            primary_cause = "weak_or_ambiguous_evidence"
+            abduct = (
+                "Failed claim cannot be cleanly isolated; weak evidence linkage is the most plausible claim-level cause."
+            )
+            act = "Strengthen evidence matching and require explicit support checks before finalizing the claim."
+            predict = "Improved evidence checks are predicted to reduce unresolved failed-claim cases."
+
+        if has_citation_mismatch:
+            candidate_causes.append("citation_mismatch")
+        if has_post_rationalized_citation:
+            candidate_causes.append("post_rationalized_citation")
+        if has_stale_retrieval:
+            candidate_causes.append("stale_source_usage")
+        if has_security_failure:
+            candidate_causes.append("adversarial_context")
+        if claim.fallback_used:
+            candidate_causes.append("verification_uncertainty")
+        if primary_cause not in candidate_causes:
+            candidate_causes.insert(0, primary_cause)
+
+        return ClaimAttribution(
+            claim_text=claim.claim_text,
+            claim_label=claim.label,
+            candidate_causes=candidate_causes,
+            primary_cause=primary_cause,
+            abduct=abduct,
+            act=act,
+            predict=predict,
+            evidence=evidence,
+            affected_chunk_ids=affected_chunk_ids,
+            attribution_method="claim_level_a2p_heuristic_v1",
+            calibration_status="uncalibrated",
+            fallback_used=False,
+        )
+
+    def _strongest_claim_attribution(
+        self, attributions: list[ClaimAttribution]
+    ) -> ClaimAttribution:
+        priority = {
+            "generation_contradicted_retrieved_evidence": 0,
+            "insufficient_context_or_retrieval_miss": 1,
+            "weak_or_ambiguous_evidence": 2,
+            "stale_source_usage": 3,
+            "citation_mismatch": 4,
+            "post_rationalized_citation": 5,
+            "verification_uncertainty": 6,
+            "adversarial_context": 7,
+        }
+        return sorted(
+            attributions,
+            key=lambda item: priority.get(item.primary_cause, 99),
+        )[0]
+
+    def _map_primary_cause_to_top_level(
+        self, primary_cause: str
+    ) -> tuple[FailureType, FailureStage, str, float]:
+        if primary_cause == "generation_contradicted_retrieved_evidence":
+            return (
+                FailureType.GENERATION_IGNORE,
+                FailureStage.GENERATION,
+                "Enforce claim-level contradiction checks during generation and require chunk-backed support.",
+                GENERATION_MEDIUM_CONFIDENCE,
+            )
+        if primary_cause == "insufficient_context_or_retrieval_miss":
+            return (
+                FailureType.RETRIEVAL_DEPTH_LIMIT,
+                FailureStage.RETRIEVAL,
+                "Increase retrieval depth and improve query recall to capture missing claim evidence.",
+                DEFAULT_RETRIEVAL_CONFIDENCE,
+            )
+        if primary_cause == "stale_source_usage":
+            return (
+                FailureType.STALE_RETRIEVAL,
+                FailureStage.RETRIEVAL,
+                "Prefer current document versions and apply freshness-aware retrieval filtering.",
+                DEFAULT_RETRIEVAL_CONFIDENCE,
+            )
+        if primary_cause == "citation_mismatch":
+            return (
+                FailureType.CITATION_MISMATCH,
+                FailureStage.RETRIEVAL,
+                "Require answer citations to resolve to retrieved evidence before returning the response.",
+                DEFAULT_RETRIEVAL_CONFIDENCE,
+            )
+        if primary_cause == "post_rationalized_citation":
+            return (
+                FailureType.POST_RATIONALIZED_CITATION,
+                FailureStage.GROUNDING,
+                "Block post-rationalized citations by verifying that cited evidence causally supports the answer.",
+                DEFAULT_LOW_CONFIDENCE,
+            )
+        if primary_cause == "adversarial_context":
+            return (
+                FailureType.PROMPT_INJECTION,
+                FailureStage.SECURITY,
+                "Sanitize or quarantine adversarial retrieved content before answer generation.",
+                DEFAULT_RETRIEVAL_CONFIDENCE,
+            )
+        return (
+            FailureType.UNSUPPORTED_CLAIM,
+            FailureStage.GROUNDING,
+            "Strengthen evidence selection and disallow weakly supported claims in final answers.",
+            DEFAULT_LOW_CONFIDENCE,
+        )
+
+    def _claim_needs_attribution(
+        self, claim: ClaimResult, prior_results: list[AnalyzerResult]
+    ) -> bool:
+        if claim.label in {"unsupported", "contradicted"}:
+            return True
+        if claim.label != "entailed":
+            return False
+
+        for result in prior_results:
+            if result.status not in {"fail", "warn"}:
+                continue
+            if result.failure_type in {
+                FailureType.CITATION_MISMATCH,
+                FailureType.STALE_RETRIEVAL,
+                FailureType.POST_RATIONALIZED_CITATION,
+            }:
+                return True
+            if result.analyzer_name == "CitationFaithfulnessProbe":
+                return True
+            if result.failure_type in SECURITY_FAILURE_TYPES:
+                return True
+        return claim.fallback_used
+
+    def _claim_results_from_prior(self, prior_results: list[AnalyzerResult]) -> list[ClaimResult]:
+        for result in prior_results:
+            if result.analyzer_name == "ClaimGroundingAnalyzer" and result.claim_results:
+                return result.claim_results
+        return []
+
+    def _sufficiency_from_prior(
+        self, prior_results: list[AnalyzerResult]
+    ) -> SufficiencyResult | None:
+        for result in prior_results:
+            if (
+                result.analyzer_name == "ClaimAwareSufficiencyAnalyzer"
+                and result.sufficiency_result is not None
+            ):
+                return result.sufficiency_result
+        for result in prior_results:
+            if result.analyzer_name == "SufficiencyAnalyzer" and result.sufficiency_result is not None:
+                return result.sufficiency_result
+        return None
 
     def _deterministic_mode(
         self, run: RAGRun, prior_results: list[AnalyzerResult]
@@ -324,7 +778,26 @@ class A2PAttributionAnalyzer(BaseAnalyzer):
                 confidence_basis=str(parsed["confidence_basis"]),
             )
         except (json.JSONDecodeError, ValueError, KeyError, TypeError):
-            return self._deterministic_mode(run, prior_results)
+            return self._attach_legacy_claim_fallback(self._deterministic_mode(run, prior_results))
+
+    def _attach_legacy_claim_fallback(self, result: AnalyzerResult) -> AnalyzerResult:
+        result.claim_attributions = [
+            ClaimAttribution(
+                claim_text="__legacy_failure_level_attribution__",
+                claim_label="unknown",
+                candidate_causes=["legacy_failure_level_heuristic"],
+                primary_cause="legacy_failure_level_heuristic",
+                abduct="Typed claim-level inputs unavailable; used legacy failure-level heuristic attribution.",
+                act=result.proposed_fix or result.remediation or "Inspect prior analyzer failures.",
+                predict="Applying the proposed fix is predicted to reduce observed failures, but claim-level effect is unverified.",
+                evidence=list(result.evidence),
+                affected_chunk_ids=[],
+                attribution_method="legacy_failure_level_heuristic",
+                calibration_status="uncalibrated",
+                fallback_used=True,
+            )
+        ]
+        return result
 
     def _build_a2p_prompt(self, run: RAGRun, prior_results: list[AnalyzerResult]) -> str:
         """Build the structured A2P prompt for LLM."""

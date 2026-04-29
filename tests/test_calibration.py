@@ -17,6 +17,13 @@ from raggov.cli import app
 
 
 runner = CliRunner()
+CALIBRATION_FIXTURE = (
+    Path(__file__).resolve().parents[1]
+    / "stresslab"
+    / "archive"
+    / "cases"
+    / "ares_calibration_samples_v1.jsonl"
+)
 
 
 def _sample(
@@ -211,6 +218,13 @@ def test_confidence_interval_clamped_to_zero_one() -> None:
         assert 0.0 <= interval.lower <= 1.0
         assert 0.0 <= interval.upper <= 1.0
         assert interval.lower <= interval.point_estimate <= interval.upper
+
+
+def test_golden_calibration_sample_file_loads_and_meets_minimum_size() -> None:
+    calibrator = ARESCalibrator.load(CALIBRATION_FIXTURE)
+
+    assert len(calibrator._samples) == 50
+    assert len({sample.run_id for sample in calibrator._samples}) == 50
 
 
 def test_summary_with_sufficient_samples() -> None:

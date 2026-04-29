@@ -195,6 +195,31 @@ GovRAG will:
 3. print a structured diagnosis panel
 4. write raw diagnosis JSON to the working directory
 
+### Semantic Entropy Configuration
+
+`SemanticEntropyAnalyzer` supports both deterministic claim-label entropy and LLM sampling mode.
+When LLM sampling is enabled, semantic clustering can use either:
+
+- LLM-based NLI via `llm_fn` with no extra dependencies
+- exact local NLI clustering via `sentence-transformers` and a configured `nli_model`
+
+```python
+from raggov.engine import DiagnosisEngine
+
+engine = DiagnosisEngine(
+    config={
+        "use_llm": True,
+        "llm_fn": my_llm_fn,
+        "n_samples": 5,
+        "temperature": 0.7,
+        # Optional local NLI model for exact Farquhar-style clustering:
+        "nli_model": "cross-encoder/nli-MiniLM2-L6-H768",
+    }
+)
+```
+
+If `nli_model` is not configured, GovRAG uses `llm_fn` as the semantic equivalence judge in LLM mode.
+
 ## Example Diagnosis
 
 ```json

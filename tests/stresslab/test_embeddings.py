@@ -1,9 +1,13 @@
 import json
+import importlib
+import subprocess
 
 import httpx
 import pytest
 
 from stresslab.embeddings import EmbeddingClient
+
+embedding_module = importlib.import_module("stresslab.embeddings.client")
 
 
 def test_embed_texts_returns_vectors_in_input_order():
@@ -115,3 +119,34 @@ def test_embed_texts_raises_clear_error_for_invalid_payload():
 
     with pytest.raises(RuntimeError, match="Embedding response missing data\\[0\\]\\.embedding"):
         client.embed_texts(["alpha"])
+
+
+def test_embed_texts_falls_back_to_curl_when_python_networking_fails(monkeypatch: pytest.MonkeyPatch):
+    class BrokenClient:
+        def post(self, *args, **kwargs):
+            raise httpx.ConnectTimeout("timed out")
+
+    def fake_run(cmd, capture_output, text, check):
+        assert "http://example.com/v1/embeddings" in cmd
+        return subprocess.CompletedProcess(
+            cmd,
+            0,
+            stdout=json.dumps(
+                {
+                    "data": [
+                        {"index": 0, "embedding": [0.1, 0.2, 0.3]},
+                    ]
+                }
+            ),
+            stderr="",
+        )
+
+    monkeypatch.setattr(embedding_module.subprocess, "run", fake_run)
+
+    client = EmbeddingClient(
+        base_url="http://example.com/v1/embeddings",
+        model="curl-model",
+        http_client=BrokenClient(),
+    )
+
+    assert client.embed_texts(["alpha"]) == [[0.1, 0.2, 0.3]]

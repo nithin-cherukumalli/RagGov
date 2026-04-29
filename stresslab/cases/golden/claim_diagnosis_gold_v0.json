@@ -1,0 +1,253 @@
+{
+  "evaluation_status": "diagnostic_gold_v0_small_unvalidated",
+  "examples": [
+    {
+      "case_id": "supported_1",
+      "query": "What is the hardware refund window?",
+      "retrieved_chunks": [
+        {
+          "chunk_id": "c1",
+          "text": "The hardware refund policy allows returns within thirty days of purchase.",
+          "source_doc_id": "doc1",
+          "score": 0.91
+        }
+      ],
+      "final_answer": "The hardware refund policy allows returns within thirty days of purchase.",
+      "expected_claims": [
+        {
+          "claim_text": "The hardware refund policy allows returns within thirty days of purchase.",
+          "expected_label": "entailed",
+          "expected_claim_label": "entailed"
+        }
+      ],
+      "expected_sufficient": true,
+      "expected_primary_stage": "UNKNOWN",
+      "expected_fix_category": "other"
+    },
+    {
+      "case_id": "supported_2",
+      "query": "How long does the battery warranty last?",
+      "retrieved_chunks": [
+        {
+          "chunk_id": "c1",
+          "text": "Battery warranty coverage remains active for twenty four months after activation.",
+          "source_doc_id": "doc2",
+          "score": 0.9
+        }
+      ],
+      "final_answer": "Battery warranty coverage remains active for twenty four months after activation.",
+      "expected_claims": [
+        {
+          "claim_text": "Battery warranty coverage remains active for twenty four months after activation.",
+          "expected_label": "entailed",
+          "expected_claim_label": "entailed"
+        }
+      ],
+      "expected_sufficient": true,
+      "expected_primary_stage": "UNKNOWN",
+      "expected_fix_category": "other"
+    },
+    {
+      "case_id": "unsupported_missing_1",
+      "query": "Does the plan include weekend support?",
+      "retrieved_chunks": [
+        {
+          "chunk_id": "c1",
+          "text": "The plan includes weekday email support and monthly maintenance updates.",
+          "source_doc_id": "doc3",
+          "score": 0.72
+        }
+      ],
+      "final_answer": "The support plan includes twenty four hour weekend phone coverage for all users.",
+      "expected_claims": [
+        {
+          "claim_text": "The support plan includes twenty four hour weekend phone coverage for all users.",
+          "expected_label": "unsupported",
+          "expected_claim_label": "unsupported",
+          "expected_a2p_primary_cause": "insufficient_context_or_retrieval_miss"
+        }
+      ],
+      "expected_sufficient": false,
+      "expected_primary_stage": "RETRIEVAL",
+      "expected_fix_category": "retrieval"
+    },
+    {
+      "case_id": "unsupported_missing_2",
+      "query": "What is the cancellation penalty?",
+      "retrieved_chunks": [
+        {
+          "chunk_id": "c1",
+          "text": "The contract allows cancellation after a thirty day notice period.",
+          "source_doc_id": "doc4",
+          "score": 0.68
+        }
+      ],
+      "final_answer": "The cancellation policy charges a fixed penalty of five hundred dollars for early termination.",
+      "expected_claims": [
+        {
+          "claim_text": "The cancellation policy charges a fixed penalty of five hundred dollars for early termination.",
+          "expected_label": "unsupported",
+          "expected_claim_label": "unsupported",
+          "expected_a2p_primary_cause": "insufficient_context_or_retrieval_miss"
+        }
+      ],
+      "expected_sufficient": false,
+      "expected_primary_stage": "RETRIEVAL",
+      "expected_fix_category": "retrieval"
+    },
+    {
+      "case_id": "contradicted_1",
+      "query": "Does warranty cover accidental damage?",
+      "retrieved_chunks": [
+        {
+          "chunk_id": "c1",
+          "text": "The product warranty does not cover accidental damage under standard terms.",
+          "source_doc_id": "doc5",
+          "score": 0.89
+        }
+      ],
+      "final_answer": "The product warranty covers accidental damage under standard terms for all devices.",
+      "expected_claims": [
+        {
+          "claim_text": "The product warranty covers accidental damage under standard terms for all devices.",
+          "expected_label": "contradicted",
+          "expected_claim_label": "contradicted",
+          "expected_a2p_primary_cause": "generation_contradicted_retrieved_evidence"
+        }
+      ],
+      "expected_sufficient": true,
+      "expected_primary_stage": "GENERATION",
+      "expected_fix_category": "generation"
+    },
+    {
+      "case_id": "contradicted_2",
+      "query": "Is two factor auth mandatory?",
+      "retrieved_chunks": [
+        {
+          "chunk_id": "c1",
+          "text": "Two factor authentication is not mandatory for administrator login.",
+          "source_doc_id": "doc6",
+          "score": 0.9
+        }
+      ],
+      "final_answer": "Two factor authentication is mandatory for administrator login in every environment.",
+      "expected_claims": [
+        {
+          "claim_text": "Two factor authentication is mandatory for administrator login in every environment.",
+          "expected_label": "contradicted",
+          "expected_claim_label": "contradicted",
+          "expected_a2p_primary_cause": "generation_contradicted_retrieved_evidence"
+        }
+      ],
+      "expected_sufficient": true,
+      "expected_primary_stage": "GENERATION",
+      "expected_fix_category": "generation"
+    },
+    {
+      "case_id": "stale_source_case",
+      "query": "What retention period is active?",
+      "retrieved_chunks": [
+        {
+          "chunk_id": "c1",
+          "text": "Records are retained for twelve months before archival review.",
+          "source_doc_id": "doc7",
+          "score": 0.74
+        }
+      ],
+      "final_answer": "Records are retained for thirty six months before archival review in all departments.",
+      "expected_claims": [
+        {
+          "claim_text": "Records are retained for thirty six months before archival review in all departments.",
+          "expected_label": "contradicted",
+          "expected_claim_label": "contradicted",
+          "expected_freshness_validity": "stale",
+          "expected_a2p_primary_cause": "generation_contradicted_retrieved_evidence"
+        }
+      ],
+      "expected_sufficient": true,
+      "expected_primary_stage": "GENERATION",
+      "expected_fix_category": "generation",
+      "corpus_entries": [
+        {
+          "doc_id": "doc7",
+          "text": "Records are retained for twelve months before archival review.",
+          "timestamp": "2020-01-01T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "case_id": "citation_mismatch_case",
+      "query": "What refund threshold applies?",
+      "retrieved_chunks": [
+        {
+          "chunk_id": "c1",
+          "text": "Refund approvals require manager review for requests above one hundred dollars.",
+          "source_doc_id": "doc8",
+          "score": 0.76
+        }
+      ],
+      "final_answer": "Refund approvals require manager review for requests above five hundred dollars in this program.",
+      "expected_claims": [
+        {
+          "claim_text": "Refund approvals require manager review for requests above five hundred dollars in this program.",
+          "expected_label": "contradicted",
+          "expected_claim_label": "contradicted",
+          "expected_citation_validity": "invalid",
+          "expected_a2p_primary_cause": "generation_contradicted_retrieved_evidence"
+        }
+      ],
+      "expected_sufficient": true,
+      "expected_primary_stage": "GENERATION",
+      "expected_fix_category": "generation",
+      "cited_doc_ids": ["doc-phantom-1"]
+    },
+    {
+      "case_id": "weak_ambiguous_case",
+      "query": "What annual growth was reported?",
+      "retrieved_chunks": [
+        {
+          "chunk_id": "c1",
+          "text": "Company revenue increased 12% annually during the fiscal year.",
+          "source_doc_id": "doc9",
+          "score": 0.8
+        }
+      ],
+      "final_answer": "Company revenue increased 15% annually during the fiscal year based on final reporting.",
+      "expected_claims": [
+        {
+          "claim_text": "Company revenue increased 15% annually during the fiscal year based on final reporting.",
+          "expected_label": "contradicted",
+          "expected_claim_label": "contradicted",
+          "expected_a2p_primary_cause": "generation_contradicted_retrieved_evidence"
+        }
+      ],
+      "expected_sufficient": true,
+      "expected_primary_stage": "GENERATION",
+      "expected_fix_category": "generation"
+    },
+    {
+      "case_id": "insufficient_context_abstain_case",
+      "query": "Which legal section defines cross border export restrictions?",
+      "retrieved_chunks": [
+        {
+          "chunk_id": "c1",
+          "text": "This handbook contains office attendance standards and leave policy details.",
+          "source_doc_id": "doc10",
+          "score": 0.62
+        }
+      ],
+      "final_answer": "Legal section 88 defines cross border export restrictions for licensed equipment transfers.",
+      "expected_claims": [
+        {
+          "claim_text": "Legal section 88 defines cross border export restrictions for licensed equipment transfers.",
+          "expected_label": "unsupported",
+          "expected_claim_label": "unsupported",
+          "expected_a2p_primary_cause": "insufficient_context_or_retrieval_miss"
+        }
+      ],
+      "expected_sufficient": false,
+      "expected_primary_stage": "RETRIEVAL",
+      "expected_fix_category": "retrieval"
+    }
+  ]
+}

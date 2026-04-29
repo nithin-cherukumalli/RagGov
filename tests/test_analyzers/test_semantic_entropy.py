@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 
 from raggov.analyzers.confidence.semantic_entropy import (
+    NLIClusterer,
     SemanticEntropyAnalyzer,
     jaccard_similarity,
 )
@@ -73,6 +74,17 @@ def test_jaccard_similarity_case_insensitive() -> None:
     s1 = "The Quick Brown Fox"
     s2 = "the quick brown fox"
     assert jaccard_similarity(s1, s2) == 1.0
+
+
+def test_nli_clusterer_augmented_proxy_merges_simple_morphology() -> None:
+    """Tier A should improve over raw Jaccard for light morphological variation."""
+    clusterer = NLIClusterer()
+
+    assert clusterer.tier_label == "Jaccard-augmented proxy"
+    assert clusterer.are_equivalent(
+        "Revenue increased annually",
+        "Revenue increasing annual",
+    )
 
 
 def test_deterministic_mode_all_claims_supported() -> None:
@@ -196,6 +208,44 @@ def test_deterministic_mode_three_label_split_fails() -> None:
     assert "claim-label entropy" in evidence_text
 
 
+def test_semantic_entropy_consumes_typed_claim_results_first() -> None:
+    prior = AnalyzerResult(
+        analyzer_name="ClaimGroundingAnalyzer",
+        status="fail",
+        claim_results=[
+            ClaimResult(claim_text="A", label="entailed", supporting_chunk_ids=["c1"]),
+            ClaimResult(claim_text="B", label="unsupported", supporting_chunk_ids=[]),
+        ],
+        evidence=[
+            '{"claim_text":"X","label":"contradicted","supporting_chunk_ids":[],"confidence":0.2}'
+        ],
+    )
+    analyzer = SemanticEntropyAnalyzer({"use_llm": False, "prior_results": [prior]})
+    result = analyzer.analyze(run_with_chunks([chunk("c1", "Context", 0.8)]))
+
+    assert result.status == "warn"
+    assert result.score is not None
+    assert math.isclose(result.score, 1.0)
+    assert "claim-label entropy" in " ".join(result.evidence).lower()
+
+
+def test_semantic_entropy_legacy_json_evidence_fallback_still_supported() -> None:
+    prior = AnalyzerResult(
+        analyzer_name="ClaimGroundingAnalyzer",
+        status="fail",
+        evidence=[
+            '{"claim_text":"A","label":"entailed","supporting_chunk_ids":["c1"],"confidence":0.9}',
+            '{"claim_text":"B","label":"unsupported","supporting_chunk_ids":[],"confidence":0.1}',
+        ],
+    )
+    analyzer = SemanticEntropyAnalyzer({"use_llm": False, "prior_results": [prior]})
+    result = analyzer.analyze(run_with_chunks([chunk("c1", "Context", 0.8)]))
+
+    assert result.status == "warn"
+    assert result.score is not None
+    assert math.isclose(result.score, 1.0)
+
+
 def test_llm_mode_identical_answers() -> None:
     """LLM mode: identical answers → entropy ≈ 0 → pass."""
 
@@ -226,6 +276,7 @@ def test_llm_mode_identical_answers() -> None:
     evidence_text = str(result.evidence).lower()
     assert "entropy" in evidence_text
     assert "cluster" in evidence_text or result.score == 0.0
+    assert "llm-nli" in evidence_text
 
 
 def test_llm_mode_different_answers() -> None:
@@ -279,6 +330,10 @@ def test_llm_mode_some_agreement() -> None:
     def mock_llm_partial(prompt: str) -> str:
         """Return answers with partial agreement."""
         nonlocal sample_counter
+        if prompt.startswith("Do these two statements express the same factual claim?"):
+            return "yes" if "Statement 1: Answer A" in prompt and "Statement 2: Answer A" in prompt else (
+                "yes" if "Statement 1: Answer B" in prompt and "Statement 2: Answer B" in prompt else "no"
+            )
         # 3 samples say "A", 2 samples say "B"
         answers = ["Answer A", "Answer A", "Answer A", "Answer B", "Answer B"]
         answer = answers[sample_counter % len(answers)]
@@ -305,6 +360,46 @@ def test_llm_mode_some_agreement() -> None:
     assert result.status in ("warn", "pass")
     assert result.score is not None
     assert 0.5 <= result.score <= 1.2
+
+
+def test_llm_mode_llm_nli_merges_semantic_paraphrases() -> None:
+    """LLM-NLI should cluster paraphrases that raw token overlap would split."""
+    sample_counter = 0
+
+    def mock_llm_semantic(prompt: str) -> str:
+        nonlocal sample_counter
+        if prompt.startswith("Do these two statements express the same factual claim?"):
+            if "founded in 1923" in prompt and "established in 1923" in prompt:
+                return "yes"
+            return "no"
+
+        answers = [
+            "The company was founded in 1923.",
+            "The firm was established in 1923.",
+            "The company was founded in 1923.",
+            "The firm was established in 1923.",
+            "The company was founded in 1923.",
+        ]
+        answer = answers[sample_counter % len(answers)]
+        sample_counter += 1
+        return answer
+
+    analyzer = SemanticEntropyAnalyzer(
+        {
+            "use_llm": True,
+            "llm_fn": mock_llm_semantic,
+            "n_samples": 5,
+            "entropy_threshold": 1.2,
+        }
+    )
+
+    result = analyzer.analyze(
+        run_with_chunks([chunk("c1", "The company was founded in 1923.", 0.9)])
+    )
+
+    assert result.status == "pass"
+    assert result.score == 0.0
+    assert "llm-nli" in " ".join(result.evidence).lower()
 
 
 def test_entropy_calculation_single_cluster() -> None:
@@ -427,13 +522,16 @@ def test_llm_mode_with_prior_results() -> None:
 
 def test_temperature_hint_used_in_sampling() -> None:
     """Temperature config is available for LLM sampling."""
-    call_count = 0
+    sample_call_count = 0
+    entailment_call_count = 0
 
     def mock_llm_with_temp(prompt: str) -> str:
-        nonlocal call_count
-        call_count += 1
-        # Just verify we're called multiple times
-        return f"Answer {call_count}"
+        nonlocal sample_call_count, entailment_call_count
+        if prompt.startswith("Do these two statements express the same factual claim?"):
+            entailment_call_count += 1
+            return "yes"
+        sample_call_count += 1
+        return f"Answer {sample_call_count}"
 
     analyzer = SemanticEntropyAnalyzer(
         {
@@ -447,8 +545,10 @@ def test_temperature_hint_used_in_sampling() -> None:
     test_run = run_with_chunks([chunk("c1", "Context", 0.8)])
     result = analyzer.analyze(test_run)
 
-    # Verify we called the LLM n_samples times
-    assert call_count == 5
+    assert result.status in ("pass", "warn", "fail")
+    # Sampling still happens exactly n_samples times even when LLM-NLI adds extra calls.
+    assert sample_call_count == 5
+    assert entailment_call_count >= 1
 
 
 def test_integration_with_engine() -> None:
@@ -501,6 +601,8 @@ def test_remediation_message_for_high_entropy() -> None:
 
     def mock_llm_different(prompt: str) -> str:
         nonlocal sample_counter
+        if prompt.startswith("Do these two statements express the same factual claim?"):
+            return "no"
         answers = ["A", "B", "C", "D", "E"]
         answer = answers[sample_counter % 5]
         sample_counter += 1

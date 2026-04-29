@@ -8,6 +8,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from raggov.calibration import ConfidenceInterval
+
 
 class FailureStage(str, Enum):
     """Pipeline stages where a RagGov failure can originate."""
@@ -70,7 +72,119 @@ class ClaimResult(BaseModel):
     claim_text: str
     label: Literal["entailed", "unsupported", "contradicted"]
     supporting_chunk_ids: list[str] = Field(default_factory=list)
+    candidate_chunk_ids: list[str] = Field(default_factory=list)
+    contradicting_chunk_ids: list[str] = Field(default_factory=list)
     confidence: float | None = None
+    verification_method: str | None = None
+    evidence_reason: str | None = None
+    calibration_status: Literal["uncalibrated"] | None = None
+    fallback_used: bool = False
+    value_conflicts: list[dict[str, str]] | None = None
+    value_matches: list[dict[str, str]] | None = None
+
+
+class SufficiencyResult(BaseModel):
+    """Structured sufficiency assessment payload."""
+
+    model_config = ConfigDict(frozen=False, extra="forbid")
+
+    sufficient: bool
+    missing_evidence: list[str] = Field(default_factory=list)
+    affected_claims: list[str] = Field(default_factory=list)
+    evidence_chunk_ids: list[str] = Field(default_factory=list)
+    method: str
+    calibration_status: Literal["uncalibrated"] = "uncalibrated"
+
+
+class CandidateCause(BaseModel):
+    """A single candidate root cause hypothesis for a failed/risky claim.
+
+    Represents one possible explanation for why a claim failed, including:
+    - Evidence supporting and contradicting this hypothesis
+    - Affected claims and chunks
+    - Counterfactual intervention (act) and predicted outcome (predict)
+    - Transparent heuristic score (uncalibrated)
+    """
+
+    model_config = ConfigDict(frozen=False, extra="forbid")
+
+    cause_id: str
+    cause_type: Literal[
+        "insufficient_context_or_retrieval_miss",
+        "weak_or_ambiguous_evidence",
+        "generation_contradicted_retrieved_evidence",
+        "stale_source_usage",
+        "citation_mismatch",
+        "post_rationalized_citation",
+        "verification_uncertainty",
+        "adversarial_context",
+        "retrieval_noise",
+        "unknown",
+    ]
+    stage: FailureStage
+    evidence_for: list[str] = Field(default_factory=list)
+    evidence_against: list[str] = Field(default_factory=list)
+    affected_claims: list[str] = Field(default_factory=list)
+    affected_chunk_ids: list[str] = Field(default_factory=list)
+    supporting_analyzers: list[str] = Field(default_factory=list)
+    contradicting_analyzers: list[str] = Field(default_factory=list)
+    abduct: str
+    act: str
+    predict: str
+    predicted_fix_effect: Literal[
+        "would_likely_fix",
+        "would_partially_fix",
+        "unlikely_to_fix",
+        "unknown",
+    ] = "unknown"
+    heuristic_score: float | None = None
+    score_basis: str | None = None
+    calibration_status: Literal["uncalibrated"] = "uncalibrated"
+
+
+class ClaimAttribution(BaseModel):
+    """Claim-level A2P attribution payload (v1 - backward compatible)."""
+
+    model_config = ConfigDict(frozen=False, extra="forbid")
+
+    claim_text: str
+    claim_label: str
+    candidate_causes: list[str] = Field(default_factory=list)
+    primary_cause: str
+    abduct: str
+    act: str
+    predict: str
+    evidence: list[str] = Field(default_factory=list)
+    affected_chunk_ids: list[str] = Field(default_factory=list)
+    attribution_method: str
+    calibration_status: Literal["uncalibrated"] = "uncalibrated"
+    fallback_used: bool = False
+
+
+class ClaimAttributionV2(BaseModel):
+    """Claim-level counterfactual A2P attribution v2.
+
+    Multi-hypothesis attribution with explicit primary/secondary causes,
+    candidate scoring, and evidence-based reasoning.
+    """
+
+    model_config = ConfigDict(frozen=False, extra="forbid")
+
+    claim_text: str
+    claim_label: str
+    primary_cause: str
+    secondary_causes: list[str] = Field(default_factory=list)
+    candidate_causes: list[CandidateCause] = Field(default_factory=list)
+    evidence_summary: list[str] = Field(default_factory=list)
+    recommended_fix: str
+    recommended_fix_category: str
+    attribution_method: Literal[
+        "claim_level_counterfactual_a2p_v2",
+        "llm_structured_counterfactual_a2p_v2",
+        "legacy_failure_level_heuristic",
+    ]
+    fallback_used: bool = False
+    calibration_status: Literal["uncalibrated"] = "uncalibrated"
 
 
 class AnalyzerResult(BaseModel):
@@ -85,6 +199,10 @@ class AnalyzerResult(BaseModel):
     score: float | None = None
     security_risk: SecurityRisk | None = None
     evidence: list[str] = Field(default_factory=list)
+    claim_results: list[ClaimResult] | None = None
+    claim_attributions: list[ClaimAttribution] | None = None
+    claim_attributions_v2: list[ClaimAttributionV2] | None = None
+    sufficiency_result: SufficiencyResult | None = None
     remediation: str | None = None
     attribution_stage: FailureStage | None = None
     proposed_fix: str | None = None
@@ -121,6 +239,7 @@ class Diagnosis(BaseModel):
     citation_faithfulness: str | None = None
     failure_chain: list[str] = Field(default_factory=list)
     semantic_entropy: float | None = None
+    confidence_intervals: list[ConfidenceInterval] | None = None
 
     def summary(self) -> str:
         """Return a multi-line human-readable summary of the diagnosis.

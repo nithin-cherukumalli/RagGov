@@ -16,6 +16,7 @@ from raggov.models.diagnosis import (
     FailureStage,
     FailureType,
     SecurityRisk,
+    SufficiencyResult,
 )
 from raggov.models.run import RAGRun
 
@@ -183,3 +184,37 @@ def test_diagnosis_mutable_defaults_are_not_shared() -> None:
     assert second.checks_run == []
     assert second.checks_skipped == []
     assert second.analyzer_results == []
+
+
+def test_analyzer_result_supports_typed_claim_results() -> None:
+    claim = ClaimResult(
+        claim_text="Refunds are available within 14 days.",
+        label="entailed",
+        supporting_chunk_ids=["c1"],
+        confidence=0.9,
+    )
+    result = AnalyzerResult(
+        analyzer_name="ClaimGroundingAnalyzer",
+        status="pass",
+        claim_results=[claim],
+    )
+    assert result.claim_results is not None
+    assert result.claim_results[0].label == "entailed"
+
+
+def test_analyzer_result_supports_typed_sufficiency_result() -> None:
+    result = AnalyzerResult(
+        analyzer_name="SufficiencyAnalyzer",
+        status="pass",
+        sufficiency_result=SufficiencyResult(
+            sufficient=False,
+            missing_evidence=["Claim A"],
+            affected_claims=["Claim A", "Claim B"],
+            evidence_chunk_ids=["chunk-1"],
+            method="heuristic_claim_aware_v0",
+            calibration_status="uncalibrated",
+        ),
+    )
+
+    assert result.sufficiency_result is not None
+    assert result.sufficiency_result.method == "heuristic_claim_aware_v0"

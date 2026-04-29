@@ -16,11 +16,13 @@ from raggov.analyzers.parsing.parser_validation import ParserValidationAnalyzer
 from raggov.analyzers.retrieval.citation import CitationMismatchAnalyzer
 from raggov.analyzers.taxonomy_classifier.layer6 import Layer6TaxonomyClassifier
 from raggov.analyzers.verification.ncv import NCVPipelineVerifier
+from raggov.calibration import ARESCalibrator, CalibrationSample
 from raggov.cli import app
 from raggov.engine import DiagnosisEngine, _max_risk, diagnose
 from raggov.models.chunk import RetrievedChunk
 from raggov.models.diagnosis import (
     AnalyzerResult,
+    ClaimAttribution,
     Diagnosis,
     FailureStage,
     FailureType,
@@ -118,6 +120,22 @@ def run() -> RAGRun:
             )
         ],
         final_answer="answer",
+    )
+
+
+def run_with_claim_answer() -> RAGRun:
+    return RAGRun(
+        run_id="run-claims",
+        query="What is the refund policy?",
+        retrieved_chunks=[
+            RetrievedChunk(
+                chunk_id="chunk-1",
+                text="Refund policy covers hardware returns for thirty days.",
+                source_doc_id="doc-1",
+                score=0.9,
+            )
+        ],
+        final_answer="The refund policy covers hardware returns for thirty days.",
     )
 
 
@@ -251,6 +269,43 @@ def test_top_level_diagnose_uses_default_suite() -> None:
     assert any(result.analyzer_name == "SemanticEntropyAnalyzer" for result in diagnosis.analyzer_results)
 
 
+def test_engine_populates_diagnosis_claim_results_from_grounding() -> None:
+    diagnosis = diagnose(run_with_claim_answer())
+    assert isinstance(diagnosis.claim_results, list)
+    assert diagnosis.claim_results
+
+
+def test_end_to_end_diagnosis_exposes_claim_results() -> None:
+    diagnosis = diagnose(run_with_claim_answer())
+    assert isinstance(diagnosis.claim_results, list)
+    assert diagnosis.claim_results[0].label in {"entailed", "unsupported", "contradicted"}
+
+
+def test_engine_attaches_confidence_intervals_when_calibrator_configured() -> None:
+    calibrator = ARESCalibrator()
+    for index in range(30):
+        calibrator.add_sample(
+            CalibrationSample(
+                run_id=f"sample-{index}",
+                automated_faithfulness=0.6,
+                automated_retrieval_precision=0.5,
+                automated_answer_correctness=0.4,
+                gold_faithfulness=0.7,
+                gold_retrieval_precision=0.6,
+                gold_answer_correctness=0.5,
+            )
+        )
+
+    diagnosis = DiagnosisEngine(config={"calibrator": calibrator}).diagnose(run())
+
+    assert diagnosis.confidence_intervals is not None
+    assert [interval.metric for interval in diagnosis.confidence_intervals] == [
+        "faithfulness",
+        "retrieval_precision",
+        "answer_correctness",
+    ]
+
+
 def test_default_suite_includes_parser_validation_first() -> None:
     engine = DiagnosisEngine(config={})
 
@@ -277,8 +332,10 @@ def test_default_suite_includes_citation_faithfulness_after_grounding() -> None:
     engine = DiagnosisEngine(config={})
     analyzer_names = [analyzer.__class__.__name__ for analyzer in engine.analyzers]
 
+    assert "ClaimAwareSufficiencyAnalyzer" in analyzer_names
     assert "CitationFaithfulnessProbe" in analyzer_names
-    assert analyzer_names.index("ClaimGroundingAnalyzer") < analyzer_names.index("CitationFaithfulnessProbe")
+    assert analyzer_names.index("ClaimGroundingAnalyzer") < analyzer_names.index("ClaimAwareSufficiencyAnalyzer")
+    assert analyzer_names.index("ClaimAwareSufficiencyAnalyzer") < analyzer_names.index("CitationFaithfulnessProbe")
 
 
 def test_parser_failure_remains_root_cause_stage() -> None:
@@ -650,3 +707,101 @@ def test_meta_analyzers_do_not_compete_as_primary_evidence_sources() -> None:
     diagnosis = DiagnosisEngine(analyzers=analyzers).diagnose(run())
 
     assert diagnosis.primary_failure == FailureType.STALE_RETRIEVAL
+
+
+@pytest.mark.parametrize(
+    ("failure_type", "stage"),
+    [
+        (FailureType.STALE_RETRIEVAL, FailureStage.RETRIEVAL),
+        (FailureType.CITATION_MISMATCH, FailureStage.RETRIEVAL),
+        (FailureType.PROMPT_INJECTION, FailureStage.SECURITY),
+    ],
+)
+def test_legacy_a2p_fallback_does_not_override_stronger_stage_signal(
+    failure_type: FailureType, stage: FailureStage
+) -> None:
+    analyzers = [
+        StaticAnalyzer(
+            AnalyzerResult(
+                analyzer_name="strong-signal",
+                status="fail",
+                failure_type=failure_type,
+                stage=stage,
+                evidence=["strong analyzer evidence"],
+            )
+        ),
+        StaticAnalyzer(
+            AnalyzerResult(
+                analyzer_name="A2PAttributionAnalyzer",
+                status="fail",
+                failure_type=FailureType.RETRIEVAL_DEPTH_LIMIT,
+                stage=FailureStage.RETRIEVAL,
+                attribution_stage=FailureStage.RETRIEVAL,
+                evidence=["legacy heuristic attribution"],
+                claim_attributions=[
+                    ClaimAttribution(
+                        claim_text="__legacy_failure_level_attribution__",
+                        claim_label="unknown",
+                        candidate_causes=["legacy_failure_level_heuristic"],
+                        primary_cause="legacy_failure_level_heuristic",
+                        abduct="Typed claim-level inputs unavailable.",
+                        act="Inspect prior analyzer failures.",
+                        predict="Applying the proposed fix may reduce observed failures.",
+                        evidence=["legacy heuristic attribution"],
+                        affected_chunk_ids=[],
+                        attribution_method="legacy_failure_level_heuristic",
+                        calibration_status="uncalibrated",
+                        fallback_used=True,
+                    )
+                ],
+            )
+        ),
+    ]
+
+    diagnosis = DiagnosisEngine(analyzers=analyzers).diagnose(run())
+
+    assert diagnosis.root_cause_stage == stage
+
+
+def test_claim_level_a2p_with_supporting_evidence_can_override_stage() -> None:
+    analyzers = [
+        StaticAnalyzer(
+            AnalyzerResult(
+                analyzer_name="grounding-signal",
+                status="fail",
+                failure_type=FailureType.UNSUPPORTED_CLAIM,
+                stage=FailureStage.GROUNDING,
+                evidence=["claim unsupported by retrieved chunks"],
+            )
+        ),
+        StaticAnalyzer(
+            AnalyzerResult(
+                analyzer_name="A2PAttributionAnalyzer",
+                status="fail",
+                failure_type=FailureType.RETRIEVAL_DEPTH_LIMIT,
+                stage=FailureStage.RETRIEVAL,
+                attribution_stage=FailureStage.RETRIEVAL,
+                evidence=["claim-level attribution points to missing retrieval support"],
+                claim_attributions=[
+                    ClaimAttribution(
+                        claim_text="Policy includes international on-site repairs.",
+                        claim_label="unsupported",
+                        candidate_causes=["insufficient_context_or_retrieval_miss"],
+                        primary_cause="insufficient_context_or_retrieval_miss",
+                        abduct="Claim has no supporting chunks and sufficiency indicates missing evidence.",
+                        act="Increase retrieval depth and improve recall.",
+                        predict="Better retrieval should surface supporting evidence or trigger abstention.",
+                        evidence=["no supporting chunks", "sufficiency reports missing evidence"],
+                        affected_chunk_ids=["chunk-1"],
+                        attribution_method="claim_level_a2p_heuristic_v1",
+                        calibration_status="uncalibrated",
+                        fallback_used=False,
+                    )
+                ],
+            )
+        ),
+    ]
+
+    diagnosis = DiagnosisEngine(analyzers=analyzers).diagnose(run())
+
+    assert diagnosis.root_cause_stage == FailureStage.RETRIEVAL

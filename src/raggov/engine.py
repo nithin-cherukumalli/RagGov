@@ -20,6 +20,7 @@ from raggov.analyzers.security.anomalies import RetrievalAnomalyAnalyzer
 from raggov.analyzers.security.injection import PromptInjectionAnalyzer
 from raggov.analyzers.security.poisoning import PoisoningHeuristicAnalyzer
 from raggov.analyzers.security.privacy import PrivacyAnalyzer
+from raggov.analyzers.sufficiency.claim_aware import ClaimAwareSufficiencyAnalyzer
 from raggov.analyzers.sufficiency.sufficiency import SufficiencyAnalyzer
 from raggov.analyzers.taxonomy_classifier.layer6 import Layer6TaxonomyClassifier
 from raggov.analyzers.verification.ncv import NCVPipelineVerifier
@@ -83,7 +84,12 @@ class DiagnosisEngine:
             # These analyzers need context from all prior detection layers
             if isinstance(
                 analyzer,
-                (A2PAttributionAnalyzer, Layer6TaxonomyClassifier, SemanticEntropyAnalyzer),
+                (
+                    A2PAttributionAnalyzer,
+                    Layer6TaxonomyClassifier,
+                    SemanticEntropyAnalyzer,
+                    ClaimAwareSufficiencyAnalyzer,
+                ),
             ):
                 config_update: dict[str, Any] = {
                     **self.config,
@@ -124,8 +130,8 @@ class DiagnosisEngine:
             None,
         )
 
-        # Use A2P's stage if available, otherwise use primary_result's stage
-        if a2p_result is not None and a2p_result.attribution_stage is not None:
+        # Only allow A2P to override stage when it carries non-legacy, evidence-backed claim attribution.
+        if self._should_use_a2p_stage_override(a2p_result):
             root_cause_stage = a2p_result.attribution_stage
         elif primary_result is not None and primary_result.stage is not None:
             root_cause_stage = primary_result.stage
@@ -196,7 +202,13 @@ class DiagnosisEngine:
             elif citation_faithfulness_result.status == "warn":
                 citation_faithfulness = "partial"
 
-        return Diagnosis(
+        grounding_result = next(
+            (r for r in results if r.analyzer_name == "ClaimGroundingAnalyzer"),
+            None,
+        )
+        diagnosis_claim_results = grounding_result.claim_results or [] if grounding_result else []
+
+        diagnosis = Diagnosis(
             run_id=run.run_id,
             primary_failure=primary_failure,
             secondary_failures=secondary_failures,
@@ -204,6 +216,7 @@ class DiagnosisEngine:
             should_have_answered=should_have_answered(primary_failure),
             security_risk=_max_risk(results),
             confidence=confidence,
+            claim_results=diagnosis_claim_results,
             evidence=self._evidence(results),
             recommended_fix=self._recommended_fix(primary_failure, primary_result),
             checks_run=[result.analyzer_name for result in results],
@@ -222,6 +235,35 @@ class DiagnosisEngine:
             failure_chain=failure_chain,
             semantic_entropy=semantic_entropy,
         )
+
+        if self.config.get("calibrator"):
+            diagnosis.confidence_intervals = self.config["calibrator"].calibrate()
+
+        return diagnosis
+
+    def _should_use_a2p_stage_override(self, a2p_result: AnalyzerResult | None) -> bool:
+        if a2p_result is None or a2p_result.attribution_stage is None:
+            return False
+
+        for attribution in a2p_result.claim_attributions or []:
+            if attribution.fallback_used:
+                continue
+            if attribution.attribution_method == "legacy_failure_level_heuristic":
+                continue
+            if attribution.evidence:
+                return True
+
+        for attribution in a2p_result.claim_attributions_v2 or []:
+            if attribution.fallback_used:
+                continue
+            if attribution.attribution_method == "legacy_failure_level_heuristic":
+                continue
+            if attribution.evidence_summary:
+                return True
+            if any(candidate.evidence_for for candidate in attribution.candidate_causes):
+                return True
+
+        return False
 
     def _default_analyzers(self) -> list[BaseAnalyzer]:
         """Return research-backed analyzer suite in optimal 5-layer execution order.
@@ -250,6 +292,7 @@ class DiagnosisEngine:
             # LAYER 3 — GROUNDING (chain: grounding → faithfulness probe)
             # ════════════════════════════════════════════════════════════════
             ClaimGroundingAnalyzer(self.config),
+            ClaimAwareSufficiencyAnalyzer(self.config),
             CitationFaithfulnessProbe(self.config),
             # ════════════════════════════════════════════════════════════════
             # LAYER 4 — SECURITY
@@ -267,8 +310,8 @@ class DiagnosisEngine:
 
         # Optional analyzers (enabled via config flags)
         if self.config.get("enable_ncv", False):
-            # Insert after grounding (index 7), before security
-            analyzers.insert(7, NCVPipelineVerifier(self.config))
+            # Insert after grounding + claim-aware sufficiency + citation faithfulness, before security
+            analyzers.insert(8, NCVPipelineVerifier(self.config))
 
         if self.config.get("enable_a2p", False):
             analyzers.append(A2PAttributionAnalyzer(self.config))

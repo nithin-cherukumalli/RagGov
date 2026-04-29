@@ -28,8 +28,15 @@ def test_pyproject_declares_stresslab_packaging():
 def test_load_lan_profile():
     profile = load_profile("lan")
 
-    assert str(profile.llm_base_url).removesuffix("/") == "http://192.168.0.207:8000"
+    assert str(profile.llm_base_url).removesuffix("/") == "http://192.168.100.207:8000"
     assert str(profile.embedding_url).endswith("/v1/embeddings")
+
+
+def test_load_tunnel_profile():
+    profile = load_profile("tunnel")
+
+    assert str(profile.llm_base_url).removesuffix("/") == "http://127.0.0.1:8000"
+    assert str(profile.embedding_url).removesuffix("/") == "http://127.0.0.1:8001/v1/embeddings"
 
 
 def test_load_profile_rejects_unknown_name():

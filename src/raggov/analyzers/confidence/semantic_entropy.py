@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 from collections.abc import Callable
 from typing import Any
 
@@ -24,6 +25,7 @@ CLAIM_LABELS = ("entailed", "unsupported", "contradicted")
 LOW_ENTROPY_THRESHOLD = 0.5
 DEFAULT_HIGH_ENTROPY_THRESHOLD = 1.2
 JACCARD_EQUIVALENCE_THRESHOLD = 0.5
+DEFAULT_NLI_THRESHOLD = 0.7
 
 
 def jaccard_similarity(s1: str, s2: str) -> float:
@@ -52,54 +54,193 @@ def jaccard_similarity(s1: str, s2: str) -> float:
     return len(intersection) / len(union)
 
 
-def _cluster_samples(samples: list[str], similarity_threshold: float = 0.5) -> list[list[int]]:
-    """Cluster samples by semantic equivalence using Jaccard similarity.
+class NLIClusterer:
+    """Semantic equivalence clustering for LLM samples.
 
-    Farquhar et al. cluster generations with bidirectional NLI entailment.
-    This implementation uses Jaccard token overlap as a lightweight proxy.
-    A threshold of 0.5 approximates "same meaning" at token level, but an
-    NLI model should replace this for higher-fidelity semantic clustering.
+    Tier A:
+        Jaccard-augmented proxy with light stemming and synonym expansion.
+        This is still approximate and is labeled honestly in analyzer evidence.
 
-    Args:
-        samples: List of sample strings
-        similarity_threshold: Minimum similarity to be in same cluster
+    Tier B:
+        Bidirectional NLI with a local cross-encoder if `sentence_transformers`
+        and the configured model are available.
 
-    Returns:
-        List of clusters, where each cluster is a list of sample indices
+    Tier C:
+        Bidirectional LLM-based equivalence checks using the configured `llm_fn`.
+        This is more expensive but closes the semantic gap when no local NLI
+        model is configured.
     """
-    n = len(samples)
-    if n == 0:
-        return []
 
-    # Union-find data structure
-    parent = list(range(n))
+    SYNONYM_MAP = {
+        "firm": "company",
+        "company": "company",
+        "establish": "found",
+        "founded": "found",
+        "founded.": "found",
+        "established": "found",
+        "increase": "grow",
+        "increased": "grow",
+        "growing": "grow",
+        "annually": "annual",
+        "yearly": "annual",
+        "yoy": "annual",
+    }
 
-    def find(x: int) -> int:
-        if parent[x] != x:
-            parent[x] = find(parent[x])  # Path compression
-        return parent[x]
+    def __init__(
+        self,
+        nli_model: str | None = None,
+        llm_fn: Callable[[str], str] | None = None,
+        nli_threshold: float = DEFAULT_NLI_THRESHOLD,
+    ) -> None:
+        self.llm_fn = llm_fn
+        self._nli_model: Any | None = None
+        self._nli_threshold = nli_threshold
 
-    def union(x: int, y: int) -> None:
-        root_x = find(x)
-        root_y = find(y)
-        if root_x != root_y:
-            parent[root_x] = root_y
+        if nli_model is not None:
+            try:
+                from sentence_transformers import CrossEncoder  # type: ignore
 
-    # Compare all pairs and merge if similar
-    for i in range(n):
-        for j in range(i + 1, n):
-            if jaccard_similarity(samples[i], samples[j]) > similarity_threshold:
-                union(i, j)
+                self._nli_model = CrossEncoder(nli_model, max_length=128)
+                self._tier = "B"
+            except ImportError:
+                self._tier = "A"
+        elif llm_fn is not None:
+            self._tier = "C"
+        else:
+            self._tier = "A"
 
-    # Build clusters from union-find
-    clusters_dict: dict[int, list[int]] = {}
-    for i in range(n):
-        root = find(i)
-        if root not in clusters_dict:
-            clusters_dict[root] = []
-        clusters_dict[root].append(i)
+    @property
+    def tier_label(self) -> str:
+        labels = {
+            "A": "Jaccard-augmented proxy",
+            "B": "NLI (Farquhar exact)",
+            "C": "LLM-NLI",
+        }
+        return labels[self._tier]
 
-    return list(clusters_dict.values())
+    def are_equivalent(self, s1: str, s2: str) -> bool:
+        """Return True when two samples belong to the same meaning-group."""
+        if self._tier == "B" and self._nli_model is not None:
+            return self._nli_equivalent(s1, s2)
+        if self._tier == "C" and self.llm_fn is not None:
+            return self._llm_equivalent(s1, s2)
+        return self._jaccard_augmented_equivalent(s1, s2)
+
+    def cluster(self, samples: list[str]) -> list[list[int]]:
+        """Cluster samples by semantic equivalence using union-find."""
+        n = len(samples)
+        if n == 0:
+            return []
+
+        parent = list(range(n))
+
+        def find(x: int) -> int:
+            if parent[x] != x:
+                parent[x] = find(parent[x])
+            return parent[x]
+
+        def union(x: int, y: int) -> None:
+            root_x = find(x)
+            root_y = find(y)
+            if root_x != root_y:
+                parent[root_x] = root_y
+
+        for i in range(n):
+            for j in range(i + 1, n):
+                if self.are_equivalent(samples[i], samples[j]):
+                    union(i, j)
+
+        clusters_dict: dict[int, list[int]] = {}
+        for i in range(n):
+            root = find(i)
+            clusters_dict.setdefault(root, []).append(i)
+        return list(clusters_dict.values())
+
+    def _nli_equivalent(self, s1: str, s2: str) -> bool:
+        """Bidirectional NLI entailment check."""
+        score_forward = self._entailment_score(s1, s2)
+        score_backward = self._entailment_score(s2, s1)
+        return (
+            score_forward >= self._nli_threshold
+            and score_backward >= self._nli_threshold
+        )
+
+    def _entailment_score(self, premise: str, hypothesis: str) -> float:
+        """Extract entailment score from cross-encoder output."""
+        if self._nli_model is None:
+            return 0.0
+
+        raw_score = self._nli_model.predict([(premise, hypothesis)])[0]
+        if isinstance(raw_score, (list, tuple)):
+            if len(raw_score) >= 3:
+                return float(raw_score[2])
+            if len(raw_score) == 1:
+                return float(raw_score[0])
+        if hasattr(raw_score, "tolist"):
+            raw_list = raw_score.tolist()
+            if isinstance(raw_list, list):
+                if len(raw_list) >= 3:
+                    return float(raw_list[2])
+                if len(raw_list) == 1:
+                    return float(raw_list[0])
+        return float(raw_score)
+
+    def _llm_equivalent(self, s1: str, s2: str) -> bool:
+        """Use the configured LLM as a bidirectional entailment oracle."""
+        prompt = (
+            'Do these two statements express the same factual claim? '
+            'Answer only "yes" or "no".\n'
+            f"Statement 1: {s1}\n"
+            f"Statement 2: {s2}"
+        )
+        try:
+            response = self.llm_fn(prompt).strip().lower()
+        except Exception:
+            return self._jaccard_augmented_equivalent(s1, s2)
+
+        if response.startswith("yes"):
+            return True
+        if response.startswith("no"):
+            return False
+        return self._jaccard_augmented_equivalent(s1, s2)
+
+    def _jaccard_augmented_equivalent(self, s1: str, s2: str) -> bool:
+        """Fallback lexical proxy when no NLI judge is available."""
+        tokens1 = self._normalized_tokens(s1)
+        tokens2 = self._normalized_tokens(s2)
+
+        if not tokens1 and not tokens2:
+            return True
+        if not tokens1 or not tokens2:
+            return False
+
+        return (
+            len(tokens1 & tokens2) / len(tokens1 | tokens2)
+            >= JACCARD_EQUIVALENCE_THRESHOLD
+        )
+
+    def _normalized_tokens(self, text: str) -> set[str]:
+        """Normalize tokens with light stemming and synonym collapsing."""
+        normalized: set[str] = set()
+        for token in re.findall(r"[a-z0-9]+", text.lower()):
+            stemmed = self._stem(token)
+            normalized.add(self.SYNONYM_MAP.get(stemmed, stemmed))
+        return {token for token in normalized if len(token) > 2}
+
+    def _stem(self, word: str) -> str:
+        """Small dependency-free stemmer for proxy clustering."""
+        for suffix in ("ingly", "edly", "tion", "ing", "ed", "ly", "er", "est", "ness", "ment", "s"):
+            if word.endswith(suffix) and len(word) - len(suffix) >= 3:
+                return word[: -len(suffix)]
+        return word
+
+
+def _cluster_samples(samples: list[str], similarity_threshold: float = 0.5) -> list[list[int]]:
+    """Backward-compatible proxy clustering helper."""
+    clusterer = NLIClusterer()
+    if similarity_threshold != JACCARD_EQUIVALENCE_THRESHOLD:
+        clusterer._nli_threshold = similarity_threshold
+    return clusterer.cluster(samples)
 
 
 def _compute_entropy(clusters: list[list[int]], n_samples: int) -> float:
@@ -219,6 +360,7 @@ class SemanticEntropyAnalyzer(BaseAnalyzer):
         n_samples = int(self.config.get("n_samples", 5))
         temperature = float(self.config.get("temperature", 0.7))
         entropy_threshold = float(self.config.get("entropy_threshold", 1.2))
+        nli_model = self.config.get("nli_model")
 
         # Check if we have chunks
         if not run.retrieved_chunks:
@@ -243,7 +385,8 @@ class SemanticEntropyAnalyzer(BaseAnalyzer):
                 return self.skip(f"LLM sampling failed: {exc}")
 
         # Step 2: Cluster by semantic equivalence
-        clusters = _cluster_samples(samples, similarity_threshold=JACCARD_EQUIVALENCE_THRESHOLD)
+        clusterer = NLIClusterer(nli_model=nli_model, llm_fn=llm_fn)
+        clusters = clusterer.cluster(samples)
         n_clusters = len(clusters)
 
         # Step 3: Compute entropy
@@ -255,9 +398,20 @@ class SemanticEntropyAnalyzer(BaseAnalyzer):
 
         # Build evidence
         evidence = [
-            f"Semantic entropy: {entropy:.2f} — sampled {n_samples} completions, found {n_clusters} meaning-groups",
-            f"Sample agreement: {sample_agreement:.2%} (largest cluster: {largest_cluster_size}/{n_samples})",
+            (
+                f"Semantic entropy ({clusterer.tier_label}): {entropy:.2f} — "
+                f"sampled {n_samples} completions, found {n_clusters} meaning-groups"
+            ),
+            (
+                f"Sample agreement: {sample_agreement:.2%} "
+                f"(largest cluster: {largest_cluster_size}/{n_samples})"
+            ),
         ]
+        if clusterer.tier_label == "Jaccard-augmented proxy":
+            evidence.append(
+                "Note: using Jaccard-augmented clustering (approximate). "
+                "Install sentence-transformers or provide llm_fn for NLI-based clustering."
+            )
 
         # Step 4: Interpret
         if entropy < 0.5:
@@ -296,6 +450,9 @@ class SemanticEntropyAnalyzer(BaseAnalyzer):
         for result in prior_results:
             if result.analyzer_name != "ClaimGroundingAnalyzer":
                 continue
+            typed_claim_results = self._normalize_claim_results(result.claim_results)
+            if typed_claim_results:
+                return typed_claim_results
             claim_results = self._claim_results_from_evidence(result.evidence)
             if claim_results:
                 return claim_results

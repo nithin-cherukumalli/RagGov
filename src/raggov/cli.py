@@ -23,8 +23,11 @@ from stresslab.cases import (
     list_diagnosis_golden_cases,
 )
 from stresslab.runners import (
+    run_claim_diagnosis_suite,
     run_diagnosis_suite,
     run_suite,
+    write_claim_diagnosis_markdown_report,
+    write_claim_diagnosis_report,
     write_diagnosis_suite_markdown_report,
     write_diagnosis_suite_report,
     write_suite_markdown_report,
@@ -205,6 +208,63 @@ def stresslab_diagnosis(
         raise typer.Exit(code=1)
 
 
+@app.command("stresslab-claim-diagnosis")
+def stresslab_claim_diagnosis(
+    gold_set: Path = typer.Option(
+        Path("stresslab/cases/golden/claim_diagnosis_gold_v1.json"),
+        help="Path to claim-level gold set JSON.",
+    ),
+    output_dir: Path = typer.Option(
+        Path("artifacts/claim_diagnosis"),
+        help="Directory for claim-diagnosis report artifacts.",
+    ),
+    enable_a2p: bool = typer.Option(
+        True,
+        "--enable-a2p/--no-enable-a2p",
+        help="Compatibility flag. Harness currently runs with A2P enabled.",
+    ),
+    enable_a2p_v2: bool = typer.Option(
+        False,
+        "--enable-a2p-v2/--no-enable-a2p-v2",
+        help="Run the existing A2P v2 attribution mode through the claim-diagnosis harness.",
+    ),
+    report_format: str = typer.Option(
+        "both",
+        "--format",
+        help="Report format: json, markdown, or both.",
+    ),
+) -> None:
+    """Run claim-level diagnosis harness and emit JSON/Markdown reports."""
+    if enable_a2p_v2 and not enable_a2p:
+        console.print("[red]Invalid options[/red]: --enable-a2p-v2 requires A2P to be enabled")
+        raise typer.Exit(code=1)
+
+    format_value = report_format.lower()
+    if format_value not in {"json", "markdown", "both"}:
+        console.print("[red]Invalid format[/red]: use json, markdown, or both")
+        raise typer.Exit(code=1)
+
+    result = run_claim_diagnosis_suite(
+        gold_set,
+        engine_config={
+            "enable_a2p": enable_a2p,
+            "use_llm": False,
+            "use_a2p_v2": enable_a2p_v2,
+        },
+    )
+    json_path = output_dir / "claim_diagnosis_report.json"
+    md_path = output_dir / "claim_diagnosis_report.md"
+
+    if format_value in {"json", "both"}:
+        write_claim_diagnosis_report(result, json_path)
+        console.print(f"[dim]Wrote JSON report to {json_path}[/dim]")
+    if format_value in {"markdown", "both"}:
+        write_claim_diagnosis_markdown_report(result, md_path)
+        console.print(f"[dim]Wrote Markdown report to {md_path}[/dim]")
+
+    console.print(_claim_diagnosis_panel(result))
+
+
 def _load_run(run_file: Path) -> RAGRun:
     with run_file.open() as file:
         payload = json.load(file)
@@ -297,6 +357,24 @@ def _diagnosis_suite_panel(result: Any) -> Panel:
     table.add_row("Mismatches", mismatches)
 
     return Panel(table, title="Diagnosis Golden Suite", expand=False)
+
+
+def _claim_diagnosis_panel(result: Any) -> Panel:
+    table = Table.grid(padding=(0, 1))
+    table.add_column(style="bold")
+    table.add_column()
+
+    table.add_row("Evaluation status", str(result.evaluation_status))
+    table.add_row("A2P mode", str(result.a2p_mode))
+    table.add_row("Cases", str(result.total_examples))
+    table.add_row("Claim label accuracy", f"{result.claim_label_accuracy:.0%}")
+    table.add_row("Sufficiency accuracy", f"{result.sufficiency_accuracy:.0%}")
+    table.add_row("A2P cause accuracy", f"{result.a2p_primary_cause_accuracy:.0%}")
+    table.add_row("Primary stage accuracy", f"{result.primary_stage_accuracy:.0%}")
+    table.add_row("Fix partial accuracy", f"{result.fix_category_partial_accuracy:.0%}")
+    table.add_row("Mismatches", str(len(result.mismatches)))
+
+    return Panel(table, title="Claim Diagnosis Harness", expand=False)
 
 
 def _checks_table(diagnosis: Diagnosis) -> Table:

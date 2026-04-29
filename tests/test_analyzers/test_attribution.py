@@ -5,7 +5,13 @@ from __future__ import annotations
 from raggov.analyzers.attribution.a2p import A2PAttributionAnalyzer
 from raggov.engine import DiagnosisEngine
 from raggov.models.chunk import RetrievedChunk
-from raggov.models.diagnosis import AnalyzerResult, FailureStage, FailureType
+from raggov.models.diagnosis import (
+    AnalyzerResult,
+    ClaimResult,
+    FailureStage,
+    FailureType,
+    SufficiencyResult,
+)
 from raggov.models.run import RAGRun
 
 
@@ -358,7 +364,7 @@ def test_a2p_runs_last_in_engine_and_overrides_stage() -> None:
             chunk("chunk-1", "The policy covers X", 0.9),
             chunk("chunk-2", "The policy also covers Y", 0.85),
         ],
-        final_answer="The policy covers Z which is not in chunks",
+        final_answer="The policy guarantees 99% reimbursement for Z claims across all regions.",
     )
 
     # Run full engine with A2P enabled
@@ -447,3 +453,402 @@ def test_a2p_evidence_structure() -> None:
     assert "Proposed fix:" in result.evidence[1]
     assert "Prediction:" in result.evidence[2]
     assert "Confidence basis:" in result.evidence[3]
+
+
+def test_claim_level_a2p_unsupported_with_insufficient_context() -> None:
+    prior_results = [
+        AnalyzerResult(
+            analyzer_name="ClaimGroundingAnalyzer",
+            status="fail",
+            failure_type=FailureType.UNSUPPORTED_CLAIM,
+            stage=FailureStage.GROUNDING,
+            claim_results=[
+                ClaimResult(
+                    claim_text="Policy includes international on-site repairs.",
+                    label="unsupported",
+                    supporting_chunk_ids=[],
+                )
+            ],
+        ),
+        AnalyzerResult(
+            analyzer_name="SufficiencyAnalyzer",
+            status="fail",
+            failure_type=FailureType.INSUFFICIENT_CONTEXT,
+            stage=FailureStage.SUFFICIENCY,
+            sufficiency_result=SufficiencyResult(
+                sufficient=False,
+                missing_evidence=["Policy includes international on-site repairs."],
+                affected_claims=["Policy includes international on-site repairs."],
+                evidence_chunk_ids=[],
+                method="heuristic_claim_aware_v0",
+                calibration_status="uncalibrated",
+            ),
+        ),
+    ]
+    result = A2PAttributionAnalyzer({"use_llm": False, "prior_results": prior_results}).analyze(
+        run_with_chunks([chunk("chunk-1", "Base policy text", 0.7)])
+    )
+
+    assert result.claim_attributions is not None
+    assert result.claim_attributions[0].primary_cause == "insufficient_context_or_retrieval_miss"
+    assert result.claim_attributions[0].attribution_method == "claim_level_a2p_heuristic_v1"
+    assert result.claim_attributions[0].calibration_status == "uncalibrated"
+
+
+def test_claim_level_a2p_contradicted_claim_with_contradicting_chunk() -> None:
+    prior_results = [
+        AnalyzerResult(
+            analyzer_name="ClaimGroundingAnalyzer",
+            status="fail",
+            failure_type=FailureType.CONTRADICTED_CLAIM,
+            stage=FailureStage.GROUNDING,
+            claim_results=[
+                ClaimResult(
+                    claim_text="Warranty covers accidental damage.",
+                    label="contradicted",
+                    supporting_chunk_ids=[],
+                    candidate_chunk_ids=["chunk-1"],
+                    contradicting_chunk_ids=["chunk-1"],
+                )
+            ],
+        ),
+    ]
+    result = A2PAttributionAnalyzer({"use_llm": False, "prior_results": prior_results}).analyze(
+        run_with_chunks([chunk("chunk-1", "Warranty does not cover accidental damage.", 0.9)])
+    )
+
+    assert result.claim_attributions is not None
+    assert result.claim_attributions[0].primary_cause == "generation_contradicted_retrieved_evidence"
+
+
+def test_claim_level_a2p_adds_stale_and_citation_candidate_causes() -> None:
+    prior_results = [
+        AnalyzerResult(
+            analyzer_name="ClaimGroundingAnalyzer",
+            status="fail",
+            failure_type=FailureType.UNSUPPORTED_CLAIM,
+            stage=FailureStage.GROUNDING,
+            claim_results=[
+                ClaimResult(
+                    claim_text="Claim text",
+                    label="unsupported",
+                    supporting_chunk_ids=[],
+                    candidate_chunk_ids=["chunk-1"],
+                    evidence_reason="Best chunk score below support threshold.",
+                )
+            ],
+        ),
+        AnalyzerResult(
+            analyzer_name="CitationMismatchAnalyzer",
+            status="fail",
+            failure_type=FailureType.CITATION_MISMATCH,
+            stage=FailureStage.RETRIEVAL,
+        ),
+        AnalyzerResult(
+            analyzer_name="StaleRetrievalAnalyzer",
+            status="fail",
+            failure_type=FailureType.STALE_RETRIEVAL,
+            stage=FailureStage.RETRIEVAL,
+        ),
+    ]
+    result = A2PAttributionAnalyzer({"use_llm": False, "prior_results": prior_results}).analyze(
+        run_with_chunks([chunk("chunk-1", "Some context", 0.8)])
+    )
+
+    assert result.claim_attributions is not None
+    causes = set(result.claim_attributions[0].candidate_causes)
+    assert "citation_mismatch" in causes
+    assert "stale_source_usage" in causes
+
+
+def test_claim_level_a2p_adds_verification_uncertainty_when_claim_fallback_used() -> None:
+    prior_results = [
+        AnalyzerResult(
+            analyzer_name="ClaimGroundingAnalyzer",
+            status="fail",
+            failure_type=FailureType.UNSUPPORTED_CLAIM,
+            stage=FailureStage.GROUNDING,
+            claim_results=[
+                ClaimResult(
+                    claim_text="Claim text",
+                    label="unsupported",
+                    supporting_chunk_ids=[],
+                    fallback_used=True,
+                )
+            ],
+        ),
+        AnalyzerResult(
+            analyzer_name="SufficiencyAnalyzer",
+            status="fail",
+            failure_type=FailureType.INSUFFICIENT_CONTEXT,
+            stage=FailureStage.SUFFICIENCY,
+            sufficiency_result=SufficiencyResult(
+                sufficient=False,
+                missing_evidence=["Claim text"],
+                affected_claims=["Claim text"],
+                evidence_chunk_ids=[],
+                method="heuristic_claim_aware_v0",
+                calibration_status="uncalibrated",
+            ),
+        ),
+    ]
+    result = A2PAttributionAnalyzer({"use_llm": False, "prior_results": prior_results}).analyze(
+        run_with_chunks([chunk("chunk-1", "Some context", 0.6)])
+    )
+
+    assert result.claim_attributions is not None
+    assert "verification_uncertainty" in result.claim_attributions[0].candidate_causes
+
+
+def test_a2p_legacy_fallback_visible_without_typed_claims() -> None:
+    prior_results = [
+        AnalyzerResult(
+            analyzer_name="SufficiencyAnalyzer",
+            status="fail",
+            failure_type=FailureType.INSUFFICIENT_CONTEXT,
+            stage=FailureStage.SUFFICIENCY,
+            evidence=["Context is insufficient"],
+        )
+    ]
+    result = A2PAttributionAnalyzer({"use_llm": False, "prior_results": prior_results}).analyze(
+        run_with_chunks([chunk("chunk-1", "Some text", 0.4)])
+    )
+
+    assert result.claim_attributions is not None
+    assert result.claim_attributions[0].fallback_used is True
+    assert result.claim_attributions[0].attribution_method == "legacy_failure_level_heuristic"
+
+
+def test_claim_level_a2p_uses_claim_aware_sufficiency_result_when_available() -> None:
+    prior_results = [
+        AnalyzerResult(
+            analyzer_name="ClaimGroundingAnalyzer",
+            status="fail",
+            failure_type=FailureType.UNSUPPORTED_CLAIM,
+            stage=FailureStage.GROUNDING,
+            claim_results=[
+                ClaimResult(
+                    claim_text="Missing legal section details for export restrictions.",
+                    label="unsupported",
+                    supporting_chunk_ids=[],
+                )
+            ],
+        ),
+        AnalyzerResult(
+            analyzer_name="ClaimAwareSufficiencyAnalyzer",
+            status="pass",
+            sufficiency_result=SufficiencyResult(
+                sufficient=False,
+                missing_evidence=["Missing legal section details for export restrictions."],
+                affected_claims=["Missing legal section details for export restrictions."],
+                evidence_chunk_ids=[],
+                method="heuristic_claim_aware_v0",
+                calibration_status="uncalibrated",
+            ),
+        ),
+    ]
+
+    result = A2PAttributionAnalyzer({"use_llm": False, "prior_results": prior_results}).analyze(
+        run_with_chunks([chunk("chunk-1", "Office policy context", 0.6)])
+    )
+
+    assert result.claim_attributions is not None
+    assert result.claim_attributions[0].primary_cause == "insufficient_context_or_retrieval_miss"
+
+
+def test_claim_level_a2p_unsupported_with_only_candidate_and_insufficient_is_retrieval_miss() -> None:
+    prior_results = [
+        AnalyzerResult(
+            analyzer_name="ClaimGroundingAnalyzer",
+            status="fail",
+            failure_type=FailureType.UNSUPPORTED_CLAIM,
+            stage=FailureStage.GROUNDING,
+            claim_results=[
+                ClaimResult(
+                    claim_text="Policy includes new emergency reimbursement.",
+                    label="unsupported",
+                    supporting_chunk_ids=[],
+                    candidate_chunk_ids=["chunk-1"],
+                    contradicting_chunk_ids=[],
+                )
+            ],
+        ),
+        AnalyzerResult(
+            analyzer_name="ClaimAwareSufficiencyAnalyzer",
+            status="pass",
+            sufficiency_result=SufficiencyResult(
+                sufficient=False,
+                missing_evidence=["Policy includes new emergency reimbursement."],
+                affected_claims=["Policy includes new emergency reimbursement."],
+                evidence_chunk_ids=["chunk-1"],
+                method="heuristic_claim_aware_v0",
+                calibration_status="uncalibrated",
+            ),
+        ),
+    ]
+
+    result = A2PAttributionAnalyzer({"use_llm": False, "prior_results": prior_results}).analyze(
+        run_with_chunks([chunk("chunk-1", "Policy text with no reimbursement clause", 0.6)])
+    )
+
+    assert result.claim_attributions is not None
+    assert result.claim_attributions[0].primary_cause == "insufficient_context_or_retrieval_miss"
+
+
+def test_claim_level_a2p_entailed_stale_claim_maps_to_stale_source_usage_in_v1() -> None:
+    prior_results = [
+        AnalyzerResult(
+            analyzer_name="ClaimGroundingAnalyzer",
+            status="pass",
+            claim_results=[
+                ClaimResult(
+                    claim_text="Records are retained for twelve months before archival review.",
+                    label="entailed",
+                    supporting_chunk_ids=["doc7-chunk-1"],
+                )
+            ],
+        ),
+        AnalyzerResult(
+            analyzer_name="StaleRetrievalAnalyzer",
+            status="fail",
+            failure_type=FailureType.STALE_RETRIEVAL,
+            stage=FailureStage.RETRIEVAL,
+            evidence=["doc7 is 2000 days old"],
+        ),
+    ]
+
+    result = A2PAttributionAnalyzer({"use_llm": False, "prior_results": prior_results}).analyze(
+        run_with_chunks([chunk("doc7-chunk-1", "Records are retained for twelve months before archival review.", 0.8)])
+    )
+
+    assert result.claim_attributions is not None
+    assert result.claim_attributions[0].primary_cause == "stale_source_usage"
+    assert result.stage == FailureStage.RETRIEVAL
+
+
+def test_claim_level_a2p_entailed_citation_invalid_maps_to_citation_mismatch_in_v1() -> None:
+    run = RAGRun(
+        query="What refund threshold applies?",
+        retrieved_chunks=[chunk("chunk-1", "Refund approvals require manager review for requests above one hundred dollars.", 0.82)],
+        final_answer="Refund approvals require manager review for requests above one hundred dollars.",
+        cited_doc_ids=["doc-phantom-1"],
+    )
+    prior_results = [
+        AnalyzerResult(
+            analyzer_name="ClaimGroundingAnalyzer",
+            status="pass",
+            claim_results=[
+                ClaimResult(
+                    claim_text="Refund approvals require manager review for requests above one hundred dollars.",
+                    label="entailed",
+                    supporting_chunk_ids=["chunk-1"],
+                )
+            ],
+        ),
+        AnalyzerResult(
+            analyzer_name="CitationMismatchAnalyzer",
+            status="fail",
+            failure_type=FailureType.CITATION_MISMATCH,
+            stage=FailureStage.RETRIEVAL,
+            evidence=["phantom citation: doc-phantom-1"],
+        ),
+    ]
+
+    result = A2PAttributionAnalyzer({"use_llm": False, "prior_results": prior_results}).analyze(run)
+
+    assert result.claim_attributions is not None
+    assert result.claim_attributions[0].primary_cause == "citation_mismatch"
+    assert result.stage == FailureStage.RETRIEVAL
+
+
+def test_claim_level_a2p_entailed_security_risk_maps_to_adversarial_context_in_v1() -> None:
+    prior_results = [
+        AnalyzerResult(
+            analyzer_name="ClaimGroundingAnalyzer",
+            status="pass",
+            claim_results=[
+                ClaimResult(
+                    claim_text="The refund window is fourteen days.",
+                    label="entailed",
+                    supporting_chunk_ids=["chunk-1"],
+                )
+            ],
+        ),
+        AnalyzerResult(
+            analyzer_name="PromptInjectionAnalyzer",
+            status="fail",
+            failure_type=FailureType.PROMPT_INJECTION,
+            stage=FailureStage.SECURITY,
+            evidence=["instruction-like content detected in chunk-2"],
+        ),
+    ]
+
+    result = A2PAttributionAnalyzer({"use_llm": False, "prior_results": prior_results}).analyze(
+        run_with_chunks([chunk("chunk-1", "The refund window is fourteen days.", 0.9)])
+    )
+
+    assert result.claim_attributions is not None
+    assert result.claim_attributions[0].primary_cause == "adversarial_context"
+    assert result.stage == FailureStage.SECURITY
+
+
+def test_claim_level_a2p_entailed_citation_faithfulness_fail_maps_to_post_rationalized_citation() -> None:
+    prior_results = [
+        AnalyzerResult(
+            analyzer_name="ClaimGroundingAnalyzer",
+            status="pass",
+            claim_results=[
+                ClaimResult(
+                    claim_text="The refund window is fourteen days.",
+                    label="entailed",
+                    supporting_chunk_ids=["chunk-1"],
+                )
+            ],
+        ),
+        AnalyzerResult(
+            analyzer_name="CitationFaithfulnessProbe",
+            status="fail",
+            failure_type=FailureType.POST_RATIONALIZED_CITATION,
+            stage=FailureStage.GROUNDING,
+            evidence=["citation appears attached after answer generation"],
+        ),
+    ]
+
+    result = A2PAttributionAnalyzer({"use_llm": False, "prior_results": prior_results}).analyze(
+        run_with_chunks([chunk("chunk-1", "The refund window is fourteen days.", 0.9)])
+    )
+
+    assert result.claim_attributions is not None
+    assert result.claim_attributions[0].primary_cause == "post_rationalized_citation"
+    assert result.stage == FailureStage.GROUNDING
+
+
+def test_claim_level_a2p_v2_entailed_security_risk_maps_to_adversarial_context() -> None:
+    prior_results = [
+        AnalyzerResult(
+            analyzer_name="ClaimGroundingAnalyzer",
+            status="pass",
+            claim_results=[
+                ClaimResult(
+                    claim_text="The refund window is fourteen days.",
+                    label="entailed",
+                    supporting_chunk_ids=["chunk-1"],
+                )
+            ],
+        ),
+        AnalyzerResult(
+            analyzer_name="PromptInjectionAnalyzer",
+            status="fail",
+            failure_type=FailureType.PROMPT_INJECTION,
+            stage=FailureStage.SECURITY,
+            evidence=["instruction-like content detected in chunk-2"],
+        ),
+    ]
+
+    result = A2PAttributionAnalyzer(
+        {"use_llm": False, "use_a2p_v2": True, "prior_results": prior_results}
+    ).analyze(run_with_chunks([chunk("chunk-1", "The refund window is fourteen days.", 0.9)]))
+
+    assert result.claim_attributions_v2 is not None
+    assert result.claim_attributions_v2[0].primary_cause == "adversarial_context"
+    assert result.stage == FailureStage.SECURITY
