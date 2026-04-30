@@ -1,0 +1,29 @@
+profiles:
+  pymupdf4llm_page:
+    description: PyMuPDF4LLM-style page chunks with page and table-of-contents metadata.
+    parser:
+      name: pymupdf4llm
+      preserves_layout: true
+      emits_provenance: true
+    chunking_strategy:
+      strategy_type: fixed_token
+      allows_mid_sentence_start: true
+      allows_cross_section_chunk: true
+      allows_table_flattening: true
+      requires_page_metadata: true
+      requires_provenance: false
+    metadata_mapping:
+      text:
+        aliases: [text, page_content, content]
+      page_start:
+        aliases: [metadata.page, metadata.page_number]
+        first_transform: int
+      page_end:
+        aliases: [metadata.page_end]
+        first_transform: int
+      section_path:
+        aliases: [metadata.toc_path, metadata.toc_items, metadata.headers]
+        first_transform: string_tuple
+      domain_fields:
+        page_boxes:
+          aliases: [metadata.page_boxes]

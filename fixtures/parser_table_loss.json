@@ -20,6 +20,20 @@
   },
   "metadata": {
     "scenario": "parser_table_loss",
-    "expected_primary_failure": "TABLE_STRUCTURE_LOSS"
+    "expected_primary_failure": "TABLE_STRUCTURE_LOSS",
+    "parser_validation_profile": {
+      "chunking_strategy": {
+        "strategy_type": "table_aware",
+        "preserves_table_structure": true,
+        "preserves_table_headers": true,
+        "preserves_source_elements": true,
+        "allows_mid_sentence_start": false,
+        "allows_cross_section_chunk": true,
+        "allows_table_flattening": false,
+        "requires_page_metadata": true,
+        "requires_provenance": true
+      },
+      "infer_from_legacy": true
+    }
   }
 }

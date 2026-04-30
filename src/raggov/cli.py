@@ -18,6 +18,7 @@ from raggov.calibration import ARESCalibrator, ConfidenceInterval
 from raggov.engine import DiagnosisEngine
 from raggov.models.diagnosis import Diagnosis, FailureType, SecurityRisk
 from raggov.models.run import RAGRun
+from raggov.parser_validation.profile_questionnaire import profile_yaml_from_answers
 from stresslab.cases import (
     list_cases as list_stresslab_cases,
     list_diagnosis_golden_cases,
@@ -122,6 +123,45 @@ def calibrate(
 def version() -> None:
     """Print the installed raggov version."""
     console.print(f"raggov {_package_version()}")
+
+
+@app.command("parser-profile-init")
+def parser_profile_init(
+    name: str = typer.Option("custom", help="Name of the generated parser-validation profile."),
+    parser_name: str = typer.Option("", help="Parser or pipeline name."),
+    chunking_strategy: str = typer.Option("unknown", help="Declared chunking strategy."),
+    page_field: str = typer.Option("", help="Dotted path for page metadata."),
+    provenance_field: str = typer.Option("", help="Dotted path for source element provenance."),
+    table_field: str = typer.Option("", help="Dotted path for source table provenance."),
+    section_field: str = typer.Option("", help="Dotted path for section/header metadata."),
+    parent_field: str = typer.Option("", help="Dotted path for parent-child metadata."),
+    infer_from_legacy: bool = typer.Option(
+        False,
+        "--infer-from-legacy/--no-infer-from-legacy",
+        help="Allow temporary fallback to legacy metadata aliases during migration.",
+    ),
+    output: Path = typer.Option(
+        Path("parser_validation_profile.yaml"),
+        help="Where to write the generated profile YAML.",
+    ),
+) -> None:
+    """Generate a parser-validation profile YAML without optional questionnaire dependencies."""
+    yaml_text = profile_yaml_from_answers(
+        {
+            "name": name,
+            "parser_name": parser_name,
+            "chunking_strategy": chunking_strategy,
+            "page_field": page_field,
+            "provenance_field": provenance_field,
+            "table_field": table_field,
+            "section_field": section_field,
+            "parent_field": parent_field,
+            "infer_from_legacy": infer_from_legacy,
+        }
+    )
+
+    output.write_text(yaml_text, encoding="utf-8")
+    console.print(f"[dim]Wrote parser-validation profile to {output}[/dim]")
 
 
 @app.command("stresslab-suite")

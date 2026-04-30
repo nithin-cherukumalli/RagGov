@@ -29,6 +29,8 @@ from raggov.models.diagnosis import (
     SecurityRisk,
 )
 from raggov.models.run import RAGRun
+from raggov.parser_validation.models import ChunkingStrategyType, default_chunking_profile
+from raggov.parser_validation.profile import ParserValidationProfile
 from raggov.taxonomy import DEFAULT_REMEDIATIONS
 
 
@@ -340,8 +342,8 @@ def test_default_suite_includes_citation_faithfulness_after_grounding() -> None:
 
 def test_parser_failure_remains_root_cause_stage() -> None:
     remediation = (
-        "Use a structure-preserving parser (unstructured.io, docling, pymupdf4llm) "
-        "before chunking. Tables must preserve row-column bindings."
+        "Attach parser structural metadata to chunks. Text-only table detection is heuristic "
+        "and cannot reliably prove table degradation."
     )
     test_run = RAGRun(
         run_id="parser-run",
@@ -355,6 +357,12 @@ def test_parser_failure_remains_root_cause_stage() -> None:
             )
         ],
         final_answer="Warangal has 5 vacancies.",
+        metadata={
+            "parser_validation_profile": ParserValidationProfile(
+                chunking_strategy=default_chunking_profile(ChunkingStrategyType.TABLE_AWARE),
+                infer_from_legacy=True,
+            ),
+        },
     )
 
     diagnosis = DiagnosisEngine(config={"enable_a2p": True, "use_llm": False}).diagnose(test_run)

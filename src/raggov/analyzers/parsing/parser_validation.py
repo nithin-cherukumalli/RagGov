@@ -2,281 +2,326 @@
 
 from __future__ import annotations
 
-import re
-from dataclasses import dataclass
+from typing import Any
 
 from raggov.analyzers.base import BaseAnalyzer
 from raggov.models.diagnosis import AnalyzerResult, FailureStage, FailureType
 from raggov.models.run import RAGRun
-
-
-TABLE_REMEDIATION = (
-    "Use a structure-preserving parser (unstructured.io, docling, pymupdf4llm) "
-    "before chunking. Tables must preserve row-column bindings."
+from raggov.parser_validation import (
+    ChunkIR,
+    MetadataNormalizer,
+    NormalizedMetadata,
+    PROFILE_LINT_REMEDIATION,
+    ParserFailureType,
+    ParserFinding,
+    ParserSeverity,
+    ParserValidationConfig,
+    ParserValidationEngine,
+    ParserValidationProfile,
+    ProfileLintEngine,
+    ProfileLintIssue,
+    ProfileLintReport,
 )
-HIERARCHY_REMEDIATION = (
-    "Parser lost document hierarchy. Use heading-aware parsing. Preserve numbered "
-    "list structure in chunk boundaries."
+from raggov.parser_validation.adapters import (
+    chunks_from_rag_run,
+    _get_attr_or_key,
+    parsed_doc_from_run_metadata,
 )
-METADATA_REMEDIATION = (
-    "Document identifiers and section labels not found in chunks. Verify parser "
-    "preserves metadata. Add metadata injection at chunk level."
-)
-
-TABLE_KEYWORDS = (
-    "district",
-    "category",
-    "grade",
-    "total",
-    "vacancies",
-    "sl.no",
-    "s.no",
-    "sr.no",
-    "name",
-    "designation",
-)
-STRONG_TABLE_KEYWORDS = {"vacancies", "sl.no", "s.no", "sr.no", "designation"}
-QUERY_METADATA_TERMS = ("order", "rule", "section", "chapter", "g.o.")
-ORPHAN_PREFIXES = (
-    "and ",
-    "or ",
-    "but ",
-    "which ",
-    "that ",
-    "thereof",
-    "herein",
-    "aforesaid",
-    "the same",
-)
-IDENTIFIER_PATTERNS = (
-    r"\bG\.O\.\b",
-    r"\bG\.O\.Ms\.\b",
-    r"\bG\.O\.Rt\.\b",
-    r"\bOrder\s+No\.\b",
-)
-SECTION_LABEL_PATTERNS = (
-    r"(?m)^\s*PART\b",
-    r"(?m)^\s*CHAPTER\b",
-    r"(?m)^\s*SECTION\b",
-    r"(?m)^\s*ANNEXURE\b",
-)
-DATE_NEAR_START_PATTERN = (
-    r"(?im)^(?:.{0,80})\b(?:\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|"
-    r"\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4}|[A-Za-z]{3,9}\s+\d{1,2},\s+\d{4})\b"
-)
-DIRECT_HIERARCHY_PATTERNS = (
-    r"\(\d+\)[^.]+\(\d+\)",
-    r"Rule\s+\d+[^.]*Rule\s+\d+",
-    r"\d+\.\s+\w+[^.]*\d+\.\s+\w+",
-)
-TABLE_ROW_PATTERN = re.compile(
-    r"(district|category|grade|total)\s+\w+\s+\w+\s+\w+",
-    re.IGNORECASE,
-)
-TABLE_HEADER_VALUE_PATTERN = re.compile(
-    r"\b(?:district|category|grade|total|vacancies|sl\.?no|s\.?no|sr\.?no|name|designation)\b"
-    r"(?:\s+[A-Za-z0-9./()-]+){3,}",
-    re.IGNORECASE,
-)
-MARKDOWN_TABLE_PATTERN = re.compile(r"(?m)^\s*\|.+\|\s*$")
-HTML_TABLE_PATTERN = re.compile(r"<(?:td|tr|th)\b", re.IGNORECASE)
-ALIGNED_COLUMNS_PATTERN = re.compile(r"(?m)^\S+(?:\s{2,}\S+){1,}\s*$")
-TOKEN_PATTERN = re.compile(r"\b[a-z][a-z0-9.]*\b", re.IGNORECASE)
-
-
-@dataclass(frozen=True)
-class Finding:
-    """Structured parser finding before collapsing to AnalyzerResult."""
-
-    failure_type: FailureType
-    status: str
-    evidence: list[str]
-    remediation: str
-    priority: int
 
 
 class ParserValidationAnalyzer(BaseAnalyzer):
-    """Detect parser-stage structural failures directly from chunk text."""
+    """
+    Detect parser-stage structural failures.
+
+    v1 design:
+    - Prefer parser/chunker metadata when available.
+    - Use parser-agnostic structural validators.
+    - Fall back to explicitly marked text-only heuristics when no rich parser IR is available.
+    - Respect declared chunking strategy: validators only enforce guarantees the strategy promised.
+    """
 
     weight = 0.85
+
+    def __init__(
+        self,
+        config: dict[str, Any] | None = None,
+        profile: ParserValidationProfile | None = None,
+    ) -> None:
+        super().__init__(config)
+        self.profile = profile
 
     def analyze(self, run: RAGRun) -> AnalyzerResult:
         if not run.retrieved_chunks:
             return self.skip("no retrieved chunks available")
 
-        findings: list[Finding] = []
+        profile = self._resolve_profile(run)
+        config = self._build_config(profile)
+        engine = ParserValidationEngine(config=config)
 
-        table_finding = self._check_table_degradation(run)
-        if table_finding is not None:
-            findings.append(table_finding)
+        parsed_doc = parsed_doc_from_run_metadata(run)
+        chunks = self._chunks_from_run(run, profile)
+        lint_report = self._lint_profile(chunks, config, profile)
 
-        hierarchy_finding = self._check_hierarchy_flattening(run)
-        if hierarchy_finding is not None:
-            findings.append(hierarchy_finding)
+        if lint_report.authority_blocked:
+            return AnalyzerResult(
+                analyzer_name=self.name(),
+                status="fail",
+                failure_type=FailureType.METADATA_LOSS,
+                stage=FailureStage.PARSING,
+                evidence=self._format_lint_evidence(lint_report.errors),
+                remediation=PROFILE_LINT_REMEDIATION,
+            )
 
-        metadata_finding = self._check_metadata_loss(run)
-        if metadata_finding is not None:
-            findings.append(metadata_finding)
+        findings = engine.validate(parsed_doc=parsed_doc, chunks=chunks)
 
-        if not findings:
+        actionable_findings = [
+            finding
+            for finding in findings
+            if finding.severity in {ParserSeverity.FAIL, ParserSeverity.WARN}
+        ]
+
+        if not actionable_findings:
+            if lint_report.warnings:
+                return AnalyzerResult(
+                    analyzer_name=self.name(),
+                    status="warn",
+                    failure_type=FailureType.METADATA_LOSS,
+                    stage=FailureStage.PARSING,
+                    evidence=self._format_lint_evidence(lint_report.warnings),
+                    remediation=PROFILE_LINT_REMEDIATION,
+                )
             return self._pass()
 
-        primary = min(findings, key=lambda finding: finding.priority)
-        evidence = list(primary.evidence)
-        for finding in findings:
-            if finding is primary:
-                continue
-            evidence.extend(finding.evidence)
+        primary = actionable_findings[0]
 
         return AnalyzerResult(
             analyzer_name=self.name(),
-            status=primary.status,
-            failure_type=primary.failure_type,
+            status=self._status_from_severity(primary.severity),
+            failure_type=self._map_failure_type(primary.failure_type),
             stage=FailureStage.PARSING,
-            evidence=evidence,
+            evidence=self._format_evidence(
+                actionable_findings,
+                config.chunking_profile.strategy_type.value,
+            )
+            + self._format_lint_evidence(lint_report.warnings),
             remediation=primary.remediation,
         )
 
-    def _check_table_degradation(self, run: RAGRun) -> Finding | None:
-        threshold = float(self.config.get("table_score_threshold", 0.2))
+    def _resolve_profile(self, run: RAGRun) -> ParserValidationProfile:
+        if self.profile is not None:
+            return self.profile
 
-        for chunk in run.retrieved_chunks:
-            keywords = self._table_keywords(chunk.text)
-            has_table_intent = len(keywords) >= 2 or bool(keywords & STRONG_TABLE_KEYWORDS)
-            if not has_table_intent:
-                continue
+        config_profile = self.config.get("parser_validation_profile")
+        if config_profile is not None:
+            return self._coerce_profile(config_profile)
 
-            structure_score = self._table_structure_score(chunk.text)
-            collapsed_row = self._has_collapsed_table_row(chunk.text)
+        run_metadata = getattr(run, "metadata", None)
+        if isinstance(run_metadata, dict):
+            run_profile = run_metadata.get("parser_validation_profile")
+            if run_profile is not None:
+                return self._coerce_profile(run_profile)
 
-            if structure_score < threshold and collapsed_row:
-                return Finding(
-                    failure_type=FailureType.TABLE_STRUCTURE_LOSS,
-                    status="fail",
-                    evidence=[
-                        f"Table keywords detected but structural separators absent in chunk {chunk.chunk_id}"
-                    ],
-                    remediation=TABLE_REMEDIATION,
-                    priority=0,
-                )
+        raise ValueError(
+            "ParserValidationAnalyzer requires ParserValidationProfile. Pass "
+            "profile=..., config['parser_validation_profile'], or "
+            "run.metadata['parser_validation_profile']. Set infer_from_legacy=True "
+            "during migration if old metadata aliases should be accepted temporarily."
+        )
 
-        return None
+    def _coerce_profile(self, value: Any) -> ParserValidationProfile:
+        if isinstance(value, ParserValidationProfile):
+            return value
+        if isinstance(value, dict):
+            return ParserValidationProfile.model_validate(value)
+        raise TypeError(
+            "parser_validation_profile must be a ParserValidationProfile or dict"
+        )
 
-    def _check_hierarchy_flattening(self, run: RAGRun) -> Finding | None:
-        min_signals = int(self.config.get("min_hierarchy_signals", 2))
-        orphaned_chunk_ids: list[str] = []
+    def _build_config(self, profile: ParserValidationProfile) -> ParserValidationConfig:
+        return ParserValidationConfig(
+            min_table_structure_score=float(
+                self.config.get("min_table_structure_score", 0.70)
+            ),
+            min_metadata_coverage=float(
+                self.config.get("min_metadata_coverage", 0.80)
+            ),
+            min_provenance_coverage=float(
+                self.config.get("min_provenance_coverage", 0.90)
+            ),
+            max_chunk_boundary_damage_ratio=float(
+                self.config.get("max_chunk_boundary_damage_ratio", 0.10)
+            ),
+            enable_text_fallback_heuristics=bool(
+                self.config.get("enable_text_fallback_heuristics", True)
+            ),
+            chunking_profile=profile.chunking_strategy,
+        )
 
-        for chunk in run.retrieved_chunks:
-            signal_count = self._direct_hierarchy_signal_count(chunk.text)
-            if signal_count >= min_signals:
-                return Finding(
-                    failure_type=FailureType.HIERARCHY_FLATTENING,
-                    status="fail",
-                    evidence=[
-                        f"Hierarchy markers merged inline in chunk {chunk.chunk_id}"
-                    ],
-                    remediation=HIERARCHY_REMEDIATION,
-                    priority=1,
-                )
+    def _lint_profile(
+        self,
+        chunks: list[ChunkIR],
+        config: ParserValidationConfig,
+        profile: ParserValidationProfile,
+    ) -> ProfileLintReport:
+        return ProfileLintEngine(
+            min_metadata_coverage=config.min_metadata_coverage,
+            min_provenance_coverage=config.min_provenance_coverage,
+        ).lint(chunks, config.chunking_profile, profile)
 
-            if self._is_orphaned_fragment(chunk.text):
-                orphaned_chunk_ids.append(chunk.chunk_id)
+    def _chunks_from_run(
+        self,
+        run: RAGRun,
+        profile: ParserValidationProfile,
+    ) -> list[ChunkIR]:
+        if profile.infer_from_legacy:
+            return chunks_from_rag_run(run)
 
-        if len(orphaned_chunk_ids) >= 2:
-            joined_ids = ", ".join(orphaned_chunk_ids)
-            return Finding(
-                failure_type=FailureType.HIERARCHY_FLATTENING,
-                status="warn",
-                evidence=[f"Multiple orphaned fragments detected in chunks {joined_ids}"],
-                remediation=HIERARCHY_REMEDIATION,
-                priority=1,
+        normalizer = MetadataNormalizer(profile.metadata_mapping)
+        return [
+            self._chunk_from_normalized_metadata(raw_chunk, normalizer)
+            for raw_chunk in run.retrieved_chunks
+        ]
+
+    def _chunk_from_normalized_metadata(
+        self,
+        raw_chunk: Any,
+        normalizer: MetadataNormalizer,
+    ) -> ChunkIR:
+        raw_payload = self._raw_chunk_payload(raw_chunk)
+        normalized = normalizer.normalize(raw_payload)
+
+        chunk_id = normalized.chunk_id or _get_attr_or_key(raw_chunk, "chunk_id", None)
+        if chunk_id is None:
+            chunk_id = _get_attr_or_key(raw_chunk, "id", "unknown_chunk")
+
+        text = normalized.text
+        if text is None:
+            text = _get_attr_or_key(raw_chunk, "text", None)
+        if text is None:
+            text = _get_attr_or_key(raw_chunk, "content", None)
+        if text is None:
+            text = _get_attr_or_key(raw_chunk, "page_content", "")
+
+        metadata = self._metadata_from_normalized(normalized)
+
+        page_end = normalized.page_end
+        if page_end is None:
+            page_end = normalized.page_start
+
+        return ChunkIR(
+            chunk_id=str(chunk_id),
+            text=str(text),
+            source_element_ids=normalized.source_element_ids,
+            source_table_ids=normalized.source_table_ids,
+            page_start=normalized.page_start,
+            page_end=page_end,
+            section_path=normalized.section_path,
+            metadata=metadata,
+        )
+
+    def _raw_chunk_payload(self, raw_chunk: Any) -> dict[str, Any]:
+        metadata = _get_attr_or_key(raw_chunk, "metadata", {}) or {}
+        if not isinstance(metadata, dict):
+            metadata = {}
+
+        return {
+            "chunk_id": _get_attr_or_key(raw_chunk, "chunk_id", None),
+            "id": _get_attr_or_key(raw_chunk, "id", None),
+            "text": _get_attr_or_key(raw_chunk, "text", None),
+            "content": _get_attr_or_key(raw_chunk, "content", None),
+            "page_content": _get_attr_or_key(raw_chunk, "page_content", None),
+            "source_doc_id": _get_attr_or_key(raw_chunk, "source_doc_id", None),
+            "score": _get_attr_or_key(raw_chunk, "score", None),
+            "metadata": dict(metadata),
+        }
+
+    def _metadata_from_normalized(
+        self,
+        normalized: NormalizedMetadata,
+    ) -> dict[str, Any]:
+        metadata: dict[str, Any] = {}
+        metadata.update(normalized.boundary_flags)
+        metadata.update(normalized.domain_fields)
+
+        if normalized.document_id is not None:
+            metadata["document_id"] = normalized.document_id
+        if normalized.parent_id is not None:
+            metadata["parent_id"] = normalized.parent_id
+        if normalized.chunking_strategy is not None:
+            metadata["chunking_strategy"] = normalized.chunking_strategy
+
+        metadata["domain_fields"] = normalized.domain_fields
+        metadata["unmapped"] = normalized.unmapped
+
+        return metadata
+
+    def _status_from_severity(self, severity: ParserSeverity) -> str:
+        if severity == ParserSeverity.FAIL:
+            return "fail"
+        if severity == ParserSeverity.WARN:
+            return "warn"
+        return "pass"
+
+    def _map_failure_type(self, failure_type: ParserFailureType) -> FailureType:
+        mapping = {
+            ParserFailureType.TABLE_STRUCTURE_LOSS: FailureType.TABLE_STRUCTURE_LOSS,
+            ParserFailureType.HIERARCHY_FLATTENING: FailureType.HIERARCHY_FLATTENING,
+            ParserFailureType.METADATA_LOSS: FailureType.METADATA_LOSS,
+            ParserFailureType.CHUNK_BOUNDARY_DAMAGE: FailureType.HIERARCHY_FLATTENING,
+            ParserFailureType.PROVENANCE_MISSING: FailureType.METADATA_LOSS,
+            ParserFailureType.OCR_DEGRADATION: FailureType.METADATA_LOSS,
+        }
+
+        return mapping.get(failure_type, FailureType.METADATA_LOSS)
+
+    def _format_evidence(self, findings: list[ParserFinding], strategy: str) -> list[str]:
+        formatted: list[str] = []
+
+        for finding in findings:
+            evidence_type = "heuristic" if finding.is_heuristic else "structural"
+
+            prefix = (
+                f"[{finding.validator_name}] "
+                f"{finding.failure_type.value} "
+                f"severity={finding.severity.value} "
+                f"confidence={finding.confidence:.2f} "
+                f"chunking_strategy={strategy} "
+                f"evidence_type={evidence_type}"
             )
 
-        return None
+            if not finding.evidence:
+                formatted.append(prefix)
+                continue
 
-    def _check_metadata_loss(self, run: RAGRun) -> Finding | None:
-        query_lower = run.query.lower()
-        if not any(term in query_lower for term in QUERY_METADATA_TERMS):
-            return None
+            for evidence in finding.evidence:
+                location_bits = []
 
-        combined_text = "\n".join(chunk.text for chunk in run.retrieved_chunks)
+                if evidence.chunk_id:
+                    location_bits.append(f"chunk={evidence.chunk_id}")
 
-        has_identifier = any(
-            re.search(pattern, combined_text, flags=re.IGNORECASE)
-            for pattern in IDENTIFIER_PATTERNS
-        )
-        has_section_label = any(
-            re.search(pattern, combined_text, flags=re.IGNORECASE)
-            for pattern in SECTION_LABEL_PATTERNS
-        )
-        has_date_near_start = any(
-            re.search(DATE_NEAR_START_PATTERN, chunk.text)
-            for chunk in run.retrieved_chunks
-        )
+                if evidence.table_id:
+                    location_bits.append(f"table={evidence.table_id}")
 
-        if has_identifier or has_section_label or has_date_near_start:
-            return None
+                if evidence.element_id:
+                    location_bits.append(f"element={evidence.element_id}")
 
-        return Finding(
-            failure_type=FailureType.METADATA_LOSS,
-            status="warn",
-            evidence=["Document identifiers and section labels not found in retrieved chunks"],
-            remediation=METADATA_REMEDIATION,
-            priority=2,
-        )
+                location = f" ({', '.join(location_bits)})" if location_bits else ""
+                formatted.append(f"{prefix}{location}: {evidence.message}")
 
-    def _table_keywords(self, text: str) -> set[str]:
-        tokens = {token.lower() for token in TOKEN_PATTERN.findall(text)}
-        return {keyword for keyword in TABLE_KEYWORDS if keyword in tokens}
+        return formatted
 
-    def _table_structure_score(self, text: str) -> float:
-        lines = [line for line in text.splitlines() if line.strip()]
-        signals = [
-            "|" in text,
-            "\t" in text,
-            bool(MARKDOWN_TABLE_PATTERN.search(text)),
-            bool(HTML_TABLE_PATTERN.search(text)),
-            len([line for line in lines if ALIGNED_COLUMNS_PATTERN.match(line)]) >= 2,
-        ]
-        return sum(signals) / len(signals)
+    def _format_lint_evidence(
+        self,
+        issues: tuple[ProfileLintIssue, ...],
+    ) -> list[str]:
+        formatted: list[str] = []
 
-    def _has_collapsed_table_row(self, text: str) -> bool:
-        single_line_text = " ".join(line.strip() for line in text.splitlines() if line.strip())
-        return bool(
-            TABLE_ROW_PATTERN.search(single_line_text)
-            or TABLE_HEADER_VALUE_PATTERN.search(single_line_text)
-        )
+        for issue in issues:
+            formatted.append(
+                "[profile_lint] "
+                f"{issue.code} "
+                f"severity={issue.severity}: "
+                f"{issue.message}"
+            )
 
-    def _is_orphaned_fragment(self, text: str) -> bool:
-        stripped = text.strip()
-        if not stripped:
-            return False
-
-        orphan_signals = 0
-        lowered = stripped.lower()
-
-        if lowered.startswith(ORPHAN_PREFIXES):
-            orphan_signals += 1
-
-        if re.match(r"^\d+\.\s", stripped):
-            orphan_signals += 1
-
-        starts_mid_sentence = stripped[0].islower()
-        if len(stripped.split()) < 50 and starts_mid_sentence:
-            orphan_signals += 1
-
-        return orphan_signals >= 1
-
-    def _direct_hierarchy_signal_count(self, text: str) -> int:
-        """Count direct inline hierarchy degradation signals in a chunk."""
-        signal_count = 0
-
-        for pattern in DIRECT_HIERARCHY_PATTERNS:
-            signal_count += len(re.findall(pattern, text, flags=re.IGNORECASE))
-
-        # Multiple numbered clauses on one line is an additional strong signal.
-        for line in text.splitlines():
-            if len(re.findall(r"\(\d+\)", line)) >= 2:
-                signal_count += 1
-
-        return signal_count
+        return formatted

@@ -20,6 +20,19 @@
   },
   "metadata": {
     "scenario": "parser_hierarchy_loss",
-    "expected_primary_failure": "HIERARCHY_FLATTENING"
+    "expected_primary_failure": "HIERARCHY_FLATTENING",
+    "parser_validation_profile": {
+      "chunking_strategy": {
+        "strategy_type": "hierarchical",
+        "preserves_section_path": true,
+        "preserves_source_elements": true,
+        "allows_mid_sentence_start": false,
+        "allows_cross_section_chunk": false,
+        "allows_table_flattening": true,
+        "requires_page_metadata": true,
+        "requires_provenance": true
+      },
+      "infer_from_legacy": true
+    }
   }
 }

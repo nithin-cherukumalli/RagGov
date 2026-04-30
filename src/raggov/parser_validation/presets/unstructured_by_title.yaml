@@ -1,0 +1,33 @@
+profiles:
+  unstructured_by_title:
+    description: Unstructured-style by-title chunking with original element provenance.
+    parser:
+      name: unstructured
+      emits_elements: true
+      emits_provenance: true
+    chunking_strategy:
+      strategy_type: hierarchical
+      preserves_section_path: true
+      preserves_source_elements: true
+      allows_mid_sentence_start: false
+      allows_cross_section_chunk: false
+      allows_table_flattening: true
+      requires_page_metadata: true
+      requires_provenance: true
+      hierarchy_mode: preserve
+      sentence_boundaries: preserve
+    metadata_mapping:
+      text:
+        aliases: [text, content, page_content]
+      page_start:
+        aliases: [metadata.page_number, metadata.page]
+        first_transform: int
+      page_end:
+        aliases: [metadata.page_end]
+        first_transform: int
+      source_element_ids:
+        aliases: [metadata.element_ids, metadata.orig_element_ids, metadata.orig_elements]
+        first_transform: string_tuple
+      section_path:
+        aliases: [metadata.section_path, metadata.headers, metadata.header_path]
+        first_transform: string_tuple

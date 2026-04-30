@@ -1,0 +1,29 @@
+profiles:
+  haystack_document_splitter:
+    description: Haystack-style document splitting with source_id, split_id, and page_number metadata.
+    parser:
+      name: haystack
+      emits_provenance: true
+    chunking_strategy:
+      strategy_type: recursive_text
+      preserves_source_elements: false
+      allows_mid_sentence_start: true
+      allows_cross_section_chunk: true
+      allows_table_flattening: true
+      requires_page_metadata: true
+      requires_provenance: false
+    metadata_mapping:
+      text:
+        aliases: [content, text, page_content]
+      document_id:
+        aliases: [metadata.source_id, metadata.document_id, source_doc_id]
+      page_start:
+        aliases: [metadata.page_number, metadata.page, metadata.page_start]
+        first_transform: int
+      page_end:
+        aliases: [metadata.page_end]
+        first_transform: int
+      domain_fields:
+        split_id:
+          aliases: [metadata.split_id]
+          first_transform: int

@@ -1,0 +1,21 @@
+profiles:
+  langchain_recursive_character_splitter:
+    description: LangChain-style recursive character splitting with permissive text boundaries.
+    parser:
+      name: langchain
+      emits_provenance: false
+    chunking_strategy:
+      strategy_type: recursive_text
+      allows_mid_sentence_start: true
+      allows_cross_section_chunk: true
+      allows_table_flattening: true
+      requires_page_metadata: false
+      requires_provenance: false
+    metadata_mapping:
+      text:
+        aliases: [page_content, text, content]
+      document_id:
+        aliases: [metadata.source, metadata.source_id, source_doc_id]
+      page_start:
+        aliases: [metadata.page, metadata.page_number, metadata.page_start]
+        first_transform: int
