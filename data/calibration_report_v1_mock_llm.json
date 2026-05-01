@@ -1,0 +1,1867 @@
+{
+  "gold_set_size": 15,
+  "gold_set_path": "data/sufficiency_gold_set_v1.jsonl",
+  "timestamp": "2026-04-30T16:41:34.950209+00:00",
+  "skipped_count": 0,
+  "skipped_examples": [],
+  "modes": {
+    "term_coverage": {
+      "accuracy_overall": 0.13333333333333333,
+      "accuracy_per_label": {
+        "sufficient": 0.0,
+        "partial": 0.0,
+        "insufficient": 0.3333333333333333,
+        "unknown": 0.0
+      },
+      "insufficient_recall": 0.3333333333333333,
+      "insufficient_precision": 1.0,
+      "insufficient_f1": 0.5,
+      "false_pass_rate": 0.8181818181818182,
+      "false_fail_rate": 0.0,
+      "abstention_accuracy": 0.4,
+      "confusion_matrix": [
+        [
+          0,
+          0,
+          0,
+          4
+        ],
+        [
+          0,
+          0,
+          0,
+          5
+        ],
+        [
+          0,
+          0,
+          2,
+          4
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "threshold_sweep": {
+        "best_threshold": 0.7,
+        "best_f1": 0.7058823529411764,
+        "sweep_results": [
+          {
+            "threshold": 0.1,
+            "insufficient_f1": 0.0,
+            "false_pass_rate": 1.0
+          },
+          {
+            "threshold": 0.15,
+            "insufficient_f1": 0.0,
+            "false_pass_rate": 1.0
+          },
+          {
+            "threshold": 0.2,
+            "insufficient_f1": 0.0,
+            "false_pass_rate": 1.0
+          },
+          {
+            "threshold": 0.25,
+            "insufficient_f1": 0.0,
+            "false_pass_rate": 1.0
+          },
+          {
+            "threshold": 0.3,
+            "insufficient_f1": 0.5,
+            "false_pass_rate": 0.8181818181818182
+          },
+          {
+            "threshold": 0.35,
+            "insufficient_f1": 0.4444444444444444,
+            "false_pass_rate": 0.7272727272727273
+          },
+          {
+            "threshold": 0.4,
+            "insufficient_f1": 0.4,
+            "false_pass_rate": 0.6363636363636364
+          },
+          {
+            "threshold": 0.45,
+            "insufficient_f1": 0.5,
+            "false_pass_rate": 0.45454545454545453
+          },
+          {
+            "threshold": 0.5,
+            "insufficient_f1": 0.4615384615384615,
+            "false_pass_rate": 0.36363636363636365
+          },
+          {
+            "threshold": 0.55,
+            "insufficient_f1": 0.5714285714285715,
+            "false_pass_rate": 0.2727272727272727
+          },
+          {
+            "threshold": 0.6,
+            "insufficient_f1": 0.5714285714285715,
+            "false_pass_rate": 0.2727272727272727
+          },
+          {
+            "threshold": 0.65,
+            "insufficient_f1": 0.6666666666666667,
+            "false_pass_rate": 0.18181818181818182
+          },
+          {
+            "threshold": 0.7,
+            "insufficient_f1": 0.7058823529411764,
+            "false_pass_rate": 0.09090909090909091
+          },
+          {
+            "threshold": 0.75,
+            "insufficient_f1": 0.631578947368421,
+            "false_pass_rate": 0.0
+          },
+          {
+            "threshold": 0.8,
+            "insufficient_f1": 0.6,
+            "false_pass_rate": 0.0
+          },
+          {
+            "threshold": 0.85,
+            "insufficient_f1": 0.5714285714285715,
+            "false_pass_rate": 0.0
+          },
+          {
+            "threshold": 0.9,
+            "insufficient_f1": 0.5714285714285715,
+            "false_pass_rate": 0.0
+          }
+        ]
+      }
+    },
+    "requirement_aware": {
+      "accuracy_overall": 0.4,
+      "accuracy_per_label": {
+        "sufficient": 0.0,
+        "partial": 0.0,
+        "insufficient": 1.0,
+        "unknown": 0.0
+      },
+      "insufficient_recall": 1.0,
+      "insufficient_precision": 0.4,
+      "insufficient_f1": 0.5714285714285715,
+      "false_pass_rate": 0.0,
+      "false_fail_rate": 1.0,
+      "abstention_accuracy": 0.7333333333333333,
+      "confusion_matrix": [
+        [
+          0,
+          0,
+          4,
+          0
+        ],
+        [
+          0,
+          0,
+          5,
+          0
+        ],
+        [
+          0,
+          0,
+          6,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "note": "Lexical overlap thresholds (0.5, 0.25) not swept - add threshold sweep in v2"
+    }
+  },
+  "per_example_results": [
+    {
+      "example_id": "suff_001",
+      "gold_label": "sufficient",
+      "term_coverage_prediction": "unknown",
+      "term_coverage_correct": false,
+      "term_coverage_details": {
+        "sufficient": true,
+        "sufficiency_label": "unknown",
+        "required_evidence": [
+          {
+            "requirement_id": "term_coverage_v0",
+            "description": "Retrieved context should cover meaningful query terms.",
+            "requirement_type": "scope",
+            "importance": "critical",
+            "query_span": "What does GO 2115 say about optional holidays for state government employees in 2025?",
+            "verifier": "heuristic"
+          }
+        ],
+        "coverage": [
+          {
+            "requirement_id": "term_coverage_v0",
+            "status": "unknown",
+            "supporting_chunk_ids": [
+              "chunk_001",
+              "chunk_002"
+            ],
+            "contradicting_chunk_ids": [],
+            "rationale": "Query term coverage ratio=0.700; missing_terms=does, go, say",
+            "verifier": "heuristic",
+            "confidence": 0.7
+          }
+        ],
+        "should_expand_retrieval": false,
+        "should_abstain": false,
+        "threshold_used": 0.3,
+        "fallback_used": false,
+        "limitations": [
+          "Cannot detect missing evidence when query terms overlap with chunks",
+          "Cannot identify required evidence types (rule, date, scope, authority)",
+          "Cannot distinguish sufficient context from term overlap",
+          "Threshold 0.3 is not empirically calibrated",
+          "No verification against ground-truth sufficiency labels"
+        ],
+        "missing_evidence": [],
+        "affected_claims": [],
+        "evidence_chunk_ids": [],
+        "method": "term_coverage_heuristic_v0",
+        "calibration_status": "preliminary_calibrated_v1"
+      },
+      "requirement_aware_prediction": "insufficient",
+      "requirement_aware_correct": false,
+      "requirement_aware_details": {
+        "sufficient": false,
+        "sufficiency_label": "insufficient",
+        "required_evidence": [
+          {
+            "requirement_id": "req_001",
+            "description": "The specific government order or circular that establishes the rule",
+            "requirement_type": "citation",
+            "importance": "critical",
+            "query_span": null,
+            "verifier": "llm_judge"
+          },
+          {
+            "requirement_id": "req_002",
+            "description": "The applicable holiday list, holiday dates, or holiday limit",
+            "requirement_type": "date",
+            "importance": "critical",
+            "query_span": null,
+            "verifier": "llm_judge"
+          }
+        ],
+        "coverage": [
+          {
+            "requirement_id": "req_001",
+            "status": "missing",
+            "supporting_chunk_ids": [],
+            "contradicting_chunk_ids": [],
+            "rationale": "Matched terms: government, order; missed terms: circular, establishes, rule, specific",
+            "verifier": "heuristic",
+            "confidence": 0.16666666666666666
+          },
+          {
+            "requirement_id": "req_002",
+            "status": "partial",
+            "supporting_chunk_ids": [
+              "chunk_002"
+            ],
+            "contradicting_chunk_ids": [],
+            "rationale": "Matched terms: holiday, list; missed terms: applicable, dates, limit",
+            "verifier": "heuristic",
+            "confidence": 0.4
+          }
+        ],
+        "should_expand_retrieval": true,
+        "should_abstain": true,
+        "threshold_used": null,
+        "fallback_used": false,
+        "limitations": [
+          "Evidence requirements extracted by uncalibrated LLM judge",
+          "Coverage verified by lexical overlap only (not NLI)",
+          "Lexical overlap thresholds (0.5, 0.25) are not empirically calibrated",
+          "Cannot detect contradictory or stale evidence",
+          "No validation against ground-truth sufficiency labels"
+        ],
+        "missing_evidence": [],
+        "affected_claims": [],
+        "evidence_chunk_ids": [],
+        "method": "requirement_extraction_llm_v0",
+        "calibration_status": "preliminary_calibrated_v1"
+      }
+    },
+    {
+      "example_id": "suff_002",
+      "gold_label": "insufficient",
+      "term_coverage_prediction": "unknown",
+      "term_coverage_correct": false,
+      "term_coverage_details": {
+        "sufficient": true,
+        "sufficiency_label": "unknown",
+        "required_evidence": [
+          {
+            "requirement_id": "term_coverage_v0",
+            "description": "Retrieved context should cover meaningful query terms.",
+            "requirement_type": "scope",
+            "importance": "critical",
+            "query_span": "What are the rules for optional holidays in AP schools?",
+            "verifier": "heuristic"
+          }
+        ],
+        "coverage": [
+          {
+            "requirement_id": "term_coverage_v0",
+            "status": "unknown",
+            "supporting_chunk_ids": [
+              "chunk_001"
+            ],
+            "contradicting_chunk_ids": [],
+            "rationale": "Query term coverage ratio=0.400; missing_terms=ap, rules, schools",
+            "verifier": "heuristic",
+            "confidence": 0.4
+          }
+        ],
+        "should_expand_retrieval": false,
+        "should_abstain": false,
+        "threshold_used": 0.3,
+        "fallback_used": false,
+        "limitations": [
+          "Cannot detect missing evidence when query terms overlap with chunks",
+          "Cannot identify required evidence types (rule, date, scope, authority)",
+          "Cannot distinguish sufficient context from term overlap",
+          "Threshold 0.3 is not empirically calibrated",
+          "No verification against ground-truth sufficiency labels"
+        ],
+        "missing_evidence": [],
+        "affected_claims": [],
+        "evidence_chunk_ids": [],
+        "method": "term_coverage_heuristic_v0",
+        "calibration_status": "preliminary_calibrated_v1"
+      },
+      "requirement_aware_prediction": "insufficient",
+      "requirement_aware_correct": true,
+      "requirement_aware_details": {
+        "sufficient": false,
+        "sufficiency_label": "insufficient",
+        "required_evidence": [
+          {
+            "requirement_id": "req_001",
+            "description": "The specific government order or circular that establishes the rule",
+            "requirement_type": "citation",
+            "importance": "critical",
+            "query_span": null,
+            "verifier": "llm_judge"
+          },
+          {
+            "requirement_id": "req_002",
+            "description": "School Education Department applicability or academic calendar reference",
+            "requirement_type": "scope",
+            "importance": "critical",
+            "query_span": null,
+            "verifier": "llm_judge"
+          },
+          {
+            "requirement_id": "req_003",
+            "description": "The applicable holiday list, holiday dates, or holiday limit",
+            "requirement_type": "date",
+            "importance": "critical",
+            "query_span": null,
+            "verifier": "llm_judge"
+          }
+        ],
+        "coverage": [
+          {
+            "requirement_id": "req_001",
+            "status": "missing",
+            "supporting_chunk_ids": [],
+            "contradicting_chunk_ids": [],
+            "rationale": "Matched terms: government; missed terms: circular, establishes, order, rule, specific",
+            "verifier": "heuristic",
+            "confidence": 0.16666666666666666
+          },
+          {
+            "requirement_id": "req_002",
+            "status": "missing",
+            "supporting_chunk_ids": [],
+            "contradicting_chunk_ids": [],
+            "rationale": "Matched terms: department; missed terms: academic, applicability, calendar, education, reference, school",
+            "verifier": "heuristic",
+            "confidence": 0.14285714285714285
+          },
+          {
+            "requirement_id": "req_003",
+            "status": "missing",
+            "supporting_chunk_ids": [],
+            "contradicting_chunk_ids": [],
+            "rationale": "Matched terms: none; missed terms: applicable, dates, holiday, limit, list",
+            "verifier": "heuristic",
+            "confidence": 0.0
+          }
+        ],
+        "should_expand_retrieval": true,
+        "should_abstain": true,
+        "threshold_used": null,
+        "fallback_used": false,
+        "limitations": [
+          "Evidence requirements extracted by uncalibrated LLM judge",
+          "Coverage verified by lexical overlap only (not NLI)",
+          "Lexical overlap thresholds (0.5, 0.25) are not empirically calibrated",
+          "Cannot detect contradictory or stale evidence",
+          "No validation against ground-truth sufficiency labels"
+        ],
+        "missing_evidence": [],
+        "affected_claims": [],
+        "evidence_chunk_ids": [],
+        "method": "requirement_extraction_llm_v0",
+        "calibration_status": "preliminary_calibrated_v1"
+      }
+    },
+    {
+      "example_id": "suff_003",
+      "gold_label": "partial",
+      "term_coverage_prediction": "unknown",
+      "term_coverage_correct": false,
+      "term_coverage_details": {
+        "sufficient": true,
+        "sufficiency_label": "unknown",
+        "required_evidence": [
+          {
+            "requirement_id": "term_coverage_v0",
+            "description": "Retrieved context should cover meaningful query terms.",
+            "requirement_type": "scope",
+            "importance": "critical",
+            "query_span": "What is the transfer eligibility rule and exceptions for teachers with less than two years of service?",
+            "verifier": "heuristic"
+          }
+        ],
+        "coverage": [
+          {
+            "requirement_id": "term_coverage_v0",
+            "status": "unknown",
+            "supporting_chunk_ids": [
+              "chunk_001"
+            ],
+            "contradicting_chunk_ids": [],
+            "rationale": "Query term coverage ratio=0.400; missing_terms=eligibility, exceptions, less, rule, teachers, than",
+            "verifier": "heuristic",
+            "confidence": 0.4
+          }
+        ],
+        "should_expand_retrieval": false,
+        "should_abstain": false,
+        "threshold_used": 0.3,
+        "fallback_used": false,
+        "limitations": [
+          "Cannot detect missing evidence when query terms overlap with chunks",
+          "Cannot identify required evidence types (rule, date, scope, authority)",
+          "Cannot distinguish sufficient context from term overlap",
+          "Threshold 0.3 is not empirically calibrated",
+          "No verification against ground-truth sufficiency labels"
+        ],
+        "missing_evidence": [],
+        "affected_claims": [],
+        "evidence_chunk_ids": [],
+        "method": "term_coverage_heuristic_v0",
+        "calibration_status": "preliminary_calibrated_v1"
+      },
+      "requirement_aware_prediction": "insufficient",
+      "requirement_aware_correct": false,
+      "requirement_aware_details": {
+        "sufficient": false,
+        "sufficiency_label": "insufficient",
+        "required_evidence": [
+          {
+            "requirement_id": "req_001",
+            "description": "The specific government order or circular that establishes the rule",
+            "requirement_type": "citation",
+            "importance": "critical",
+            "query_span": null,
+            "verifier": "llm_judge"
+          },
+          {
+            "requirement_id": "req_002",
+            "description": "School Education Department applicability or academic calendar reference",
+            "requirement_type": "scope",
+            "importance": "critical",
+            "query_span": null,
+            "verifier": "llm_judge"
+          },
+          {
+            "requirement_id": "req_003",
+            "description": "Any exceptions, exemptions, or special cases",
+            "requirement_type": "exception",
+            "importance": "supporting",
+            "query_span": null,
+            "verifier": "llm_judge"
+          }
+        ],
+        "coverage": [
+          {
+            "requirement_id": "req_001",
+            "status": "missing",
+            "supporting_chunk_ids": [],
+            "contradicting_chunk_ids": [],
+            "rationale": "Matched terms: none; missed terms: circular, establishes, government, order, rule, specific",
+            "verifier": "heuristic",
+            "confidence": 0.0
+          },
+          {
+            "requirement_id": "req_002",
+            "status": "missing",
+            "supporting_chunk_ids": [],
+            "contradicting_chunk_ids": [],
+            "rationale": "Matched terms: none; missed terms: academic, applicability, calendar, department, education, reference, school",
+            "verifier": "heuristic",
+            "confidence": 0.0
+          },
+          {
+            "requirement_id": "req_003",
+            "status": "missing",
+            "supporting_chunk_ids": [],
+            "contradicting_chunk_ids": [],
+            "rationale": "Matched terms: none; missed terms: any, cases, exceptions, exemptions, special",
+            "verifier": "heuristic",
+            "confidence": 0.0
+          }
+        ],
+        "should_expand_retrieval": true,
+        "should_abstain": true,
+        "threshold_used": null,
+        "fallback_used": false,
+        "limitations": [
+          "Evidence requirements extracted by uncalibrated LLM judge",
+          "Coverage verified by lexical overlap only (not NLI)",
+          "Lexical overlap thresholds (0.5, 0.25) are not empirically calibrated",
+          "Cannot detect contradictory or stale evidence",
+          "No validation against ground-truth sufficiency labels"
+        ],
+        "missing_evidence": [],
+        "affected_claims": [],
+        "evidence_chunk_ids": [],
+        "method": "requirement_extraction_llm_v0",
+        "calibration_status": "preliminary_calibrated_v1"
+      }
+    },
+    {
+      "example_id": "suff_004",
+      "gold_label": "sufficient",
+      "term_coverage_prediction": "unknown",
+      "term_coverage_correct": false,
+      "term_coverage_details": {
+        "sufficient": true,
+        "sufficiency_label": "unknown",
+        "required_evidence": [
+          {
+            "requirement_id": "term_coverage_v0",
+            "description": "Retrieved context should cover meaningful query terms.",
+            "requirement_type": "scope",
+            "importance": "critical",
+            "query_span": "What are the Sankranti holiday dates in the 2025 AP school academic calendar?",
+            "verifier": "heuristic"
+          }
+        ],
+        "coverage": [
+          {
+            "requirement_id": "term_coverage_v0",
+            "status": "unknown",
+            "supporting_chunk_ids": [
+              "chunk_001",
+              "chunk_002",
+              "chunk_003"
+            ],
+            "contradicting_chunk_ids": [],
+            "rationale": "Query term coverage ratio=0.750; missing_terms=dates, holiday",
+            "verifier": "heuristic",
+            "confidence": 0.75
+          }
+        ],
+        "should_expand_retrieval": false,
+        "should_abstain": false,
+        "threshold_used": 0.3,
+        "fallback_used": false,
+        "limitations": [
+          "Cannot detect missing evidence when query terms overlap with chunks",
+          "Cannot identify required evidence types (rule, date, scope, authority)",
+          "Cannot distinguish sufficient context from term overlap",
+          "Threshold 0.3 is not empirically calibrated",
+          "No verification against ground-truth sufficiency labels"
+        ],
+        "missing_evidence": [],
+        "affected_claims": [],
+        "evidence_chunk_ids": [],
+        "method": "term_coverage_heuristic_v0",
+        "calibration_status": "preliminary_calibrated_v1"
+      },
+      "requirement_aware_prediction": "insufficient",
+      "requirement_aware_correct": false,
+      "requirement_aware_details": {
+        "sufficient": false,
+        "sufficiency_label": "insufficient",
+        "required_evidence": [
+          {
+            "requirement_id": "req_001",
+            "description": "School Education Department applicability or academic calendar reference",
+            "requirement_type": "scope",
+            "importance": "critical",
+            "query_span": null,
+            "verifier": "llm_judge"
+          },
+          {
+            "requirement_id": "req_002",
+            "description": "The applicable holiday list, holiday dates, or holiday limit",
+            "requirement_type": "date",
+            "importance": "critical",
+            "query_span": null,
+            "verifier": "llm_judge"
+          },
+          {
+            "requirement_id": "req_003",
+            "description": "The effective date or implementation timeline",
+            "requirement_type": "date",
+            "importance": "critical",
+            "query_span": null,
+            "verifier": "llm_judge"
+          }
+        ],
+        "coverage": [
+          {
+            "requirement_id": "req_001",
+            "status": "partial",
+            "supporting_chunk_ids": [
+              "chunk_002"
+            ],
+            "contradicting_chunk_ids": [],
+            "rationale": "Matched terms: academic, calendar, school; missed terms: applicability, department, education, reference",
+            "verifier": "heuristic",
+            "confidence": 0.42857142857142855
+          },
+          {
+            "requirement_id": "req_002",
+            "status": "missing",
+            "supporting_chunk_ids": [],
+            "contradicting_chunk_ids": [],
+            "rationale": "Matched terms: none; missed terms: applicable, dates, holiday, limit, list",
+            "verifier": "heuristic",
+            "confidence": 0.0
+          },
+          {
+            "requirement_id": "req_003",
+            "status": "missing",
+            "supporting_chunk_ids": [],
+            "contradicting_chunk_ids": [],
+            "rationale": "Matched terms: none; missed terms: date, effective, implementation, timeline",
+            "verifier": "heuristic",
+            "confidence": 0.0
+          }
+        ],
+        "should_expand_retrieval": true,
+        "should_abstain": true,
+        "threshold_used": null,
+        "fallback_used": false,
+        "limitations": [
+          "Evidence requirements extracted by uncalibrated LLM judge",
+          "Coverage verified by lexical overlap only (not NLI)",
+          "Lexical overlap thresholds (0.5, 0.25) are not empirically calibrated",
+          "Cannot detect contradictory or stale evidence",
+          "No validation against ground-truth sufficiency labels"
+        ],
+        "missing_evidence": [],
+        "affected_claims": [],
+        "evidence_chunk_ids": [],
+        "method": "requirement_extraction_llm_v0",
+        "calibration_status": "preliminary_calibrated_v1"
+      }
+    },
+    {
+      "example_id": "suff_005",
+      "gold_label": "partial",
+      "term_coverage_prediction": "unknown",
+      "term_coverage_correct": false,
+      "term_coverage_details": {
+        "sufficient": true,
+        "sufficiency_label": "unknown",
+        "required_evidence": [
+          {
+            "requirement_id": "term_coverage_v0",
+            "description": "Retrieved context should cover meaningful query terms.",
+            "requirement_type": "scope",
+            "importance": "critical",
+            "query_span": "Which GO currently governs the employee optional holiday limit for 2025?",
+            "verifier": "heuristic"
+          }
+        ],
+        "coverage": [
+          {
+            "requirement_id": "term_coverage_v0",
+            "status": "unknown",
+            "supporting_chunk_ids": [
+              "chunk_001",
+              "chunk_002"
+            ],
+            "contradicting_chunk_ids": [],
+            "rationale": "Query term coverage ratio=0.375; missing_terms=currently, employee, go, governs, limit",
+            "verifier": "heuristic",
+            "confidence": 0.375
+          }
+        ],
+        "should_expand_retrieval": false,
+        "should_abstain": false,
+        "threshold_used": 0.3,
+        "fallback_used": false,
+        "limitations": [
+          "Cannot detect missing evidence when query terms overlap with chunks",
+          "Cannot identify required evidence types (rule, date, scope, authority)",
+          "Cannot distinguish sufficient context from term overlap",
+          "Threshold 0.3 is not empirically calibrated",
+          "No verification against ground-truth sufficiency labels"
+        ],
+        "missing_evidence": [],
+        "affected_claims": [],
+        "evidence_chunk_ids": [],
+        "method": "term_coverage_heuristic_v0",
+        "calibration_status": "preliminary_calibrated_v1"
+      },
+      "requirement_aware_prediction": "insufficient",
+      "requirement_aware_correct": false,
+      "requirement_aware_details": {
+        "sufficient": false,
+        "sufficiency_label": "insufficient",
+        "required_evidence": [
+          {
+            "requirement_id": "req_001",
+            "description": "The specific government order or circular that establishes the rule",
+            "requirement_type": "citation",
+            "importance": "critical",
+            "query_span": null,
+            "verifier": "llm_judge"
+          },
+          {
+            "requirement_id": "req_002",
+            "description": "The applicable holiday list, holiday dates, or holiday limit",
+            "requirement_type": "date",
+            "importance": "critical",
+            "query_span": null,
+            "verifier": "llm_judge"
+          },
+          {
+            "requirement_id": "req_003",
+            "description": "Whether this rule supersedes or is superseded by another order",
+            "requirement_type": "supersession",
+            "importance": "supporting",
+            "query_span": null,
+            "verifier": "llm_judge"
+          }
+        ],
+        "coverage": [
+          {
+            "requirement_id": "req_001",
+            "status": "missing",
+            "supporting_chunk_ids": [],
+            "contradicting_chunk_ids": [],
+            "rationale": "Matched terms: none; missed terms: circular, establishes, government, order, rule, specific",
+            "verifier": "heuristic",
+            "confidence": 0.0
+          },
+          {
+            "requirement_id": "req_002",
+            "status": "missing",
+            "supporting_chunk_ids": [],
+            "contradicting_chunk_ids": [],
+            "rationale": "Matched terms: holiday; missed terms: applicable, dates, limit, list",
+            "verifier": "heuristic",
+            "confidence": 0.2
+          },
+          {
+            "requirement_id": "req_003",
+            "status": "missing",
+            "supporting_chunk_ids": [],
+            "contradicting_chunk_ids": [],
+            "rationale": "Matched terms: supersedes; missed terms: another, order, rule, superseded, whether",
+            "verifier": "heuristic",
+            "confidence": 0.16666666666666666
+          }
+        ],
+        "should_expand_retrieval": true,
+        "should_abstain": true,
+        "threshold_used": null,
+        "fallback_used": false,
+        "limitations": [
+          "Evidence requirements extracted by uncalibrated LLM judge",
+          "Coverage verified by lexical overlap only (not NLI)",
+          "Lexical overlap thresholds (0.5, 0.25) are not empirically calibrated",
+          "Cannot detect contradictory or stale evidence",
+          "No validation against ground-truth sufficiency labels"
+        ],
+        "missing_evidence": [],
+        "affected_claims": [],
+        "evidence_chunk_ids": [],
+        "method": "requirement_extraction_llm_v0",
+        "calibration_status": "preliminary_calibrated_v1"
+      }
+    },
+    {
+      "example_id": "suff_006",
+      "gold_label": "partial",
+      "term_coverage_prediction": "unknown",
+      "term_coverage_correct": false,
+      "term_coverage_details": {
+        "sufficient": true,
+        "sufficiency_label": "unknown",
+        "required_evidence": [
+          {
+            "requirement_id": "term_coverage_v0",
+            "description": "Retrieved context should cover meaningful query terms.",
+            "requirement_type": "scope",
+            "importance": "critical",
+            "query_span": "What is the current minimum qualifying service for promotion from Junior Assistant to Senior Assistant in AP government departments?",
+            "verifier": "heuristic"
+          }
+        ],
+        "coverage": [
+          {
+            "requirement_id": "term_coverage_v0",
+            "status": "unknown",
+            "supporting_chunk_ids": [
+              "chk_001",
+              "chk_002"
+            ],
+            "contradicting_chunk_ids": [],
+            "rationale": "Query term coverage ratio=0.727; missing_terms=ap, current, minimum",
+            "verifier": "heuristic",
+            "confidence": 0.7272727272727273
+          }
+        ],
+        "should_expand_retrieval": false,
+        "should_abstain": false,
+        "threshold_used": 0.3,
+        "fallback_used": false,
+        "limitations": [
+          "Cannot detect missing evidence when query terms overlap with chunks",
+          "Cannot identify required evidence types (rule, date, scope, authority)",
+          "Cannot distinguish sufficient context from term overlap",
+          "Threshold 0.3 is not empirically calibrated",
+          "No verification against ground-truth sufficiency labels"
+        ],
+        "missing_evidence": [],
+        "affected_claims": [],
+        "evidence_chunk_ids": [],
+        "method": "term_coverage_heuristic_v0",
+        "calibration_status": "preliminary_calibrated_v1"
+      },
+      "requirement_aware_prediction": "insufficient",
+      "requirement_aware_correct": false,
+      "requirement_aware_details": {
+        "sufficient": false,
+        "sufficiency_label": "insufficient",
+        "required_evidence": [
+          {
+            "requirement_id": "req_001",
+            "description": "The specific government order or circular that establishes the rule",
+            "requirement_type": "citation",
+            "importance": "critical",
+            "query_span": null,
+            "verifier": "llm_judge"
+          },
+          {
+            "requirement_id": "req_002",
+            "description": "Whether this rule supersedes or is superseded by another order",
+            "requirement_type": "supersession",
+            "importance": "supporting",
+            "query_span": null,
+            "verifier": "llm_judge"
+          }
+        ],
+        "coverage": [
+          {
+            "requirement_id": "req_001",
+            "status": "missing",
+            "supporting_chunk_ids": [],
+            "contradicting_chunk_ids": [],
+            "rationale": "Matched terms: government, specific; missed terms: circular, establishes, order, rule",
+            "verifier": "heuristic",
+            "confidence": 0.16666666666666666
+          },
+          {
+            "requirement_id": "req_002",
+            "status": "missing",
+            "supporting_chunk_ids": [],
+            "contradicting_chunk_ids": [],
+            "rationale": "Matched terms: none; missed terms: another, order, rule, superseded, supersedes, whether",
+            "verifier": "heuristic",
+            "confidence": 0.0
+          }
+        ],
+        "should_expand_retrieval": true,
+        "should_abstain": true,
+        "threshold_used": null,
+        "fallback_used": false,
+        "limitations": [
+          "Evidence requirements extracted by uncalibrated LLM judge",
+          "Coverage verified by lexical overlap only (not NLI)",
+          "Lexical overlap thresholds (0.5, 0.25) are not empirically calibrated",
+          "Cannot detect contradictory or stale evidence",
+          "No validation against ground-truth sufficiency labels"
+        ],
+        "missing_evidence": [],
+        "affected_claims": [],
+        "evidence_chunk_ids": [],
+        "method": "requirement_extraction_llm_v0",
+        "calibration_status": "preliminary_calibrated_v1"
+      }
+    },
+    {
+      "example_id": "suff_007",
+      "gold_label": "insufficient",
+      "term_coverage_prediction": "insufficient",
+      "term_coverage_correct": true,
+      "term_coverage_details": {
+        "sufficient": false,
+        "sufficiency_label": "insufficient",
+        "required_evidence": [
+          {
+            "requirement_id": "term_coverage_v0",
+            "description": "Retrieved context should cover meaningful query terms.",
+            "requirement_type": "scope",
+            "importance": "critical",
+            "query_span": "Are school teachers covered by the AP government employee dress code circular issued in 2022?",
+            "verifier": "heuristic"
+          }
+        ],
+        "coverage": [
+          {
+            "requirement_id": "term_coverage_v0",
+            "status": "missing",
+            "supporting_chunk_ids": [
+              "chk_010"
+            ],
+            "contradicting_chunk_ids": [],
+            "rationale": "Query term coverage ratio=0.273; missing_terms=ap, circular, covered, employee, government, issued, school, teachers",
+            "verifier": "heuristic",
+            "confidence": 0.2727272727272727
+          }
+        ],
+        "should_expand_retrieval": true,
+        "should_abstain": true,
+        "threshold_used": 0.3,
+        "fallback_used": false,
+        "limitations": [
+          "Cannot detect missing evidence when query terms overlap with chunks",
+          "Cannot identify required evidence types (rule, date, scope, authority)",
+          "Cannot distinguish sufficient context from term overlap",
+          "Threshold 0.3 is not empirically calibrated",
+          "No verification against ground-truth sufficiency labels"
+        ],
+        "missing_evidence": [],
+        "affected_claims": [],
+        "evidence_chunk_ids": [],
+        "method": "term_coverage_heuristic_v0",
+        "calibration_status": "preliminary_calibrated_v1"
+      },
+      "requirement_aware_prediction": "insufficient",
+      "requirement_aware_correct": true,
+      "requirement_aware_details": {
+        "sufficient": false,
+        "sufficiency_label": "insufficient",
+        "required_evidence": [
+          {
+            "requirement_id": "req_001",
+            "description": "The specific government order or circular that establishes the rule",
+            "requirement_type": "citation",
+            "importance": "critical",
+            "query_span": null,
+            "verifier": "llm_judge"
+          },
+          {
+            "requirement_id": "req_002",
+            "description": "School Education Department applicability or academic calendar reference",
+            "requirement_type": "scope",
+            "importance": "critical",
+            "query_span": null,
+            "verifier": "llm_judge"
+          },
+          {
+            "requirement_id": "req_003",
+            "description": "The issuing authority or competent authority designation",
+            "requirement_type": "authority",
+            "importance": "critical",
+            "query_span": null,
+            "verifier": "llm_judge"
+          }
+        ],
+        "coverage": [
+          {
+            "requirement_id": "req_001",
+            "status": "missing",
+            "supporting_chunk_ids": [],
+            "contradicting_chunk_ids": [],
+            "rationale": "Matched terms: none; missed terms: circular, establishes, government, order, rule, specific",
+            "verifier": "heuristic",
+            "confidence": 0.0
+          },
+          {
+            "requirement_id": "req_002",
+            "status": "missing",
+            "supporting_chunk_ids": [],
+            "contradicting_chunk_ids": [],
+            "rationale": "Matched terms: department; missed terms: academic, applicability, calendar, education, reference, school",
+            "verifier": "heuristic",
+            "confidence": 0.14285714285714285
+          },
+          {
+            "requirement_id": "req_003",
+            "status": "missing",
+            "supporting_chunk_ids": [],
+            "contradicting_chunk_ids": [],
+            "rationale": "Matched terms: none; missed terms: authority, competent, designation, issuing",
+            "verifier": "heuristic",
+            "confidence": 0.0
+          }
+        ],
+        "should_expand_retrieval": true,
+        "should_abstain": true,
+        "threshold_used": null,
+        "fallback_used": false,
+        "limitations": [
+          "Evidence requirements extracted by uncalibrated LLM judge",
+          "Coverage verified by lexical overlap only (not NLI)",
+          "Lexical overlap thresholds (0.5, 0.25) are not empirically calibrated",
+          "Cannot detect contradictory or stale evidence",
+          "No validation against ground-truth sufficiency labels"
+        ],
+        "missing_evidence": [],
+        "affected_claims": [],
+        "evidence_chunk_ids": [],
+        "method": "requirement_extraction_llm_v0",
+        "calibration_status": "preliminary_calibrated_v1"
+      }
+    },
+    {
+      "example_id": "suff_008",
+      "gold_label": "sufficient",
+      "term_coverage_prediction": "unknown",
+      "term_coverage_correct": false,
+      "term_coverage_details": {
+        "sufficient": true,
+        "sufficiency_label": "unknown",
+        "required_evidence": [
+          {
+            "requirement_id": "term_coverage_v0",
+            "description": "Retrieved context should cover meaningful query terms.",
+            "requirement_type": "scope",
+            "importance": "critical",
+            "query_span": "Can a government employee avail casual leave on a public holiday if the holiday falls during already-sanctioned casual leave?",
+            "verifier": "heuristic"
+          }
+        ],
+        "coverage": [
+          {
+            "requirement_id": "term_coverage_v0",
+            "status": "unknown",
+            "supporting_chunk_ids": [
+              "chk_020",
+              "chk_021"
+            ],
+            "contradicting_chunk_ids": [],
+            "rationale": "Query term coverage ratio=0.692; missing_terms=avail, can, during, government",
+            "verifier": "heuristic",
+            "confidence": 0.6923076923076923
+          }
+        ],
+        "should_expand_retrieval": false,
+        "should_abstain": false,
+        "threshold_used": 0.3,
+        "fallback_used": false,
+        "limitations": [
+          "Cannot detect missing evidence when query terms overlap with chunks",
+          "Cannot identify required evidence types (rule, date, scope, authority)",
+          "Cannot distinguish sufficient context from term overlap",
+          "Threshold 0.3 is not empirically calibrated",
+          "No verification against ground-truth sufficiency labels"
+        ],
+        "missing_evidence": [],
+        "affected_claims": [],
+        "evidence_chunk_ids": [],
+        "method": "term_coverage_heuristic_v0",
+        "calibration_status": "preliminary_calibrated_v1"
+      },
+      "requirement_aware_prediction": "insufficient",
+      "requirement_aware_correct": false,
+      "requirement_aware_details": {
+        "sufficient": false,
+        "sufficiency_label": "insufficient",
+        "required_evidence": [
+          {
+            "requirement_id": "req_001",
+            "description": "The specific government order or circular that establishes the rule",
+            "requirement_type": "citation",
+            "importance": "critical",
+            "query_span": null,
+            "verifier": "llm_judge"
+          },
+          {
+            "requirement_id": "req_002",
+            "description": "The applicable holiday list, holiday dates, or holiday limit",
+            "requirement_type": "date",
+            "importance": "critical",
+            "query_span": null,
+            "verifier": "llm_judge"
+          }
+        ],
+        "coverage": [
+          {
+            "requirement_id": "req_001",
+            "status": "missing",
+            "supporting_chunk_ids": [],
+            "contradicting_chunk_ids": [],
+            "rationale": "Matched terms: none; missed terms: circular, establishes, government, order, rule, specific",
+            "verifier": "heuristic",
+            "confidence": 0.0
+          },
+          {
+            "requirement_id": "req_002",
+            "status": "missing",
+            "supporting_chunk_ids": [],
+            "contradicting_chunk_ids": [],
+            "rationale": "Matched terms: holiday; missed terms: applicable, dates, limit, list",
+            "verifier": "heuristic",
+            "confidence": 0.2
+          }
+        ],
+        "should_expand_retrieval": true,
+        "should_abstain": true,
+        "threshold_used": null,
+        "fallback_used": false,
+        "limitations": [
+          "Evidence requirements extracted by uncalibrated LLM judge",
+          "Coverage verified by lexical overlap only (not NLI)",
+          "Lexical overlap thresholds (0.5, 0.25) are not empirically calibrated",
+          "Cannot detect contradictory or stale evidence",
+          "No validation against ground-truth sufficiency labels"
+        ],
+        "missing_evidence": [],
+        "affected_claims": [],
+        "evidence_chunk_ids": [],
+        "method": "requirement_extraction_llm_v0",
+        "calibration_status": "preliminary_calibrated_v1"
+      }
+    },
+    {
+      "example_id": "suff_009",
+      "gold_label": "insufficient",
+      "term_coverage_prediction": "unknown",
+      "term_coverage_correct": false,
+      "term_coverage_details": {
+        "sufficient": true,
+        "sufficiency_label": "unknown",
+        "required_evidence": [
+          {
+            "requirement_id": "term_coverage_v0",
+            "description": "Retrieved context should cover meaningful query terms.",
+            "requirement_type": "scope",
+            "importance": "critical",
+            "query_span": "What is the rate of Dearness Allowance applicable to AP state government employees from January 2024?",
+            "verifier": "heuristic"
+          }
+        ],
+        "coverage": [
+          {
+            "requirement_id": "term_coverage_v0",
+            "status": "unknown",
+            "supporting_chunk_ids": [
+              "chk_030",
+              "chk_031"
+            ],
+            "contradicting_chunk_ids": [],
+            "rationale": "Query term coverage ratio=0.500; missing_terms=2024, ap, applicable, january, rate",
+            "verifier": "heuristic",
+            "confidence": 0.5
+          }
+        ],
+        "should_expand_retrieval": false,
+        "should_abstain": false,
+        "threshold_used": 0.3,
+        "fallback_used": false,
+        "limitations": [
+          "Cannot detect missing evidence when query terms overlap with chunks",
+          "Cannot identify required evidence types (rule, date, scope, authority)",
+          "Cannot distinguish sufficient context from term overlap",
+          "Threshold 0.3 is not empirically calibrated",
+          "No verification against ground-truth sufficiency labels"
+        ],
+        "missing_evidence": [],
+        "affected_claims": [],
+        "evidence_chunk_ids": [],
+        "method": "term_coverage_heuristic_v0",
+        "calibration_status": "preliminary_calibrated_v1"
+      },
+      "requirement_aware_prediction": "insufficient",
+      "requirement_aware_correct": true,
+      "requirement_aware_details": {
+        "sufficient": false,
+        "sufficiency_label": "insufficient",
+        "required_evidence": [
+          {
+            "requirement_id": "req_001",
+            "description": "The specific government order or circular that establishes the rule",
+            "requirement_type": "citation",
+            "importance": "critical",
+            "query_span": null,
+            "verifier": "llm_judge"
+          }
+        ],
+        "coverage": [
+          {
+            "requirement_id": "req_001",
+            "status": "missing",
+            "supporting_chunk_ids": [],
+            "contradicting_chunk_ids": [],
+            "rationale": "Matched terms: government; missed terms: circular, establishes, order, rule, specific",
+            "verifier": "heuristic",
+            "confidence": 0.16666666666666666
+          }
+        ],
+        "should_expand_retrieval": true,
+        "should_abstain": true,
+        "threshold_used": null,
+        "fallback_used": false,
+        "limitations": [
+          "Evidence requirements extracted by uncalibrated LLM judge",
+          "Coverage verified by lexical overlap only (not NLI)",
+          "Lexical overlap thresholds (0.5, 0.25) are not empirically calibrated",
+          "Cannot detect contradictory or stale evidence",
+          "No validation against ground-truth sufficiency labels"
+        ],
+        "missing_evidence": [],
+        "affected_claims": [],
+        "evidence_chunk_ids": [],
+        "method": "requirement_extraction_llm_v0",
+        "calibration_status": "preliminary_calibrated_v1"
+      }
+    },
+    {
+      "example_id": "suff_010",
+      "gold_label": "partial",
+      "term_coverage_prediction": "unknown",
+      "term_coverage_correct": false,
+      "term_coverage_details": {
+        "sufficient": true,
+        "sufficiency_label": "unknown",
+        "required_evidence": [
+          {
+            "requirement_id": "term_coverage_v0",
+            "description": "Retrieved context should cover meaningful query terms.",
+            "requirement_type": "scope",
+            "importance": "critical",
+            "query_span": "What is the procedure and eligibility for a government employee to claim Leave Travel Concession (LTC) and what is the maximum permissible distance?",
+            "verifier": "heuristic"
+          }
+        ],
+        "coverage": [
+          {
+            "requirement_id": "term_coverage_v0",
+            "status": "unknown",
+            "supporting_chunk_ids": [
+              "chk_040"
+            ],
+            "contradicting_chunk_ids": [],
+            "rationale": "Query term coverage ratio=0.333; missing_terms=claim, distance, eligibility, employee, ltc, maximum, permissible, procedure",
+            "verifier": "heuristic",
+            "confidence": 0.3333333333333333
+          }
+        ],
+        "should_expand_retrieval": false,
+        "should_abstain": false,
+        "threshold_used": 0.3,
+        "fallback_used": false,
+        "limitations": [
+          "Cannot detect missing evidence when query terms overlap with chunks",
+          "Cannot identify required evidence types (rule, date, scope, authority)",
+          "Cannot distinguish sufficient context from term overlap",
+          "Threshold 0.3 is not empirically calibrated",
+          "No verification against ground-truth sufficiency labels"
+        ],
+        "missing_evidence": [],
+        "affected_claims": [],
+        "evidence_chunk_ids": [],
+        "method": "term_coverage_heuristic_v0",
+        "calibration_status": "preliminary_calibrated_v1"
+      },
+      "requirement_aware_prediction": "insufficient",
+      "requirement_aware_correct": false,
+      "requirement_aware_details": {
+        "sufficient": false,
+        "sufficiency_label": "insufficient",
+        "required_evidence": [
+          {
+            "requirement_id": "req_001",
+            "description": "The specific government order or circular that establishes the rule",
+            "requirement_type": "citation",
+            "importance": "critical",
+            "query_span": null,
+            "verifier": "llm_judge"
+          }
+        ],
+        "coverage": [
+          {
+            "requirement_id": "req_001",
+            "status": "missing",
+            "supporting_chunk_ids": [],
+            "contradicting_chunk_ids": [],
+            "rationale": "Matched terms: government; missed terms: circular, establishes, order, rule, specific",
+            "verifier": "heuristic",
+            "confidence": 0.16666666666666666
+          }
+        ],
+        "should_expand_retrieval": true,
+        "should_abstain": true,
+        "threshold_used": null,
+        "fallback_used": false,
+        "limitations": [
+          "Evidence requirements extracted by uncalibrated LLM judge",
+          "Coverage verified by lexical overlap only (not NLI)",
+          "Lexical overlap thresholds (0.5, 0.25) are not empirically calibrated",
+          "Cannot detect contradictory or stale evidence",
+          "No validation against ground-truth sufficiency labels"
+        ],
+        "missing_evidence": [],
+        "affected_claims": [],
+        "evidence_chunk_ids": [],
+        "method": "requirement_extraction_llm_v0",
+        "calibration_status": "preliminary_calibrated_v1"
+      }
+    },
+    {
+      "example_id": "suff_011",
+      "gold_label": "insufficient",
+      "term_coverage_prediction": "insufficient",
+      "term_coverage_correct": true,
+      "term_coverage_details": {
+        "sufficient": false,
+        "sufficiency_label": "insufficient",
+        "required_evidence": [
+          {
+            "requirement_id": "term_coverage_v0",
+            "description": "Retrieved context should cover meaningful query terms.",
+            "requirement_type": "scope",
+            "importance": "critical",
+            "query_span": "What is the maximum number of earned leaves that can be accumulated by a Class IV government employee in AP?",
+            "verifier": "heuristic"
+          }
+        ],
+        "coverage": [
+          {
+            "requirement_id": "term_coverage_v0",
+            "status": "missing",
+            "supporting_chunk_ids": [
+              "chk_050"
+            ],
+            "contradicting_chunk_ids": [],
+            "rationale": "Query term coverage ratio=0.273; missing_terms=accumulated, can, employee, government, iv, leaves, maximum, number",
+            "verifier": "heuristic",
+            "confidence": 0.2727272727272727
+          }
+        ],
+        "should_expand_retrieval": true,
+        "should_abstain": true,
+        "threshold_used": 0.3,
+        "fallback_used": false,
+        "limitations": [
+          "Cannot detect missing evidence when query terms overlap with chunks",
+          "Cannot identify required evidence types (rule, date, scope, authority)",
+          "Cannot distinguish sufficient context from term overlap",
+          "Threshold 0.3 is not empirically calibrated",
+          "No verification against ground-truth sufficiency labels"
+        ],
+        "missing_evidence": [],
+        "affected_claims": [],
+        "evidence_chunk_ids": [],
+        "method": "term_coverage_heuristic_v0",
+        "calibration_status": "preliminary_calibrated_v1"
+      },
+      "requirement_aware_prediction": "insufficient",
+      "requirement_aware_correct": true,
+      "requirement_aware_details": {
+        "sufficient": false,
+        "sufficiency_label": "insufficient",
+        "required_evidence": [
+          {
+            "requirement_id": "req_001",
+            "description": "The specific government order or circular that establishes the rule",
+            "requirement_type": "citation",
+            "importance": "critical",
+            "query_span": null,
+            "verifier": "llm_judge"
+          }
+        ],
+        "coverage": [
+          {
+            "requirement_id": "req_001",
+            "status": "missing",
+            "supporting_chunk_ids": [],
+            "contradicting_chunk_ids": [],
+            "rationale": "Matched terms: none; missed terms: circular, establishes, government, order, rule, specific",
+            "verifier": "heuristic",
+            "confidence": 0.0
+          }
+        ],
+        "should_expand_retrieval": true,
+        "should_abstain": true,
+        "threshold_used": null,
+        "fallback_used": false,
+        "limitations": [
+          "Evidence requirements extracted by uncalibrated LLM judge",
+          "Coverage verified by lexical overlap only (not NLI)",
+          "Lexical overlap thresholds (0.5, 0.25) are not empirically calibrated",
+          "Cannot detect contradictory or stale evidence",
+          "No validation against ground-truth sufficiency labels"
+        ],
+        "missing_evidence": [],
+        "affected_claims": [],
+        "evidence_chunk_ids": [],
+        "method": "requirement_extraction_llm_v0",
+        "calibration_status": "preliminary_calibrated_v1"
+      }
+    },
+    {
+      "example_id": "suff_012",
+      "gold_label": "insufficient",
+      "term_coverage_prediction": "unknown",
+      "term_coverage_correct": false,
+      "term_coverage_details": {
+        "sufficient": true,
+        "sufficiency_label": "unknown",
+        "required_evidence": [
+          {
+            "requirement_id": "term_coverage_v0",
+            "description": "Retrieved context should cover meaningful query terms.",
+            "requirement_type": "scope",
+            "importance": "critical",
+            "query_span": "From what date does G.O.Ms.No. 33 on revised pay scales for government employees come into effect?",
+            "verifier": "heuristic"
+          }
+        ],
+        "coverage": [
+          {
+            "requirement_id": "term_coverage_v0",
+            "status": "unknown",
+            "supporting_chunk_ids": [
+              "chk_060"
+            ],
+            "contradicting_chunk_ids": [],
+            "rationale": "Query term coverage ratio=0.667; missing_terms=come, date, does, effect, into",
+            "verifier": "heuristic",
+            "confidence": 0.6666666666666666
+          }
+        ],
+        "should_expand_retrieval": false,
+        "should_abstain": false,
+        "threshold_used": 0.3,
+        "fallback_used": false,
+        "limitations": [
+          "Cannot detect missing evidence when query terms overlap with chunks",
+          "Cannot identify required evidence types (rule, date, scope, authority)",
+          "Cannot distinguish sufficient context from term overlap",
+          "Threshold 0.3 is not empirically calibrated",
+          "No verification against ground-truth sufficiency labels"
+        ],
+        "missing_evidence": [],
+        "affected_claims": [],
+        "evidence_chunk_ids": [],
+        "method": "term_coverage_heuristic_v0",
+        "calibration_status": "preliminary_calibrated_v1"
+      },
+      "requirement_aware_prediction": "insufficient",
+      "requirement_aware_correct": true,
+      "requirement_aware_details": {
+        "sufficient": false,
+        "sufficiency_label": "insufficient",
+        "required_evidence": [
+          {
+            "requirement_id": "req_001",
+            "description": "The specific government order or circular that establishes the rule",
+            "requirement_type": "citation",
+            "importance": "critical",
+            "query_span": null,
+            "verifier": "llm_judge"
+          },
+          {
+            "requirement_id": "req_002",
+            "description": "The effective date or implementation timeline",
+            "requirement_type": "date",
+            "importance": "critical",
+            "query_span": null,
+            "verifier": "llm_judge"
+          }
+        ],
+        "coverage": [
+          {
+            "requirement_id": "req_001",
+            "status": "missing",
+            "supporting_chunk_ids": [],
+            "contradicting_chunk_ids": [],
+            "rationale": "Matched terms: government; missed terms: circular, establishes, order, rule, specific",
+            "verifier": "heuristic",
+            "confidence": 0.16666666666666666
+          },
+          {
+            "requirement_id": "req_002",
+            "status": "missing",
+            "supporting_chunk_ids": [],
+            "contradicting_chunk_ids": [],
+            "rationale": "Matched terms: none; missed terms: date, effective, implementation, timeline",
+            "verifier": "heuristic",
+            "confidence": 0.0
+          }
+        ],
+        "should_expand_retrieval": true,
+        "should_abstain": true,
+        "threshold_used": null,
+        "fallback_used": false,
+        "limitations": [
+          "Evidence requirements extracted by uncalibrated LLM judge",
+          "Coverage verified by lexical overlap only (not NLI)",
+          "Lexical overlap thresholds (0.5, 0.25) are not empirically calibrated",
+          "Cannot detect contradictory or stale evidence",
+          "No validation against ground-truth sufficiency labels"
+        ],
+        "missing_evidence": [],
+        "affected_claims": [],
+        "evidence_chunk_ids": [],
+        "method": "requirement_extraction_llm_v0",
+        "calibration_status": "preliminary_calibrated_v1"
+      }
+    },
+    {
+      "example_id": "suff_013",
+      "gold_label": "insufficient",
+      "term_coverage_prediction": "unknown",
+      "term_coverage_correct": false,
+      "term_coverage_details": {
+        "sufficient": true,
+        "sufficiency_label": "unknown",
+        "required_evidence": [
+          {
+            "requirement_id": "term_coverage_v0",
+            "description": "Retrieved context should cover meaningful query terms.",
+            "requirement_type": "scope",
+            "importance": "critical",
+            "query_span": "Who is the competent authority to sanction special casual leave for blood donation for AP government employees?",
+            "verifier": "heuristic"
+          }
+        ],
+        "coverage": [
+          {
+            "requirement_id": "term_coverage_v0",
+            "status": "unknown",
+            "supporting_chunk_ids": [
+              "chk_070"
+            ],
+            "contradicting_chunk_ids": [],
+            "rationale": "Query term coverage ratio=0.636; missing_terms=ap, authority, competent, sanction",
+            "verifier": "heuristic",
+            "confidence": 0.6363636363636364
+          }
+        ],
+        "should_expand_retrieval": false,
+        "should_abstain": false,
+        "threshold_used": 0.3,
+        "fallback_used": false,
+        "limitations": [
+          "Cannot detect missing evidence when query terms overlap with chunks",
+          "Cannot identify required evidence types (rule, date, scope, authority)",
+          "Cannot distinguish sufficient context from term overlap",
+          "Threshold 0.3 is not empirically calibrated",
+          "No verification against ground-truth sufficiency labels"
+        ],
+        "missing_evidence": [],
+        "affected_claims": [],
+        "evidence_chunk_ids": [],
+        "method": "term_coverage_heuristic_v0",
+        "calibration_status": "preliminary_calibrated_v1"
+      },
+      "requirement_aware_prediction": "insufficient",
+      "requirement_aware_correct": true,
+      "requirement_aware_details": {
+        "sufficient": false,
+        "sufficiency_label": "insufficient",
+        "required_evidence": [
+          {
+            "requirement_id": "req_001",
+            "description": "The specific government order or circular that establishes the rule",
+            "requirement_type": "citation",
+            "importance": "critical",
+            "query_span": null,
+            "verifier": "llm_judge"
+          },
+          {
+            "requirement_id": "req_002",
+            "description": "The issuing authority or competent authority designation",
+            "requirement_type": "authority",
+            "importance": "critical",
+            "query_span": null,
+            "verifier": "llm_judge"
+          }
+        ],
+        "coverage": [
+          {
+            "requirement_id": "req_001",
+            "status": "missing",
+            "supporting_chunk_ids": [],
+            "contradicting_chunk_ids": [],
+            "rationale": "Matched terms: government; missed terms: circular, establishes, order, rule, specific",
+            "verifier": "heuristic",
+            "confidence": 0.16666666666666666
+          },
+          {
+            "requirement_id": "req_002",
+            "status": "missing",
+            "supporting_chunk_ids": [],
+            "contradicting_chunk_ids": [],
+            "rationale": "Matched terms: none; missed terms: authority, competent, designation, issuing",
+            "verifier": "heuristic",
+            "confidence": 0.0
+          }
+        ],
+        "should_expand_retrieval": true,
+        "should_abstain": true,
+        "threshold_used": null,
+        "fallback_used": false,
+        "limitations": [
+          "Evidence requirements extracted by uncalibrated LLM judge",
+          "Coverage verified by lexical overlap only (not NLI)",
+          "Lexical overlap thresholds (0.5, 0.25) are not empirically calibrated",
+          "Cannot detect contradictory or stale evidence",
+          "No validation against ground-truth sufficiency labels"
+        ],
+        "missing_evidence": [],
+        "affected_claims": [],
+        "evidence_chunk_ids": [],
+        "method": "requirement_extraction_llm_v0",
+        "calibration_status": "preliminary_calibrated_v1"
+      }
+    },
+    {
+      "example_id": "suff_014",
+      "gold_label": "sufficient",
+      "term_coverage_prediction": "unknown",
+      "term_coverage_correct": false,
+      "term_coverage_details": {
+        "sufficient": true,
+        "sufficiency_label": "unknown",
+        "required_evidence": [
+          {
+            "requirement_id": "term_coverage_v0",
+            "description": "Retrieved context should cover meaningful query terms.",
+            "requirement_type": "scope",
+            "importance": "critical",
+            "query_span": "What is the pension entitlement for a government employee who retires after 33 years of qualifying service in AP?",
+            "verifier": "heuristic"
+          }
+        ],
+        "coverage": [
+          {
+            "requirement_id": "term_coverage_v0",
+            "status": "unknown",
+            "supporting_chunk_ids": [
+              "chk_080",
+              "chk_081"
+            ],
+            "contradicting_chunk_ids": [],
+            "rationale": "Query term coverage ratio=0.818; missing_terms=entitlement, retires",
+            "verifier": "heuristic",
+            "confidence": 0.8181818181818182
+          }
+        ],
+        "should_expand_retrieval": false,
+        "should_abstain": false,
+        "threshold_used": 0.3,
+        "fallback_used": false,
+        "limitations": [
+          "Cannot detect missing evidence when query terms overlap with chunks",
+          "Cannot identify required evidence types (rule, date, scope, authority)",
+          "Cannot distinguish sufficient context from term overlap",
+          "Threshold 0.3 is not empirically calibrated",
+          "No verification against ground-truth sufficiency labels"
+        ],
+        "missing_evidence": [],
+        "affected_claims": [],
+        "evidence_chunk_ids": [],
+        "method": "term_coverage_heuristic_v0",
+        "calibration_status": "preliminary_calibrated_v1"
+      },
+      "requirement_aware_prediction": "insufficient",
+      "requirement_aware_correct": false,
+      "requirement_aware_details": {
+        "sufficient": false,
+        "sufficiency_label": "insufficient",
+        "required_evidence": [
+          {
+            "requirement_id": "req_001",
+            "description": "The specific government order or circular that establishes the rule",
+            "requirement_type": "citation",
+            "importance": "critical",
+            "query_span": null,
+            "verifier": "llm_judge"
+          },
+          {
+            "requirement_id": "req_002",
+            "description": "The issuing authority or competent authority designation",
+            "requirement_type": "authority",
+            "importance": "critical",
+            "query_span": null,
+            "verifier": "llm_judge"
+          }
+        ],
+        "coverage": [
+          {
+            "requirement_id": "req_001",
+            "status": "missing",
+            "supporting_chunk_ids": [],
+            "contradicting_chunk_ids": [],
+            "rationale": "Matched terms: government; missed terms: circular, establishes, order, rule, specific",
+            "verifier": "heuristic",
+            "confidence": 0.16666666666666666
+          },
+          {
+            "requirement_id": "req_002",
+            "status": "missing",
+            "supporting_chunk_ids": [],
+            "contradicting_chunk_ids": [],
+            "rationale": "Matched terms: none; missed terms: authority, competent, designation, issuing",
+            "verifier": "heuristic",
+            "confidence": 0.0
+          }
+        ],
+        "should_expand_retrieval": true,
+        "should_abstain": true,
+        "threshold_used": null,
+        "fallback_used": false,
+        "limitations": [
+          "Evidence requirements extracted by uncalibrated LLM judge",
+          "Coverage verified by lexical overlap only (not NLI)",
+          "Lexical overlap thresholds (0.5, 0.25) are not empirically calibrated",
+          "Cannot detect contradictory or stale evidence",
+          "No validation against ground-truth sufficiency labels"
+        ],
+        "missing_evidence": [],
+        "affected_claims": [],
+        "evidence_chunk_ids": [],
+        "method": "requirement_extraction_llm_v0",
+        "calibration_status": "preliminary_calibrated_v1"
+      }
+    },
+    {
+      "example_id": "suff_015",
+      "gold_label": "partial",
+      "term_coverage_prediction": "unknown",
+      "term_coverage_correct": false,
+      "term_coverage_details": {
+        "sufficient": true,
+        "sufficiency_label": "unknown",
+        "required_evidence": [
+          {
+            "requirement_id": "term_coverage_v0",
+            "description": "Retrieved context should cover meaningful query terms.",
+            "requirement_type": "scope",
+            "importance": "critical",
+            "query_span": "What is the current medical reimbursement ceiling for a government employee undergoing heart surgery in a government hospital in AP?",
+            "verifier": "heuristic"
+          }
+        ],
+        "coverage": [
+          {
+            "requirement_id": "term_coverage_v0",
+            "status": "unknown",
+            "supporting_chunk_ids": [
+              "chk_090",
+              "chk_091"
+            ],
+            "contradicting_chunk_ids": [],
+            "rationale": "Query term coverage ratio=0.455; missing_terms=ap, current, employee, government, hospital, undergoing",
+            "verifier": "heuristic",
+            "confidence": 0.45454545454545453
+          }
+        ],
+        "should_expand_retrieval": false,
+        "should_abstain": false,
+        "threshold_used": 0.3,
+        "fallback_used": false,
+        "limitations": [
+          "Cannot detect missing evidence when query terms overlap with chunks",
+          "Cannot identify required evidence types (rule, date, scope, authority)",
+          "Cannot distinguish sufficient context from term overlap",
+          "Threshold 0.3 is not empirically calibrated",
+          "No verification against ground-truth sufficiency labels"
+        ],
+        "missing_evidence": [],
+        "affected_claims": [],
+        "evidence_chunk_ids": [],
+        "method": "term_coverage_heuristic_v0",
+        "calibration_status": "preliminary_calibrated_v1"
+      },
+      "requirement_aware_prediction": "insufficient",
+      "requirement_aware_correct": false,
+      "requirement_aware_details": {
+        "sufficient": false,
+        "sufficiency_label": "insufficient",
+        "required_evidence": [
+          {
+            "requirement_id": "req_001",
+            "description": "The specific government order or circular that establishes the rule",
+            "requirement_type": "citation",
+            "importance": "critical",
+            "query_span": null,
+            "verifier": "llm_judge"
+          },
+          {
+            "requirement_id": "req_002",
+            "description": "Whether this rule supersedes or is superseded by another order",
+            "requirement_type": "supersession",
+            "importance": "supporting",
+            "query_span": null,
+            "verifier": "llm_judge"
+          }
+        ],
+        "coverage": [
+          {
+            "requirement_id": "req_001",
+            "status": "missing",
+            "supporting_chunk_ids": [],
+            "contradicting_chunk_ids": [],
+            "rationale": "Matched terms: none; missed terms: circular, establishes, government, order, rule, specific",
+            "verifier": "heuristic",
+            "confidence": 0.0
+          },
+          {
+            "requirement_id": "req_002",
+            "status": "missing",
+            "supporting_chunk_ids": [],
+            "contradicting_chunk_ids": [],
+            "rationale": "Matched terms: none; missed terms: another, order, rule, superseded, supersedes, whether",
+            "verifier": "heuristic",
+            "confidence": 0.0
+          }
+        ],
+        "should_expand_retrieval": true,
+        "should_abstain": true,
+        "threshold_used": null,
+        "fallback_used": false,
+        "limitations": [
+          "Evidence requirements extracted by uncalibrated LLM judge",
+          "Coverage verified by lexical overlap only (not NLI)",
+          "Lexical overlap thresholds (0.5, 0.25) are not empirically calibrated",
+          "Cannot detect contradictory or stale evidence",
+          "No validation against ground-truth sufficiency labels"
+        ],
+        "missing_evidence": [],
+        "affected_claims": [],
+        "evidence_chunk_ids": [],
+        "method": "requirement_extraction_llm_v0",
+        "calibration_status": "preliminary_calibrated_v1"
+      }
+    }
+  ]
+}

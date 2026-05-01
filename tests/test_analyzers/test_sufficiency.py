@@ -105,7 +105,9 @@ def test_llm_mode_fails_when_judge_says_context_is_insufficient() -> None:
     )
     run = run_with_context("refund warranty", [chunk("Refund policy only.")])
 
-    result = SufficiencyAnalyzer({"use_llm": True, "llm_client": client}).analyze(run)
+    result = SufficiencyAnalyzer(
+        {"sufficiency_mode": "term_coverage", "use_llm": True, "llm_client": client}
+    ).analyze(run)
 
     assert result.status == "fail"
     assert result.failure_type == FailureType.INSUFFICIENT_CONTEXT
@@ -125,7 +127,9 @@ def test_llm_mode_warns_when_sufficient_but_confidence_is_low() -> None:
     )
     run = run_with_context("refund policy", [chunk("Refund policy details.")])
 
-    result = SufficiencyAnalyzer({"use_llm": True, "llm_client": client}).analyze(run)
+    result = SufficiencyAnalyzer(
+        {"sufficiency_mode": "term_coverage", "use_llm": True, "llm_client": client}
+    ).analyze(run)
 
     assert result.status == "warn"
     assert result.failure_type == FailureType.INSUFFICIENT_CONTEXT
@@ -139,7 +143,9 @@ def test_llm_mode_passes_when_sufficient_with_adequate_confidence() -> None:
     )
     run = run_with_context("refund policy", [chunk("Refund policy details.")])
 
-    result = SufficiencyAnalyzer({"use_llm": True, "llm_client": client}).analyze(run)
+    result = SufficiencyAnalyzer(
+        {"sufficiency_mode": "term_coverage", "use_llm": True, "llm_client": client}
+    ).analyze(run)
 
     assert result.status == "pass"
     assert result.evidence == ["LLM judge confidence: 0.80"]
@@ -150,6 +156,7 @@ def test_llm_mode_falls_back_to_deterministic_when_client_fails() -> None:
 
     result = SufficiencyAnalyzer(
         {
+            "sufficiency_mode": "term_coverage",
             "use_llm": True,
             "llm_client": FailingClient(),
             "min_coverage_ratio": 0.8,
@@ -173,7 +180,8 @@ def test_old_behavior_still_works_without_claim_results() -> None:
     result = SufficiencyAnalyzer({"min_coverage_ratio": 1.0}).analyze(run)
 
     assert result.status == "pass"
-    assert result.sufficiency_result is None
+    assert result.sufficiency_result is not None
+    assert result.sufficiency_result.sufficiency_label == "unknown"
     assert result.evidence == ["Query term coverage: 100%. Terms not found in context: none"]
 
 
@@ -205,8 +213,10 @@ def test_claim_aware_sufficiency_flags_unsupported_claims_with_no_support() -> N
         "Hardware returns are allowed for 45 days."
     ]
     assert result.sufficiency_result.evidence_chunk_ids == []
-    assert result.sufficiency_result.method == "heuristic_claim_aware_v0"
-    assert result.sufficiency_result.calibration_status == "uncalibrated"
+    assert result.sufficiency_result.method == (
+        "term_coverage_heuristic_v0 + claim_grounding_sidecar_heuristic_v0"
+    )
+    assert result.sufficiency_result.calibration_status == "preliminary_calibrated_v1"
 
 
 def test_claim_aware_sufficiency_distinguishes_contradicted_from_missing_evidence() -> None:

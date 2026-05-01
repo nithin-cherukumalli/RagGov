@@ -83,17 +83,74 @@ class ClaimResult(BaseModel):
     value_matches: list[dict[str, str]] | None = None
 
 
+class EvidenceRequirement(BaseModel):
+    """One evidence requirement inferred for sufficiency assessment."""
+
+    model_config = ConfigDict(frozen=False, extra="forbid")
+
+    requirement_id: str
+    description: str
+    requirement_type: Literal[
+        "definition",
+        "rule",
+        "date",
+        "authority",
+        "scope",
+        "exception",
+        "procedure",
+        "numeric_value",
+        "comparison",
+        "supersession",
+        "citation",
+    ]
+    importance: Literal["critical", "supporting", "optional"] = "critical"
+    query_span: str | None = None
+    verifier: Literal["heuristic", "llm_judge", "nli", "human_label"] = "heuristic"
+
+
+class EvidenceCoverage(BaseModel):
+    """Coverage status for one evidence requirement."""
+
+    model_config = ConfigDict(frozen=False, extra="forbid")
+
+    requirement_id: str
+    status: Literal[
+        "covered",
+        "partial",
+        "missing",
+        "contradicted",
+        "stale",
+        "unknown",
+    ]
+    supporting_chunk_ids: list[str] = Field(default_factory=list)
+    contradicting_chunk_ids: list[str] = Field(default_factory=list)
+    rationale: str = ""
+    verifier: Literal["heuristic", "llm_judge", "nli", "human_label"] = "heuristic"
+    confidence: float | None = None
+
+
 class SufficiencyResult(BaseModel):
     """Structured sufficiency assessment payload."""
 
     model_config = ConfigDict(frozen=False, extra="forbid")
 
     sufficient: bool
+    sufficiency_label: Literal["sufficient", "insufficient", "partial", "unknown"] = "unknown"
+    required_evidence: list[EvidenceRequirement] = Field(default_factory=list)
+    coverage: list[EvidenceCoverage] = Field(default_factory=list)
+    should_expand_retrieval: bool = False
+    should_abstain: bool = False
+    threshold_used: float | None = None
+    fallback_used: bool = False
+    limitations: list[str] = Field(default_factory=list)
     missing_evidence: list[str] = Field(default_factory=list)
     affected_claims: list[str] = Field(default_factory=list)
     evidence_chunk_ids: list[str] = Field(default_factory=list)
     method: str
-    calibration_status: Literal["uncalibrated"] = "uncalibrated"
+    calibration_status: Literal[
+        "uncalibrated",
+        "preliminary_calibrated_v1",
+    ] = "uncalibrated"
 
 
 class CandidateCause(BaseModel):
