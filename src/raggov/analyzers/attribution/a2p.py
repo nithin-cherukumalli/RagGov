@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from raggov.analyzers.base import BaseAnalyzer
 from raggov.analyzers.attribution.trace import extract_attribution_trace
@@ -28,6 +28,9 @@ from raggov.models.diagnosis import (
     FailureType,
     SufficiencyResult,
 )
+
+if TYPE_CHECKING:
+    from raggov.models.grounding import GroundingEvidenceBundle, ClaimEvidenceRecord
 from raggov.models.run import RAGRun
 
 
@@ -106,15 +109,18 @@ class A2PAttributionAnalyzer(BaseAnalyzer):
         if not failed_results:
             return self.skip("no prior failures to attribute")
 
+        # Extract grounding bundle
+        bundle = self._get_grounding_bundle(prior_results)
+
         # Check for v2 mode
         use_v2 = self.config.get("use_a2p_v2", False)
         if use_v2:
-            claim_level_result_v2 = self._claim_level_mode_v2(run, prior_results)
+            claim_level_result_v2 = self._claim_level_mode_v2(run, prior_results, bundle=bundle)
             if claim_level_result_v2 is not None:
                 return claim_level_result_v2
 
         # v1 claim-level mode (backward compatibility)
-        claim_level_result = self._claim_level_mode(run, prior_results)
+        claim_level_result = self._claim_level_mode(run, prior_results, bundle=bundle)
         if claim_level_result is not None:
             return claim_level_result
 
@@ -129,7 +135,7 @@ class A2PAttributionAnalyzer(BaseAnalyzer):
             )
 
     def _claim_level_mode(
-        self, run: RAGRun, prior_results: list[AnalyzerResult]
+        self, run: RAGRun, prior_results: list[AnalyzerResult], bundle: GroundingEvidenceBundle | None = None
     ) -> AnalyzerResult | None:
         claim_results = self._claim_results_from_prior(prior_results)
         attributed_claims = [
@@ -157,10 +163,15 @@ class A2PAttributionAnalyzer(BaseAnalyzer):
             for result in prior_results
         )
 
+        # Map records by claim text for lookup
+        records_by_text = {r.claim_text: r for r in bundle.claim_evidence_records} if bundle else {}
+
         attributions: list[ClaimAttribution] = []
         for claim in attributed_claims:
+            record = records_by_text.get(claim.claim_text)
             attribution = self._attribute_claim(
                 claim=claim,
+                record=record,
                 sufficiency_result=sufficiency_result,
                 has_citation_mismatch=has_citation_mismatch,
                 has_stale_retrieval=has_stale_retrieval,
@@ -200,7 +211,7 @@ class A2PAttributionAnalyzer(BaseAnalyzer):
         )
 
     def _claim_level_mode_v2(
-        self, run: RAGRun, prior_results: list[AnalyzerResult]
+        self, run: RAGRun, prior_results: list[AnalyzerResult], bundle: GroundingEvidenceBundle | None = None
     ) -> AnalyzerResult | None:
         """A2P v2: Multi-hypothesis attribution with transparent scoring and primary/secondary selection."""
         # Step 1: Extract structured trace
@@ -311,6 +322,7 @@ class A2PAttributionAnalyzer(BaseAnalyzer):
     def _attribute_claim(
         self,
         claim: ClaimResult,
+        record: ClaimEvidenceRecord | None,
         sufficiency_result: SufficiencyResult | None,
         has_citation_mismatch: bool,
         has_stale_retrieval: bool,
@@ -327,7 +339,34 @@ class A2PAttributionAnalyzer(BaseAnalyzer):
             }
         )
 
-        if claim.label == "unsupported" and not claim.supporting_chunk_ids and (
+        if record and record.uncertainty_signals.get("value_conflicts"):
+            primary_cause = "value_distortion"
+            abduct = (
+                f"Claim '{claim.claim_text}' has direct value conflicts with retrieved evidence "
+                f"(e.g., mismatched dates, numbers, or entities), pointing to generation-stage hallucination."
+            )
+            act = "Enforce stricter value-level grounding and verify all numerical/named entities against source context."
+            predict = "Fixing value-level hallucination is predicted to resolve the contradiction while preserving the claim structure."
+        elif claim.label == "unsupported" and record and not record.supporting_chunk_ids and record.candidate_evidence_chunks:
+            # Check if candidates were high-scoring but failed verification
+            max_candidate_score = max((c.score for c in record.candidate_evidence_chunks), default=0.0)
+            if max_candidate_score > 0.7: # Heuristic threshold for "it was there but ignored"
+                primary_cause = "context_ignored"
+                abduct = (
+                    "High-scoring candidate evidence was found, but the generator failed to utilize it correctly "
+                    "or the verifier rejected the alignment. Likely context-ignoring failure."
+                )
+                act = "Optimize generator prompt to improve context adherence and utilization of identified chunks."
+                predict = "Improved context adherence is predicted to convert this unsupported claim into an entailed one."
+            else:
+                primary_cause = "insufficient_context_or_retrieval_miss"
+                abduct = (
+                    "No supporting chunks found and candidate evidence is weak or irrelevant, "
+                    "pointing to a retrieval miss or missing information in the knowledge base."
+                )
+                act = "Increase retrieval recall and verify if the knowledge base contains the required information."
+                predict = "Improving retrieval recall is predicted to surface the missing evidence needed for this claim."
+        elif claim.label == "unsupported" and not claim.supporting_chunk_ids and (
             sufficiency_result is not None and sufficiency_result.sufficient is False
         ):
             primary_cause = "insufficient_context_or_retrieval_miss"
@@ -340,19 +379,6 @@ class A2PAttributionAnalyzer(BaseAnalyzer):
                 "If retrieval/context is improved, this claim is expected to become verifiable "
                 "or be correctly abstained."
             )
-        elif claim.label == "unsupported" and claim.candidate_chunk_ids and (
-            "weak" in (claim.evidence_reason or "").lower()
-            or "partial" in (claim.evidence_reason or "").lower()
-            or "below support threshold" in (claim.evidence_reason or "").lower()
-        ):
-            primary_cause = "weak_or_ambiguous_evidence"
-            abduct = (
-                "Claim has candidate chunks but evidence quality is weak/ambiguous, indicating noisy or partial retrieval support."
-            )
-            act = "Tighten retrieval filters and require stronger evidence alignment before answer generation."
-            predict = (
-                "Stronger evidence filtering is predicted to reduce unsupported claims driven by ambiguous context."
-            )
         elif claim.label == "contradicted" and claim.contradicting_chunk_ids:
             primary_cause = "generation_contradicted_retrieved_evidence"
             abduct = (
@@ -362,6 +388,7 @@ class A2PAttributionAnalyzer(BaseAnalyzer):
             predict = (
                 "With stricter grounded generation, contradicted claims are expected to be removed or corrected."
             )
+        # ... rest of the legacy cases ...
         elif claim.label == "entailed" and has_security_failure:
             primary_cause = "adversarial_context"
             abduct = (
@@ -964,3 +991,10 @@ class A2PAttributionAnalyzer(BaseAnalyzer):
                     return result.failure_type
             return FailureType.SUSPICIOUS_CHUNK
         return FailureType.RETRIEVAL_DEPTH_LIMIT
+
+    def _get_grounding_bundle(self, prior_results: list[AnalyzerResult]) -> GroundingEvidenceBundle | None:
+        """Extract the grounding bundle from prior results."""
+        for result in prior_results:
+            if getattr(result, "grounding_evidence_bundle", None):
+                return result.grounding_evidence_bundle
+        return None

@@ -11,7 +11,10 @@ from __future__ import annotations
 import json
 import statistics
 from dataclasses import asdict, dataclass
-from typing import Any
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from raggov.models.grounding import GroundingEvidenceBundle
 
 from raggov.analyzers.base import BaseAnalyzer
 from raggov.models.diagnosis import AnalyzerResult, FailureStage, FailureType
@@ -143,7 +146,11 @@ class Layer6TaxonomyClassifier(BaseAnalyzer):
         stage_failures.extend(self._detect_parsing_failures(prior_results, analyzer_weights))
         stage_failures.extend(self._detect_retrieval_failures(prior_results, chunk_scores, analyzer_weights))
         stage_failures.extend(self._detect_chunking_failures(prior_results, chunk_scores, analyzer_weights))
-        stage_failures.extend(self._detect_generation_failures(prior_results, chunk_scores, analyzer_weights))
+        
+        # Extract grounding bundle if available
+        bundle = self._get_grounding_bundle(prior_results)
+        
+        stage_failures.extend(self._detect_generation_failures(prior_results, chunk_scores, analyzer_weights, bundle))
         stage_failures.extend(self._detect_security_failures(prior_results, analyzer_weights))
         stage_failures = self._dedupe_failures(stage_failures)
         stage_failures = self._apply_ncv_tiebreaker(stage_failures, ncv_report, analyzer_weights)
@@ -349,18 +356,50 @@ class Layer6TaxonomyClassifier(BaseAnalyzer):
         prior_results: list[AnalyzerResult],
         chunk_scores: list[float],
         analyzer_weights: dict[str, float],
+        bundle: GroundingEvidenceBundle | None = None,
     ) -> list[WeightedStageFailure]:
         """Detect GENERATION stage failures.
 
-        Score bands are calibrated ranges, not precise guarantees:
-        - avg_score > 0.75: retrieval was likely strong, so unsupported output points to context_ignored.
-        - avg_score <= 0.60: retrieval was likely weak, so unsupported output points to hallucination.
-        - 0.60 < avg_score <= 0.75: ambiguous mixed_quality zone.
+        Uses GroundingEvidenceBundle for high-fidelity diagnosis if available.
+        Otherwise falls back to avg_score heuristic bands.
         """
         failures: list[WeightedStageFailure] = []
-
         avg_score = statistics.mean(chunk_scores) if chunk_scores else 0.0
 
+        # High-fidelity diagnosis using bundle
+        if bundle:
+            for order, result in enumerate(prior_results):
+                if result.status not in ("fail", "warn"):
+                    continue
+                
+                if result.failure_type == FailureType.UNSUPPORTED_CLAIM:
+                    # RAGChecker-style: check if any candidate had high score
+                    rollup = bundle.diagnostic_rollup or {}
+                    context_ignored_count = rollup.get("context_ignored_suspected_count", 0)
+                    retrieval_miss_count = rollup.get("retrieval_miss_suspected_count", 0)
+                    
+                    if context_ignored_count > 0:
+                        failures.append(self._candidate(result, analyzer_weights, order, stage="GENERATION", failure_mode="context_ignored", severity="HIGH"))
+                    elif retrieval_miss_count > 0:
+                        failures.append(self._candidate(result, analyzer_weights, order, stage="GENERATION", failure_mode="hallucination", severity="HIGH"))
+                    else:
+                        failures.append(self._candidate(result, analyzer_weights, order, stage="GENERATION", failure_mode="mixed_quality", severity="HIGH"))
+                
+                elif result.failure_type == FailureType.CONTRADICTED_CLAIM:
+                    failures.append(self._candidate(result, analyzer_weights, order, stage="GENERATION", failure_mode="over_extraction", severity="HIGH"))
+
+            # Check for value errors directly in records
+            value_error_count = sum(1 for r in bundle.claim_evidence_records if r.uncertainty_signals.get("value_conflicts"))
+            if value_error_count > 0:
+                # Add a synthetic failure for value distortion if not already present
+                failures.append(WeightedStageFailure(
+                    failure=StageFailure(stage="GENERATION", failure_mode="value_distortion", evidence=[f"{value_error_count} claims had value conflicts."], severity="HIGH"),
+                    weight=1.0, order=-1
+                ))
+
+            return self._dedupe_failures(failures)
+
+        # Legacy heuristic path
         for order, result in enumerate(prior_results):
             if result.status not in ("fail", "warn"):
                 continue
@@ -600,3 +639,10 @@ class Layer6TaxonomyClassifier(BaseAnalyzer):
         analyzer_weights: dict[str, float],
     ) -> float:
         return float(analyzer_weights.get(result.analyzer_name, 1.0))
+
+    def _get_grounding_bundle(self, prior_results: list[AnalyzerResult]) -> GroundingEvidenceBundle | None:
+        """Extract the grounding bundle from prior results."""
+        for result in prior_results:
+            if getattr(result, "grounding_evidence_bundle", None):
+                return result.grounding_evidence_bundle
+        return None

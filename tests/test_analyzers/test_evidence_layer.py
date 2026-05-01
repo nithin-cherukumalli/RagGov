@@ -7,11 +7,11 @@ import pytest
 from raggov.analyzers.grounding.evidence_layer import (
     ClaimEvidenceBuilder,
     ClaimEvidenceRecord,
-    HeuristicValueOverlapVerifier,
-    VerificationOutput,
     detect_atomicity,
     detect_claim_type,
 )
+from raggov.analyzers.grounding.candidate_selection import EvidenceCandidateSelector
+from raggov.analyzers.grounding.verifiers import HeuristicValueOverlapVerifier, VerificationResult
 from raggov.analyzers.grounding.support import ClaimGroundingAnalyzer
 from raggov.models.chunk import RetrievedChunk
 from raggov.models.run import RAGRun
@@ -29,9 +29,16 @@ def chunk(chunk_id: str, text: str) -> RetrievedChunk:
 def verifier(config: dict | None = None) -> HeuristicValueOverlapVerifier:
     return HeuristicValueOverlapVerifier(config or {})
 
+def selector() -> EvidenceCandidateSelector:
+    return EvidenceCandidateSelector()
 
 def builder(config: dict | None = None) -> ClaimEvidenceBuilder:
-    return ClaimEvidenceBuilder(verifier(config))
+    return ClaimEvidenceBuilder(verifier(config), selector())
+
+
+def verify_claim(claim: str, query: str, chunks: list[RetrievedChunk], config: dict | None = None) -> VerificationResult:
+    cands = selector().select_candidates(claim, query, chunks)
+    return verifier(config).verify(claim, query, cands)
 
 
 # ---------------------------------------------------------------------------
@@ -115,25 +122,25 @@ def test_detect_atomicity_unclear_short_claim() -> None:
 # ---------------------------------------------------------------------------
 
 def test_heuristic_verifier_supported_numeric_claim() -> None:
-    output = verifier().verify(
+    output = verify_claim(
         "Revenue grew 15% YoY.",
         "revenue",
         [chunk("c1", "Revenue increased 15% annually.")],
     )
     assert output.label == "entailed"
-    assert output.raw_support_score >= 0.5
+    assert output.raw_score >= 0.5
     assert not output.fallback_used
     assert output.calibrated_confidence is None if hasattr(output, "calibrated_confidence") else True
 
 
 def test_heuristic_verifier_supported_numeric_claim_returns_verification_output() -> None:
-    output = verifier().verify(
+    output = verify_claim(
         "Revenue grew 15% YoY.",
         "revenue",
         [chunk("c1", "Revenue increased 15% annually.")],
     )
-    assert isinstance(output, VerificationOutput)
-    assert output.verification_method == "value_aware_structured_claim_verifier_v1"
+    assert isinstance(output, VerificationResult)
+    assert output.verifier_name == "value_aware_structured_claim_verifier_v1"
 
 
 # ---------------------------------------------------------------------------
@@ -141,7 +148,7 @@ def test_heuristic_verifier_supported_numeric_claim_returns_verification_output(
 # ---------------------------------------------------------------------------
 
 def test_heuristic_verifier_contradicted_numeric_claim() -> None:
-    output = verifier().verify(
+    output = verify_claim(
         "Revenue grew 15% YoY.",
         "revenue",
         [chunk("c1", "Revenue grew 12% annually.")],
@@ -151,7 +158,7 @@ def test_heuristic_verifier_contradicted_numeric_claim() -> None:
 
 
 def test_heuristic_verifier_contradicted_numeric_sets_correct_chunk_ids() -> None:
-    output = verifier().verify(
+    output = verify_claim(
         "Revenue grew 15% YoY.",
         "revenue",
         [chunk("c1", "Revenue grew 12% annually.")],
@@ -167,7 +174,7 @@ def test_heuristic_verifier_contradicted_numeric_sets_correct_chunk_ids() -> Non
 
 def test_heuristic_verifier_unsupported_high_overlap_missing_value() -> None:
     # Claim has Rs. 50,000 but evidence has no numeric value for the refund limit
-    output = verifier().verify(
+    output = verify_claim(
         "The refund limit is Rs. 50,000 for all customers.",
         "refund",
         [chunk("c1", "The refund policy covers all customers in the scheme.")],
@@ -177,7 +184,7 @@ def test_heuristic_verifier_unsupported_high_overlap_missing_value() -> None:
 
 
 def test_heuristic_verifier_unsupported_go_number_mismatch() -> None:
-    output = verifier().verify(
+    output = verify_claim(
         "As per G.O.Rt.No. 115, optional holidays require prior permission.",
         "holidays",
         [chunk("c1", "As per G.O.Rt.No. 2115, optional holidays require permission.")],
@@ -190,7 +197,7 @@ def test_heuristic_verifier_unsupported_go_number_mismatch() -> None:
 # ---------------------------------------------------------------------------
 
 def test_heuristic_verifier_date_claim_contradiction() -> None:
-    output = verifier().verify(
+    output = verify_claim(
         "Applications close on July 15 for this intake cycle.",
         "applications",
         [chunk("c1", "Applications close on June 30.")],
@@ -199,7 +206,7 @@ def test_heuristic_verifier_date_claim_contradiction() -> None:
 
 
 def test_heuristic_verifier_date_claim_supported() -> None:
-    output = verifier().verify(
+    output = verify_claim(
         "The scheme closes on June 30.",
         "scheme",
         [chunk("c1", "Applications and claims under this scheme close on June 30.")],
@@ -212,24 +219,26 @@ def test_heuristic_verifier_date_claim_supported() -> None:
 # ---------------------------------------------------------------------------
 
 def test_heuristic_verifier_fallback_used_when_forced_error() -> None:
-    output = verifier({"force_structured_verifier_error": True}).verify(
+    output = verify_claim(
         "Revenue grew 15% YoY.",
         "revenue",
         [chunk("c1", "Revenue increased 15% annually.")],
+        config={"force_structured_verifier_error": True}
     )
     assert output.fallback_used is True
-    assert output.verification_method == "deterministic_overlap_anchor_v0"
-    assert "fell back" in output.evidence_reason.lower()
+    assert output.verifier_name == "deterministic_overlap_anchor_v0"
+    assert "fell back" in output.rationale.lower()
 
 
 def test_heuristic_verifier_fallback_produces_valid_output() -> None:
-    output = verifier({"force_structured_verifier_error": True}).verify(
+    output = verify_claim(
         "Revenue grew 15% YoY.",
         "revenue",
         [chunk("c1", "Revenue increased 15% annually.")],
+        config={"force_structured_verifier_error": True}
     )
     assert output.label in {"entailed", "unsupported", "contradicted"}
-    assert output.raw_support_score >= 0.0
+    assert output.raw_score >= 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -327,8 +336,8 @@ def test_backward_compat_analyzer_passes_on_entailed_claim() -> None:
 def test_backward_compat_analyzer_warns_on_contradicted_claim() -> None:
     run = RAGRun(
         query="warranty",
-        retrieved_chunks=[chunk("c1", "Warranty does not cover accidental damage.")],
-        final_answer="The product warranty covers accidental damage for all devices.",
+        retrieved_chunks=[chunk("c1", "Warranty does not cover 10 accidental damage.")],
+        final_answer="The product warranty covers 10 accidental damage for all devices.",
     )
     result = ClaimGroundingAnalyzer({"fail_threshold": 1.1}).analyze(run)
     assert result.status == "warn"
@@ -339,8 +348,8 @@ def test_backward_compat_analyzer_warns_on_contradicted_claim() -> None:
 def test_backward_compat_fallback_used_visible_in_claim_result() -> None:
     run = RAGRun(
         query="returns",
-        retrieved_chunks=[chunk("c1", "Refund policy covers hardware returns for thirty days.")],
-        final_answer="The refund policy covers hardware returns for thirty days.",
+        retrieved_chunks=[chunk("c1", "Refund policy covers hardware returns for 30 days.")],
+        final_answer="The refund policy covers hardware returns for 30 days.",
     )
     result = ClaimGroundingAnalyzer({"force_structured_verifier_error": True}).analyze(run)
     assert result.claim_results is not None

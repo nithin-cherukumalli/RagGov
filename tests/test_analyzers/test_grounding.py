@@ -97,13 +97,63 @@ def test_claim_extractor_still_filters_empty_fragments() -> None:
 
 
 def test_claim_extractor_llm_mode_parses_json_array() -> None:
-    client = ClaimClient('["Refunds last thirty days.", "Warranty requires service."]')
+    client = ClaimClient(
+        '['
+        '{"claim_text": "Refunds last thirty days."}, '
+        '{"claim_text": "Warranty requires service."}'
+        ']'
+    )
     extractor = ClaimExtractor(use_llm=True, llm_client=client)
 
     claims = extractor.extract("Refunds last thirty days. Warranty requires service.")
 
     assert claims == ["Refunds last thirty days.", "Warranty requires service."]
-    assert "Return only a JSON array of strings" in client.prompts[0]
+    assert "Return only a JSON array of objects" in client.prompts[0]
+
+
+def test_claim_extractor_structured_llm_mode_returns_extracted_claims() -> None:
+    client = ClaimClient(
+        '['
+        '{"claim_text": "Refunds last thirty days.", "atomicity_status": "atomic", "should_verify": true}, '
+        '{"claim_text": "Warranty requires service.", "atomicity_status": "atomic", "should_verify": true}'
+        ']'
+    )
+    extractor = ClaimExtractor(use_llm=True, llm_client=client)
+    claims = extractor.extract_structured("Refunds last thirty days. Warranty requires service.")
+    assert len(claims) == 2
+    assert claims[0].claim_text == "Refunds last thirty days."
+    assert claims[0].atomicity_status == "atomic"
+    assert claims[0].extraction_method == "llm"
+
+
+def test_claim_extractor_structured_deterministic_detects_compound() -> None:
+    extractor = ClaimExtractor()
+    claims = extractor.extract_structured(
+        "Refunds require approval and cost $50."
+    )
+    assert len(claims) == 1
+    # "approval" and "$50" are substantive -> multiple, and has "and" -> compound
+    assert claims[0].atomicity_status == "compound"
+    assert claims[0].should_verify is True
+
+
+def test_claim_extractor_structured_deterministic_skips_non_factual() -> None:
+    extractor = ClaimExtractor()
+    claims = extractor.extract_structured(
+        "Please read this carefully. We highly recommend checking the website. Rules apply!"
+    )
+    assert claims[0].should_verify is False
+    assert claims[0].skip_reason == "short_non_substantive"
+    assert claims[1].should_verify is False
+    assert claims[1].skip_reason == "lacks_substantive_terms"
+    assert claims[2].should_verify is True
+
+
+def test_claim_extractor_llm_fallback_is_visible_in_structured_claims() -> None:
+    extractor = ClaimExtractor(use_llm=True, llm_client=FailingClaimClient())
+    claims = extractor.extract_structured("The refund policy covers hardware returns for thirty days.")
+    assert len(claims) == 1
+    assert claims[0].extraction_method == "llm_fallback"
 
 
 def test_claim_extractor_llm_mode_falls_back_to_deterministic_on_failure() -> None:
@@ -135,7 +185,7 @@ def test_claim_grounding_warns_for_unsupported_claim_below_fail_threshold() -> N
     run = run_with_answer(
         (
             "The refund policy covers hardware returns for thirty days. "
-            "Warranty support includes international on-site repairs."
+            "Warranty support requires international on-site repairs."
         ),
         [chunk("chunk-1", "Refund policy covers hardware returns for thirty days.")],
     )
@@ -155,7 +205,7 @@ def test_claim_grounding_fails_when_unsupported_fraction_reaches_threshold() -> 
     run = run_with_answer(
         (
             "The refund policy covers hardware returns for thirty days. "
-            "Warranty support includes international on-site repairs."
+            "Warranty support requires international on-site repairs."
         ),
         [chunk("chunk-1", "Refund policy covers hardware returns for thirty days.")],
     )
@@ -213,7 +263,7 @@ def test_claim_grounding_llm_mode_parses_claim_results() -> None:
     assert result.claim_results[0].label == "entailed"
     assert result.claim_results[0].supporting_chunk_ids == ["chunk-1"]
     assert result.claim_results[0].confidence == 0.9
-    assert "support, contradict, or neither support nor contradict" in client.prompts[0]
+    assert "explicitly support, contradict, or not provide enough information" in client.prompts[0]
 
 
 def test_claim_grounding_llm_mode_falls_back_per_claim_on_failure() -> None:
@@ -232,16 +282,18 @@ def test_claim_grounding_llm_mode_falls_back_per_claim_on_failure() -> None:
 
     assert result.status == "pass"
     assert result.claim_results is not None
-    assert result.claim_results[0].label == "entailed"
+    assert result.claim_results[0].label == "abstain"
     assert result.claim_results[0].fallback_used is True
-    assert "fell back" in (result.claim_results[0].evidence_reason or "").lower()
+    assert "llm verifier failed" in (result.claim_results[0].evidence_reason or "").lower()
 
 
 def test_claim_grounding_deterministic_supports_paraphrased_numeric_claim() -> None:
-    analyzer = ClaimGroundingAnalyzer()
+    analyzer = ClaimGroundingAnalyzer({"claim_verifier_mode": "heuristic"})
 
-    result = analyzer._evaluate_claim_deterministic(
+    result = analyzer._evaluate_claim(
         "Revenue grew 15% YoY.",
+        1,
+        "",
         [chunk("chunk-1", "Revenue increased 15% annually.")],
     )
 
@@ -249,14 +301,16 @@ def test_claim_grounding_deterministic_supports_paraphrased_numeric_claim() -> N
     assert result.supporting_chunk_ids == ["chunk-1"]
     assert result.confidence is not None
     assert result.confidence >= 0.5
-    assert result.verification_method == "deterministic_overlap_anchor_v0"
+    assert result.verification_method == "value_aware_structured_claim_verifier_v1"
 
 
 def test_claim_grounding_deterministic_requires_numeric_anchor_match() -> None:
-    analyzer = ClaimGroundingAnalyzer()
+    analyzer = ClaimGroundingAnalyzer({"claim_verifier_mode": "heuristic"})
 
-    result = analyzer._evaluate_claim_deterministic(
+    result = analyzer._evaluate_claim(
         "Revenue grew 15% YoY.",
+        1,
+        "",
         [chunk("chunk-1", "Revenue grew 12% annually.")],
     )
 
@@ -266,14 +320,16 @@ def test_claim_grounding_deterministic_requires_numeric_anchor_match() -> None:
     assert result.contradicting_chunk_ids == ["chunk-1"]
     assert result.confidence is not None
     assert result.confidence < 0.5
-    assert result.verification_method == "deterministic_overlap_anchor_v0"
+    assert result.verification_method == "value_aware_structured_claim_verifier_v1"
 
 
 def test_claim_grounding_deterministic_preserves_negation_contradictions() -> None:
-    analyzer = ClaimGroundingAnalyzer()
+    analyzer = ClaimGroundingAnalyzer({"claim_verifier_mode": "heuristic"})
 
-    result = analyzer._evaluate_claim_deterministic(
+    result = analyzer._evaluate_claim(
         "Warranty covers accidental damage.",
+        1,
+        "",
         [chunk("chunk-1", "Warranty does not cover accidental damage.")],
     )
 
@@ -281,7 +337,7 @@ def test_claim_grounding_deterministic_preserves_negation_contradictions() -> No
     assert result.supporting_chunk_ids == []
     assert result.candidate_chunk_ids == ["chunk-1"]
     assert result.contradicting_chunk_ids == ["chunk-1"]
-    assert result.verification_method == "deterministic_overlap_anchor_v0"
+    assert result.verification_method == "value_aware_structured_claim_verifier_v1"
 
 
 def test_claim_grounding_evidence_includes_soft_coverage_confidence() -> None:
@@ -347,8 +403,8 @@ def test_claim_grounding_structured_verifier_marks_high_overlap_without_anchor_s
 
 def test_claim_grounding_structured_verifier_marks_contradicted_claim() -> None:
     run = run_with_answer(
-        "The product warranty covers accidental damage for all devices.",
-        [chunk("chunk-1", "Warranty does not cover accidental damage.")],
+        "The product warranty policy covers accidental damage for all devices.",
+        [chunk("chunk-1", "Warranty policy does not cover accidental damage.")],
     )
 
     result = ClaimGroundingAnalyzer().analyze(run)
@@ -380,8 +436,8 @@ def test_claim_grounding_structured_verifier_fallback_is_visible_when_unavailabl
 
 def test_value_aware_grounding_flags_numeric_duration_mismatch() -> None:
     run = run_with_answer(
-        "Records are retained for thirty six months before archival review in all departments.",
-        [chunk("chunk-1", "Records are retained for twelve months before archival review.")],
+        "Records are retained for 36 months before archival review in all departments.",
+        [chunk("chunk-1", "Records are retained for 12 months before archival review.")],
     )
 
     result = ClaimGroundingAnalyzer().analyze(run)
@@ -407,7 +463,7 @@ def test_find_value_alignment_handles_value_mentions_without_type_error() -> Non
 
 def test_value_aware_grounding_flags_money_threshold_mismatch() -> None:
     run = run_with_answer(
-        "Refunds apply above five hundred dollars in this program.",
+        "Refund policy applies above five hundred dollars in this program.",
         [chunk("chunk-1", "Refunds apply above one hundred dollars.")],
     )
 
@@ -503,7 +559,7 @@ def test_value_aware_grounding_flags_go_number_mismatch() -> None:
 
 def test_grounding_contract_unsupported_uses_candidate_not_supporting_chunks() -> None:
     run = run_with_answer(
-        "Refunds apply above five hundred dollars in this program.",
+        "Refund policy applies above five hundred dollars in this program.",
         [chunk("chunk-1", "Refunds apply above one hundred dollars.")],
     )
 
@@ -519,8 +575,8 @@ def test_grounding_contract_unsupported_uses_candidate_not_supporting_chunks() -
 
 def test_grounding_contract_unsupported_related_chunk_keeps_supporting_empty() -> None:
     run = run_with_answer(
-        "Hardware returns are available for ninety days.",
-        [chunk("chunk-1", "Hardware returns are available for thirty days.")],
+        "Hardware returns policy is available for ninety days.",
+        [chunk("chunk-1", "Hardware returns policy is available for thirty days.")],
     )
 
     result = ClaimGroundingAnalyzer().analyze(run)
@@ -531,3 +587,78 @@ def test_grounding_contract_unsupported_related_chunk_keeps_supporting_empty() -
     if claim.label == "unsupported":
         assert claim.supporting_chunk_ids == []
         assert claim.candidate_chunk_ids == ["chunk-1"]
+
+
+def test_candidate_selector_retrieval_score_preservation() -> None:
+    from raggov.analyzers.grounding.candidate_selection import EvidenceCandidateSelector
+    
+    selector = EvidenceCandidateSelector()
+    c = chunk("chunk-1", "This is a test chunk.")
+    c.score = 0.95
+    candidates = selector.select_candidates("This is a test claim.", "", [c])
+    assert len(candidates) == 1
+    assert candidates[0].retrieval_score == 0.95
+
+
+def test_candidate_selector_cited_only_mode() -> None:
+    from raggov.analyzers.grounding.candidate_selection import EvidenceCandidateSelector
+    
+    selector = EvidenceCandidateSelector({"candidate_mode": "cited_only"})
+    chunks = [
+        chunk("chunk-1", "This chunk is cited."),
+        chunk("chunk-2", "This chunk is NOT cited."),
+    ]
+    candidates = selector.select_candidates("The policy is approved [chunk-1].", "", chunks)
+    assert len(candidates) == 1
+    assert candidates[0].chunk_id == "chunk-1"
+    assert candidates[0].candidate_reason == "Cited in claim text"
+    assert candidates[0].is_best
+
+
+def test_candidate_selector_all_chunks_debug_mode() -> None:
+    from raggov.analyzers.grounding.candidate_selection import EvidenceCandidateSelector
+    
+    selector = EvidenceCandidateSelector({"candidate_mode": "all_chunks_debug"})
+    chunks = [chunk(f"chunk-{i}", f"Text {i}") for i in range(5)]
+    candidates = selector.select_candidates("Some claim", "", chunks)
+    assert len(candidates) == 5
+    for i, c in enumerate(candidates):
+        assert c.chunk_id == f"chunk-{i}"
+
+
+def test_candidate_selector_retrieved_top_k_mode() -> None:
+    from raggov.analyzers.grounding.candidate_selection import EvidenceCandidateSelector
+    
+    selector = EvidenceCandidateSelector({"candidate_mode": "retrieved_top_k", "candidate_top_k": 2})
+    chunks = [chunk(f"chunk-{i}", f"Text {i}") for i in range(5)]
+    candidates = selector.select_candidates("Some claim", "", chunks)
+    assert len(candidates) == 2
+    assert candidates[0].chunk_id == "chunk-0"
+    assert candidates[0].is_best
+    assert candidates[1].chunk_id == "chunk-1"
+
+
+def test_candidate_selector_heuristic_anchor_match_paraphrase() -> None:
+    from raggov.analyzers.grounding.candidate_selection import EvidenceCandidateSelector
+    
+    selector = EvidenceCandidateSelector({"candidate_mode": "heuristic_top_k_v0"})
+    chunks = [
+        chunk("chunk-1", "Revenue increased 15% annually."),
+        chunk("chunk-2", "Something completely unrelated."),
+    ]
+    # "grew" vs "increased" -> normalized to "increase"
+    # "YoY" vs "annually" -> normalized to "annual"
+    candidates = selector.select_candidates("Revenue grew 15% YoY.", "", chunks)
+    assert len(candidates) == 2
+    assert candidates[0].chunk_id == "chunk-1"
+    assert candidates[0].lexical_overlap_score > 0.0
+    assert candidates[0].anchor_overlap_score > 0.0
+    assert candidates[0].is_best
+
+
+def test_candidate_selector_empty_chunks_returns_empty() -> None:
+    from raggov.analyzers.grounding.candidate_selection import EvidenceCandidateSelector
+    
+    selector = EvidenceCandidateSelector()
+    candidates = selector.select_candidates("Some claim.", "", [])
+    assert candidates == []

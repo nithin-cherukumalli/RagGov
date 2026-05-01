@@ -244,13 +244,13 @@ class NCVPipelineVerifier(BaseAnalyzer):
         meaningful_sentences = 0
 
         for sentence in sentences:
-            sentence_terms = grounding_helper._terms(sentence)
+            sentence_terms = terms(sentence)
             if not sentence_terms:
                 continue
             meaningful_sentences += 1
             best_ratio = 0.0
             for chunk in run.retrieved_chunks:
-                chunk_terms = grounding_helper._terms(chunk.text)
+                chunk_terms = terms(chunk.text)
                 overlap_ratio = len(sentence_terms & chunk_terms) / len(sentence_terms)
                 best_ratio = max(best_ratio, overlap_ratio)
             if best_ratio >= 0.4:

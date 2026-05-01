@@ -10,11 +10,19 @@ logger = logging.getLogger(__name__)
 
 from raggov.analyzers.base import BaseAnalyzer
 from raggov.analyzers.grounding.claims import ClaimExtractor
-from raggov.analyzers.grounding.evidence_layer import (
-    ClaimEvidenceBuilder,
-    ClaimEvidenceRecord,
+from raggov.analyzers.grounding.diagnostic_rollups import ClaimDiagnosticRollupBuilder, ClaimDiagnosticSummary
+from raggov.analyzers.grounding.evidence_layer import ClaimEvidenceBuilder, ClaimEvidenceRecord
+from raggov.models.grounding import GroundingEvidenceBundle
+from raggov.calibration import ClaimCalibrationLoader
+from raggov.analyzers.grounding.triplets import build_triplet_extractor
+from raggov.analyzers.grounding.verifiers import (
+    EvidenceVerifier,
     HeuristicValueOverlapVerifier,
+    StructuredLLMClaimVerifier,
+    TripletVerifier,
+    LLMTripletVerifierV1,
 )
+from raggov.analyzers.grounding.candidate_selection import EvidenceCandidateSelector
 from raggov.analyzers.retrieval.scope import STOPWORDS
 from raggov.models.chunk import RetrievedChunk
 from raggov.models.diagnosis import (
@@ -34,25 +42,30 @@ REMEDIATION = (
 _CALIBRATION_NOTE = (
     "[Uncalibrated heuristic support score, not calibrated confidence.]"
 )
-
-
 def _record_to_claim_result(record: ClaimEvidenceRecord) -> ClaimResult:
     """Convert a ClaimEvidenceRecord to a ClaimResult for backward compatibility."""
-    evidence_reason = f"{record.evidence_reason} {_CALIBRATION_NOTE}"
+    # Only append the uncalibrated note if status is actually uncalibrated
+    evidence_reason = record.evidence_reason
+    if record.calibration_status == "uncalibrated":
+        evidence_reason = f"{evidence_reason} {_CALIBRATION_NOTE}"
+        
     return ClaimResult(
         claim_text=record.claim_text,
         label=record.verification_label,
         supporting_chunk_ids=record.supporting_chunk_ids,
         candidate_chunk_ids=[c.chunk_id for c in record.candidate_evidence_chunks],
         contradicting_chunk_ids=record.contradicting_chunk_ids,
-        confidence=record.raw_support_score,
-        verification_method=record.verification_method,
+        confidence=record.calibrated_confidence if record.calibrated_confidence is not None else record.verifier_score,
+        verification_method=record.verifier_method,
         evidence_reason=evidence_reason,
         calibration_status=record.calibration_status,
         fallback_used=record.fallback_used,
         value_conflicts=record.value_conflicts,
         value_matches=record.value_matches,
     )
+
+
+
 
 
 class ClaimGroundingAnalyzer(BaseAnalyzer):
@@ -62,8 +75,36 @@ class ClaimGroundingAnalyzer(BaseAnalyzer):
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__(config)
-        self._verifier = HeuristicValueOverlapVerifier(self.config)
-        self._builder = ClaimEvidenceBuilder(self._verifier)
+        self._selector = EvidenceCandidateSelector(self.config)
+        mode = self.config.get("claim_verifier_mode", "heuristic")
+        has_llm_client = bool(self.config.get("llm_client"))
+        if mode == "structured_llm" and has_llm_client:
+            self._verifier = StructuredLLMClaimVerifier(self.config)
+        elif self.config.get("use_llm", False) and has_llm_client:
+            # Only use LLM verifier when an actual llm_client is provided
+            self._verifier = StructuredLLMClaimVerifier(self.config)
+        else:
+            self._verifier = HeuristicValueOverlapVerifier(self.config)
+        
+        # Calibration setup
+        calib_path = self.config.get("claim_calibration_path")
+        self._calibrator = ClaimCalibrationLoader.load(calib_path) if calib_path else None
+
+        self._builder = ClaimEvidenceBuilder(
+            self._verifier,
+            self._selector,
+            triplet_extractor=build_triplet_extractor(self.config),
+            calibrator=self._calibrator,
+        )
+        
+        # Triplet verification setup
+        if self.config.get("enable_triplet_verification", False):
+            # Only LLM triplet verifier is supported for now
+            triplet_verifier = LLMTripletVerifierV1(self.config)
+            self._builder.set_triplet_verifier(triplet_verifier)
+            logger.info("Triplet-level verification enabled.")
+
+        self._rollup_builder = ClaimDiagnosticRollupBuilder(self.config)
 
     def analyze(self, run: RAGRun) -> AnalyzerResult:
         if not run.retrieved_chunks:
@@ -78,20 +119,46 @@ class ClaimGroundingAnalyzer(BaseAnalyzer):
         if not claims:
             return self.skip("no claims extracted from final answer")
 
-        claim_results = [
-            self._evaluate_claim(claim, index, run.query, run.retrieved_chunks)
+        # Build ClaimEvidenceRecords (richer than ClaimResult — needed for rollup)
+        records: list[ClaimEvidenceRecord] = [
+            self._builder._build_single(claim, index, run.query, run.retrieved_chunks)
             for index, claim in enumerate(claims, start=1)
         ]
+        claim_results = [_record_to_claim_result(r) for r in records]
+
+        # --- Diagnostic rollup --------------------------------------------
+        cited_doc_ids: list[str] = list(getattr(run, "cited_doc_ids", None) or [])
+        rollup: ClaimDiagnosticSummary = self._rollup_builder.build(
+            records=records,
+            retrieved_chunks=run.retrieved_chunks,
+            cited_doc_ids=cited_doc_ids,
+        )
+
+        # Create the evidence bundle for downstream consumers
+        bundle = GroundingEvidenceBundle(
+            claim_evidence_records=records,
+            diagnostic_rollup=rollup.as_dict(),
+            citation_support_summary={
+                "citation_support_rate": rollup.citation_support_rate,
+                "citation_mismatch_suspected_count": rollup.citation_mismatch_suspected_count,
+            },
+            calibration_summary={
+                "calibration_status": records[0].calibration_status if records else "unavailable",
+                "average_score": sum(r.verifier_score for r in records) / len(records) if records else 0.0,
+            },
+        )
+
         failed_results = [r for r in claim_results if r.label in {"unsupported", "contradicted"}]
         contradicted_results = [r for r in claim_results if r.label == "contradicted"]
         failed_fraction = len(failed_results) / len(claim_results)
-        entailed_count = sum(1 for r in claim_results if r.label == "entailed")
-        unsupported_count = sum(1 for r in claim_results if r.label == "unsupported")
-        contradicted_count = sum(1 for r in claim_results if r.label == "contradicted")
+        entailed_count = rollup.entailed_claims
+        unsupported_count = rollup.unsupported_claims
+        contradicted_count = rollup.contradicted_claims
+
         evidence = [
             (
                 "Claim grounding summary: "
-                f"total={len(claim_results)}, "
+                f"total={rollup.total_claims}, "
                 f"entailed={entailed_count}, "
                 f"unsupported={unsupported_count}, "
                 f"contradicted={contradicted_count}"
@@ -103,6 +170,18 @@ class ClaimGroundingAnalyzer(BaseAnalyzer):
             f"structured={len(claim_results) - fallback_count}, "
             f"fallback={fallback_count}"
         )
+        # Append RAGChecker-inspired failure pattern summary
+        pattern_line = (
+            f"Diagnostic patterns [{rollup.diagnostic_version}]: "
+            f"{rollup.failure_pattern_summary()}"
+        )
+        evidence.append(pattern_line)
+        if rollup.noisy_context_suspected:
+            evidence.append(
+                f"Noisy retrieval suspected: evidence_utilization_rate="
+                f"{rollup.evidence_utilization_rate:.2f}"
+            )
+
         remediation = REMEDIATION.format(failed=len(failed_results), total=len(claim_results))
 
         if failed_fraction >= float(self.config.get("fail_threshold", 0.3)):
@@ -114,6 +193,8 @@ class ClaimGroundingAnalyzer(BaseAnalyzer):
                 evidence=evidence,
                 claim_results=claim_results,
                 remediation=remediation,
+                diagnostic_rollup=rollup.as_dict(),
+                grounding_evidence_bundle=bundle,
             )
         if contradicted_results:
             return AnalyzerResult(
@@ -124,6 +205,8 @@ class ClaimGroundingAnalyzer(BaseAnalyzer):
                 evidence=evidence,
                 claim_results=claim_results,
                 remediation=remediation,
+                diagnostic_rollup=rollup.as_dict(),
+                grounding_evidence_bundle=bundle,
             )
         if failed_results:
             return AnalyzerResult(
@@ -134,6 +217,8 @@ class ClaimGroundingAnalyzer(BaseAnalyzer):
                 evidence=evidence,
                 claim_results=claim_results,
                 remediation=remediation,
+                diagnostic_rollup=rollup.as_dict(),
+                grounding_evidence_bundle=bundle,
             )
 
         return AnalyzerResult(
@@ -141,6 +226,8 @@ class ClaimGroundingAnalyzer(BaseAnalyzer):
             status="pass",
             evidence=evidence,
             claim_results=claim_results,
+            diagnostic_rollup=rollup.as_dict(),
+            grounding_evidence_bundle=bundle,
         )
 
     def _evaluate_claim(
@@ -150,127 +237,5 @@ class ClaimGroundingAnalyzer(BaseAnalyzer):
         query: str,
         chunks: list[RetrievedChunk],
     ) -> ClaimResult:
-        if bool(self.config.get("use_llm", False)) and self.config.get("llm_client") is not None:
-            try:
-                return self._evaluate_claim_with_llm(claim, chunks)
-            except Exception as exc:
-                logger.warning(
-                    "LLM claim grounding failed, falling back to deterministic: %s", exc
-                )
-                output = self._verifier._verify_deterministic(claim, chunks)
-                evidence_reason = (
-                    "LLM verifier unavailable; fell back to deterministic overlap/anchor check "
-                    f"{_CALIBRATION_NOTE}"
-                )
-                return ClaimResult(
-                    claim_text=claim,
-                    label=output.label,
-                    supporting_chunk_ids=output.supporting_chunk_ids,
-                    candidate_chunk_ids=output.candidate_chunk_ids,
-                    contradicting_chunk_ids=output.contradicting_chunk_ids,
-                    confidence=output.raw_support_score,
-                    verification_method=output.verification_method,
-                    evidence_reason=evidence_reason,
-                    calibration_status="uncalibrated",
-                    fallback_used=True,
-                    value_conflicts=output.value_conflicts,
-                    value_matches=output.value_matches,
-                )
-
         record = self._builder._build_single(claim, claim_index, query, chunks)
         return _record_to_claim_result(record)
-
-    def _evaluate_claim_deterministic(
-        self, claim: str, chunks: list[RetrievedChunk]
-    ) -> ClaimResult:
-        """Thin wrapper for backward compatibility. Logic lives in HeuristicValueOverlapVerifier."""
-        output = self._verifier._verify_deterministic(claim, chunks)
-        evidence_reason = f"{output.evidence_reason} {_CALIBRATION_NOTE}"
-        return ClaimResult(
-            claim_text=claim,
-            label=output.label,
-            supporting_chunk_ids=output.supporting_chunk_ids,
-            candidate_chunk_ids=output.candidate_chunk_ids,
-            contradicting_chunk_ids=output.contradicting_chunk_ids,
-            confidence=output.raw_support_score,
-            verification_method=output.verification_method,
-            evidence_reason=evidence_reason,
-            calibration_status="uncalibrated",
-            fallback_used=output.fallback_used,
-            value_conflicts=output.value_conflicts,
-            value_matches=output.value_matches,
-        )
-
-    def _evaluate_claim_with_llm(
-        self, claim: str, chunks: list[RetrievedChunk]
-    ) -> ClaimResult:
-        payload = self._call_llm(claim, chunks)
-        label = payload.get("label")
-        if label not in {"entailed", "unsupported", "contradicted"}:
-            raise ValueError("invalid LLM grounding label")
-        evidence_chunk_id = payload.get("evidence_chunk_id")
-        supporting_chunk_ids = [str(evidence_chunk_id)] if evidence_chunk_id else []
-        candidate_chunk_ids = [str(evidence_chunk_id)] if evidence_chunk_id else []
-        contradicting_chunk_ids = (
-            [str(evidence_chunk_id)]
-            if evidence_chunk_id and label == "contradicted"
-            else []
-        )
-        return ClaimResult(
-            claim_text=claim,
-            label=label,
-            supporting_chunk_ids=supporting_chunk_ids if label == "entailed" else [],
-            candidate_chunk_ids=candidate_chunk_ids,
-            contradicting_chunk_ids=contradicting_chunk_ids,
-            confidence=float(payload.get("confidence", 0.0)),
-            verification_method="llm_claim_verifier_v1",
-            evidence_reason=str(payload.get("rationale", "LLM verifier output")),
-            calibration_status="uncalibrated",
-            fallback_used=False,
-        )
-
-    def _call_llm(self, claim: str, chunks: list[RetrievedChunk]) -> dict[str, Any]:
-        client = self.config["llm_client"]
-        prompt = self._prompt(claim, chunks)
-        if hasattr(client, "chat"):
-            response = client.chat(prompt)
-        elif hasattr(client, "complete"):
-            response = client.complete(prompt)
-        else:
-            raise TypeError("llm_client must provide chat() or complete()")
-        parsed = self._parse_response(response)
-        if not isinstance(parsed, dict):
-            raise ValueError("LLM grounding response must be a JSON object")
-        return parsed
-
-    def _prompt(self, claim: str, chunks: list[RetrievedChunk]) -> str:
-        relevant_chunks = "\n\n".join(
-            f"[{chunk.chunk_id}] {chunk.text}" for chunk in chunks
-        )
-        return (
-            "Does the following retrieved context support, contradict, or neither "
-            "support nor contradict this claim?\n"
-            f"Context: {relevant_chunks}\n"
-            f"Claim: {claim}\n"
-            'Answer with JSON: {"label": "entailed"|"unsupported"|"contradicted", '
-            '"confidence": 0.0-1.0, "evidence_chunk_id": "chunk_id or null", '
-            '"rationale": "short reason"}'
-        )
-
-    def _parse_response(self, response: object) -> Any:
-        if isinstance(response, dict):
-            if "text" in response:
-                response = response["text"]
-            elif "content" in response:
-                response = response["content"]
-            else:
-                return response
-        if not isinstance(response, str):
-            response = str(response)
-        return json.loads(response)
-
-    def _tokens(self, text: str) -> list[str]:
-        return self._verifier._tokens(text)
-
-    def _terms(self, text: str) -> set[str]:
-        return {t for t in self._verifier._tokens(text) if t not in STOPWORDS}

@@ -47,7 +47,7 @@ def test_diagnosis_golden_suite_matches_baseline_cases() -> None:
     assert result.observed_primary_failures == {
         "CITATION_MISMATCH": 1,
         "CLEAN": 1,
-        "POST_RATIONALIZED_CITATION": 1,
+        "UNSUPPORTED_CLAIM": 1,
         "TABLE_STRUCTURE_LOSS": 1,
     }
 

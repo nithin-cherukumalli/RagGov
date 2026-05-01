@@ -4,11 +4,13 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Literal
+from typing import Any, Literal, TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from raggov.calibration import ConfidenceInterval
+
+from raggov.models.grounding import GroundingEvidenceBundle
 
 
 class FailureStage(str, Enum):
@@ -70,14 +72,14 @@ class ClaimResult(BaseModel):
     model_config = ConfigDict(frozen=False, extra="forbid")
 
     claim_text: str
-    label: Literal["entailed", "unsupported", "contradicted"]
+    label: Literal["entailed", "unsupported", "contradicted", "abstain"]
     supporting_chunk_ids: list[str] = Field(default_factory=list)
     candidate_chunk_ids: list[str] = Field(default_factory=list)
     contradicting_chunk_ids: list[str] = Field(default_factory=list)
     confidence: float | None = None
     verification_method: str | None = None
     evidence_reason: str | None = None
-    calibration_status: Literal["uncalibrated"] | None = None
+    calibration_status: Literal["uncalibrated", "calibrated"] | None = None
     fallback_used: bool = False
     value_conflicts: list[dict[str, str]] | None = None
     value_matches: list[dict[str, str]] | None = None
@@ -265,6 +267,19 @@ class AnalyzerResult(BaseModel):
     proposed_fix: str | None = None
     fix_confidence: float | None = None
     citation_probe_results: list[dict[str, Any]] | None = None
+    diagnostic_rollup: dict[str, Any] | None = None
+    """
+    RAGChecker-inspired claim-level diagnostic summary produced by
+    ClaimDiagnosticRollupBuilder.  None for analyzers that do not produce
+    claim-level evidence records.
+    """
+    grounding_evidence_bundle: GroundingEvidenceBundle | None = None
+    """
+    Structured bundle of claim evidence records and diagnostic rollups.
+    Used as the primary substrate for downstream taxonomy classification
+    and attribution.
+    """
+
 
 
 class Diagnosis(BaseModel):

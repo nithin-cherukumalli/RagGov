@@ -1,12 +1,15 @@
 {
   "case_id": "post_rationalized_citation",
   "run_fixture": "fixtures/post_rationalized_citation.json",
-  "expected_primary_failure": "POST_RATIONALIZED_CITATION",
+  "expected_primary_failure": "UNSUPPORTED_CLAIM",
   "expected_root_cause_stage": "GROUNDING",
   "expected_should_have_answered": true,
+  "expected_secondary_failures": [
+    "POST_RATIONALIZED_CITATION"
+  ],
   "expected_citation_faithfulness": "post_rationalized",
   "engine_config": {
     "suspicious_threshold": 1
   },
-  "notes": "Citations should fail faithfulness probing even when lexical overlap looks superficially plausible."
+  "notes": "Answer fabricates specific facts (90 days, $299 credit, WRAP-9901) not in retrieved chunks but provides citations. Primary failure is UNSUPPORTED_CLAIM (from grounding); citation probe flags it as post_rationalized."
 }
