@@ -9,11 +9,14 @@ from typing import Any
 
 from raggov.analyzers.attribution.a2p import A2PAttributionAnalyzer
 from raggov.analyzers.base import BaseAnalyzer
+from raggov.analyzers.citation_faithfulness import CitationFaithfulnessAnalyzerV0
 from raggov.analyzers.confidence.semantic_entropy import SemanticEntropyAnalyzer
 from raggov.analyzers.grounding.citation_faithfulness import CitationFaithfulnessProbe
 from raggov.analyzers.grounding.support import ClaimGroundingAnalyzer
 from raggov.analyzers.parsing.parser_validation import ParserValidationAnalyzer
 from raggov.analyzers.retrieval.citation import CitationMismatchAnalyzer
+from raggov.analyzers.retrieval.evidence_profile import RetrievalEvidenceProfilerV0
+from raggov.analyzers.retrieval.inconsistency import InconsistentChunksAnalyzer
 from raggov.analyzers.retrieval.scope import ScopeViolationAnalyzer
 from raggov.analyzers.retrieval.stale import StaleRetrievalAnalyzer
 from raggov.analyzers.security.anomalies import RetrievalAnomalyAnalyzer
@@ -48,6 +51,7 @@ class DiagnosisEngine:
     META_ANALYZER_NAMES = {
         "Layer6TaxonomyClassifier",
         "A2PAttributionAnalyzer",
+        "CitationFaithfulnessAnalyzerV0",
     }
     STATUS_ORDER = {
         "fail": 0,
@@ -80,6 +84,18 @@ class DiagnosisEngine:
         result_weights: dict[str, float] = {}
 
         for analyzer in self.analyzers:
+            if isinstance(
+                analyzer,
+                (
+                    ScopeViolationAnalyzer,
+                    StaleRetrievalAnalyzer,
+                    CitationMismatchAnalyzer,
+                    InconsistentChunksAnalyzer,
+                    CitationFaithfulnessAnalyzerV0,
+                ),
+            ):
+                self._ensure_retrieval_evidence_profile(run)
+
             # Pass prior results to aggregation analyzers (Layer 5)
             # These analyzers need context from all prior detection layers
             if isinstance(
@@ -119,6 +135,7 @@ class DiagnosisEngine:
             result = self._run_analyzer(analyzer, run)
             results.append(result)
             result_weights.setdefault(result.analyzer_name, analyzer.weight)
+            self._attach_result_outputs(run, result)
 
         primary_failure = self._primary_failure(results, result_weights)
         primary_result = self._primary_result(results, primary_failure, result_weights)
@@ -131,8 +148,13 @@ class DiagnosisEngine:
         )
 
         # Only allow A2P to override stage when it carries non-legacy, evidence-backed claim attribution.
-        if self._should_use_a2p_stage_override(a2p_result):
-            root_cause_stage = a2p_result.attribution_stage
+        if (
+            primary_result is not None
+            and primary_result.stage == FailureStage.PARSING
+        ):
+            root_cause_stage = FailureStage.PARSING
+        elif self._should_use_a2p_stage_override(a2p_result) and a2p_result is not None:
+            root_cause_stage = a2p_result.attribution_stage or FailureStage.UNKNOWN
         elif primary_result is not None and primary_result.stage is not None:
             root_cause_stage = primary_result.stage
         else:
@@ -193,6 +215,15 @@ class DiagnosisEngine:
             (r for r in results if r.analyzer_name == "CitationFaithfulnessProbe"),
             None,
         )
+        citation_faithfulness_v0_result = next(
+            (r for r in results if r.analyzer_name == "CitationFaithfulnessAnalyzerV0"),
+            None,
+        )
+        citation_faithfulness_report = (
+            citation_faithfulness_v0_result.citation_faithfulness_report
+            if citation_faithfulness_v0_result is not None
+            else None
+        )
         citation_faithfulness = "unchecked"
         if citation_faithfulness_result is not None:
             if citation_faithfulness_result.status == "pass":
@@ -232,6 +263,7 @@ class DiagnosisEngine:
             pipeline_health_score=pipeline_health_score,
             first_failing_node=first_failing_node,
             citation_faithfulness=citation_faithfulness,
+            citation_faithfulness_report=citation_faithfulness_report,
             failure_chain=failure_chain,
             semantic_entropy=semantic_entropy,
         )
@@ -253,14 +285,14 @@ class DiagnosisEngine:
             if attribution.evidence:
                 return True
 
-        for attribution in a2p_result.claim_attributions_v2 or []:
-            if attribution.fallback_used:
+        for attribution_v2 in a2p_result.claim_attributions_v2 or []:
+            if attribution_v2.fallback_used:
                 continue
-            if attribution.attribution_method == "legacy_failure_level_heuristic":
+            if attribution_v2.attribution_method == "legacy_failure_level_heuristic":
                 continue
-            if attribution.evidence_summary:
+            if attribution_v2.evidence_summary:
                 return True
-            if any(candidate.evidence_for for candidate in attribution.candidate_causes):
+            if any(candidate.evidence_for for candidate in attribution_v2.candidate_causes):
                 return True
 
         return False
@@ -283,16 +315,18 @@ class DiagnosisEngine:
             ParserValidationAnalyzer(self.config),
             SufficiencyAnalyzer(self.config),
             # ════════════════════════════════════════════════════════════════
+            # LAYER 3 — GROUNDING
+            # ════════════════════════════════════════════════════════════════
+            ClaimGroundingAnalyzer(self.config),
+            ClaimAwareSufficiencyAnalyzer(self.config),
+            # ════════════════════════════════════════════════════════════════
             # LAYER 2 — RETRIEVAL HEALTH
             # ════════════════════════════════════════════════════════════════
             ScopeViolationAnalyzer(self.config),
             StaleRetrievalAnalyzer(self.config),
             CitationMismatchAnalyzer(self.config),
-            # ════════════════════════════════════════════════════════════════
-            # LAYER 3 — GROUNDING (chain: grounding → faithfulness probe)
-            # ════════════════════════════════════════════════════════════════
-            ClaimGroundingAnalyzer(self.config),
-            ClaimAwareSufficiencyAnalyzer(self.config),
+            InconsistentChunksAnalyzer(self.config),
+            CitationFaithfulnessAnalyzerV0(self.config),
             CitationFaithfulnessProbe(self.config),
             # ════════════════════════════════════════════════════════════════
             # LAYER 4 — SECURITY
@@ -311,7 +345,7 @@ class DiagnosisEngine:
         # Optional analyzers (enabled via config flags)
         if self.config.get("enable_ncv", False):
             # Insert after grounding + claim-aware sufficiency + citation faithfulness, before security
-            analyzers.insert(8, NCVPipelineVerifier(self.config))
+            analyzers.insert(10, NCVPipelineVerifier(self.config))
 
         if self.config.get("enable_a2p", False):
             analyzers.append(A2PAttributionAnalyzer(self.config))
@@ -328,6 +362,23 @@ class DiagnosisEngine:
                 status="skip",
                 evidence=[str(exc)],
             )
+
+    def _ensure_retrieval_evidence_profile(self, run: RAGRun) -> None:
+        """Populate retrieval evidence once for analyzers that consume it."""
+        if run.retrieval_evidence_profile is not None:
+            return
+        run.retrieval_evidence_profile = RetrievalEvidenceProfilerV0(self.config).build(run)
+        run.metadata["retrieval_evidence_profile_used"] = True
+
+    def _attach_result_outputs(self, run: RAGRun, result: AnalyzerResult) -> None:
+        """Expose structured analyzer outputs to downstream analyzers."""
+        if result.grounding_evidence_bundle is not None:
+            run.metadata["grounding_evidence_bundle"] = result.grounding_evidence_bundle
+            run.metadata["claim_evidence_records"] = (
+                result.grounding_evidence_bundle.claim_evidence_records
+            )
+        if result.citation_faithfulness_report is not None:
+            run.citation_faithfulness_report = result.citation_faithfulness_report
 
     def _primary_failure(
         self,

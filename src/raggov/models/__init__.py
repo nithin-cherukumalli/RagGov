@@ -1,5 +1,14 @@
 """Data model package for RagGov."""
 
+from raggov.models.citation_faithfulness import (
+    CitationCalibrationStatus,
+    CitationEvidenceSource,
+    CitationFaithfulnessReport,
+    CitationFaithfulnessRisk,
+    CitationMethodType,
+    CitationSupportLabel,
+    ClaimCitationFaithfulnessRecord,
+)
 from raggov.models.retrieval_evidence import (
     CalibrationStatus as RetrievalCalibrationStatus,
     ChunkEvidenceProfile,
@@ -13,7 +22,14 @@ from raggov.models.retrieval_evidence import (
 )
 
 __all__ = [
+    "CitationCalibrationStatus",
+    "CitationEvidenceSource",
+    "CitationFaithfulnessReport",
+    "CitationFaithfulnessRisk",
+    "CitationMethodType",
+    "CitationSupportLabel",
     "ChunkEvidenceProfile",
+    "ClaimCitationFaithfulnessRecord",
     "CitationStatus",
     "EvidenceRole",
     "FreshnessStatus",

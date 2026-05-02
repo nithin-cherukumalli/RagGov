@@ -4,12 +4,13 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Literal, TYPE_CHECKING
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from raggov.calibration import ConfidenceInterval
 
+from raggov.models.citation_faithfulness import CitationFaithfulnessReport
 from raggov.models.grounding import GroundingEvidenceBundle
 
 
@@ -270,6 +271,7 @@ class AnalyzerResult(BaseModel):
     proposed_fix: str | None = None
     fix_confidence: float | None = None
     citation_probe_results: list[dict[str, Any]] | None = None
+    citation_faithfulness_report: CitationFaithfulnessReport | None = None
     diagnostic_rollup: dict[str, Any] | None = None
     """
     RAGChecker-inspired claim-level diagnostic summary produced by
@@ -312,6 +314,7 @@ class Diagnosis(BaseModel):
     pipeline_health_score: float | None = None
     first_failing_node: str | None = None
     citation_faithfulness: str | None = None
+    citation_faithfulness_report: CitationFaithfulnessReport | None = None
     failure_chain: list[str] = Field(default_factory=list)
     semantic_entropy: float | None = None
     confidence_intervals: list[ConfidenceInterval] | None = None
