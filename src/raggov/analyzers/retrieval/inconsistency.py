@@ -7,6 +7,7 @@ import re
 from raggov.analyzers.base import BaseAnalyzer
 from raggov.models.chunk import RetrievedChunk
 from raggov.models.diagnosis import AnalyzerResult, FailureStage, FailureType
+from raggov.models.retrieval_evidence import RetrievalEvidenceProfile
 from raggov.models.run import RAGRun
 
 
@@ -44,6 +45,11 @@ STOPWORDS = {
     "was",
     "with",
 }
+
+_REMEDIATION = (
+    "Review retrieved chunks for contradictory information. "
+    "Consider deduplication or reranking."
+)
 
 
 def tokens(text: str) -> list[str]:
@@ -84,11 +90,57 @@ def has_suspicious_negation_pair(left: RetrievedChunk, right: RetrievedChunk) ->
 
 
 class InconsistentChunksAnalyzer(BaseAnalyzer):
-    """Detect simple contradiction signals across retrieved chunks."""
+    """Detect simple contradiction signals across retrieved chunks.
+
+    v0 is a heuristic baseline — not calibrated, not NLI-based, not
+    research-faithful (not RAGChecker / RefChecker).  Useful for early
+    warning only.  Not recommended for production gating.
+
+    When a RetrievalEvidenceProfile is attached to the run, contradictory
+    chunk pairs are read from profile.contradictory_pairs (pre-computed by
+    the profiler).  Otherwise, the legacy negation-pair heuristic scans all
+    chunk pairs.  The analysis_source field on the returned result records
+    which path was taken.
+    """
 
     weight = 0.5
 
     def analyze(self, run: RAGRun) -> AnalyzerResult:
+        profile: RetrievalEvidenceProfile | None = run.retrieval_evidence_profile
+        if profile is not None:
+            return self._from_profile(run, profile)
+        return self._legacy(run)
+
+    # ------------------------------------------------------------------
+    # Profile path
+    # ------------------------------------------------------------------
+
+    def _from_profile(
+        self, run: RAGRun, profile: RetrievalEvidenceProfile
+    ) -> AnalyzerResult:
+        if not run.retrieved_chunks:
+            return self.skip("no retrieved chunks available")
+
+        if not profile.contradictory_pairs:
+            return self._pass(analysis_source="retrieval_evidence_profile")
+
+        evidence = [
+            f"[profile] {left} <-> {right}"
+            for left, right in profile.contradictory_pairs
+        ]
+        return self._warn(
+            FailureType.INCONSISTENT_CHUNKS,
+            FailureStage.RETRIEVAL,
+            evidence,
+            _REMEDIATION,
+            analysis_source="retrieval_evidence_profile",
+        )
+
+    # ------------------------------------------------------------------
+    # Legacy fallback (original v0 logic — preserved exactly)
+    # ------------------------------------------------------------------
+
+    def _legacy(self, run: RAGRun) -> AnalyzerResult:
         if not run.retrieved_chunks:
             return self.skip("no retrieved chunks available")
 
@@ -105,8 +157,8 @@ class InconsistentChunksAnalyzer(BaseAnalyzer):
                 FailureType.INCONSISTENT_CHUNKS,
                 FailureStage.RETRIEVAL,
                 evidence,
-                "Review retrieved chunks for contradictory information. "
-                "Consider deduplication or reranking.",
+                _REMEDIATION,
+                analysis_source="legacy_heuristic_fallback",
             )
 
-        return self._pass()
+        return self._pass(analysis_source="legacy_heuristic_fallback")

@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from raggov.models.chunk import RetrievedChunk
 from raggov.models.corpus import CorpusEntry
+from raggov.models.retrieval_evidence import RetrievalEvidenceProfile
 
 
 class RAGRun(BaseModel):
@@ -25,6 +26,7 @@ class RAGRun(BaseModel):
     answer_confidence: float | None = None
     trace: dict[str, Any] | None = None
     corpus_entries: list[CorpusEntry] = Field(default_factory=list)
+    retrieval_evidence_profile: RetrievalEvidenceProfile | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 

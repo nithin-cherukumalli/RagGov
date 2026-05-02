@@ -33,12 +33,17 @@ class BaseAnalyzer(ABC):
             evidence=[reason],
         )
 
-    def _pass(self, evidence: list[str] | None = None) -> AnalyzerResult:
+    def _pass(
+        self,
+        evidence: list[str] | None = None,
+        analysis_source: str | None = None,
+    ) -> AnalyzerResult:
         """Return a passing analyzer result."""
         return AnalyzerResult(
             analyzer_name=self.name(),
             status="pass",
             evidence=evidence or [],
+            analysis_source=analysis_source,
         )
 
     def _warn(
@@ -47,6 +52,7 @@ class BaseAnalyzer(ABC):
         stage: FailureStage,
         evidence: list[str],
         remediation: str,
+        analysis_source: str | None = None,
     ) -> AnalyzerResult:
         """Return a warning analyzer result."""
         return AnalyzerResult(
@@ -56,6 +62,7 @@ class BaseAnalyzer(ABC):
             stage=stage,
             evidence=evidence,
             remediation=remediation,
+            analysis_source=analysis_source,
         )
 
     def _fail(
@@ -64,6 +71,7 @@ class BaseAnalyzer(ABC):
         stage: FailureStage,
         evidence: list[str],
         remediation: str,
+        analysis_source: str | None = None,
     ) -> AnalyzerResult:
         """Return a failing analyzer result."""
         return AnalyzerResult(
@@ -73,4 +81,5 @@ class BaseAnalyzer(ABC):
             stage=stage,
             evidence=evidence,
             remediation=remediation,
+            analysis_source=analysis_source,
         )

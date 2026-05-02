@@ -258,6 +258,9 @@ class AnalyzerResult(BaseModel):
     score: float | None = None
     security_risk: SecurityRisk | None = None
     evidence: list[str] = Field(default_factory=list)
+    analysis_source: Literal[
+        "retrieval_evidence_profile", "legacy_heuristic_fallback"
+    ] | None = None
     claim_results: list[ClaimResult] | None = None
     claim_attributions: list[ClaimAttribution] | None = None
     claim_attributions_v2: list[ClaimAttributionV2] | None = None
