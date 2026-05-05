@@ -382,7 +382,7 @@ class TestClaimEvidenceRecordTriplets:
         )
         chunks = [RetrievedChunk(chunk_id="c1", text="some text", source_doc_id="d1", score=0.9)]
         record = builder._build_single("The subsidy is 60%.", 1, "query", chunks)
-        assert record.claim_triplets is None
+        assert record.structured_representation is None
 
     def test_triplets_populated_when_extractor_provided(self) -> None:
         from raggov.analyzers.grounding.evidence_layer import ClaimEvidenceBuilder
@@ -400,10 +400,10 @@ class TestClaimEvidenceRecordTriplets:
         record = builder._build_single(
             "G.O.Ms.No. 10 mandates a 30% subsidy for all farmers.", 1, "query", chunks
         )
-        assert record.claim_triplets is not None
-        assert isinstance(record.claim_triplets, list)
-        assert len(record.claim_triplets) >= 1
-        assert all(isinstance(t, ClaimTriplet) for t in record.claim_triplets)
+        assert record.structured_representation is not None
+        assert isinstance(record.structured_representation.triplets, list)
+        assert len(record.structured_representation.triplets) >= 1
+        assert all(isinstance(t, ClaimTriplet) for t in record.structured_representation.triplets)
 
     def test_triplet_source_claim_id_matches_record_claim_id(self) -> None:
         from raggov.analyzers.grounding.evidence_layer import ClaimEvidenceBuilder
@@ -420,7 +420,8 @@ class TestClaimEvidenceRecordTriplets:
         chunks = [RetrievedChunk(chunk_id="c1", text="x", source_doc_id="d1", score=0.9)]
         record = builder._build_single("G.O.Ms.No. 5 mandates compliance.", 3, "query", chunks)
         # claim_id is claim_003 for index=3
-        for t in (record.claim_triplets or []):
+        triplets = record.structured_representation.triplets if record.structured_representation else []
+        for t in triplets:
             assert t.source_claim_id == record.claim_id
 
 
@@ -457,8 +458,7 @@ class TestClaimGroundingAnalyzerDefaultBehavior:
 
     def test_triplets_present_when_flag_enabled(self) -> None:
         """
-        When enable_triplet_extraction=True, at least one policy-style claim
-        should yield non-None claim_triplets on its record.
+        should yield non-None structured_representation.triplets on its record.
         """
         from raggov.analyzers.grounding.evidence_layer import ClaimEvidenceBuilder
         from raggov.analyzers.grounding.verifiers import HeuristicValueOverlapVerifier
@@ -478,5 +478,6 @@ class TestClaimGroundingAnalyzerDefaultBehavior:
         record = builder._build_single(
             "G.O.Ms.No. 7 mandates a 50% subsidy for beneficiaries.", 1, "q", chunks
         )
-        assert record.claim_triplets is not None
-        assert len(record.claim_triplets) >= 1
+        assert record.structured_representation is not None
+        assert record.structured_representation.triplets is not None
+        assert len(record.structured_representation.triplets) >= 1

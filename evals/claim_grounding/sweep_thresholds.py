@@ -51,6 +51,7 @@ from evals.claim_grounding.calibration import (  # noqa: E402
 )
 from raggov.analyzers.grounding.candidate_selection import EvidenceCandidateSelector  # noqa: E402
 from raggov.analyzers.grounding.verifiers import HeuristicValueOverlapVerifier  # noqa: E402
+from raggov.analyzers.grounding.evidence_layer import ClaimEvidenceBuilder  # noqa: E402
 
 _DEFAULT_DATASET = _EVAL_DIR / "seed_cases.jsonl"
 
@@ -176,8 +177,9 @@ def run_sweep(
 
         verifier = HeuristicValueOverlapVerifier(config)
         selector = EvidenceCandidateSelector(config)
+        builder = ClaimEvidenceBuilder(verifier, selector)
 
-        predictions = [predict(case, verifier, selector) for case in cases]
+        predictions = [predict(case, builder) for case in cases]
         metrics = compute_metrics(cases, predictions)
 
         mf1 = _macro_f1(metrics)

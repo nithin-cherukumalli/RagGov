@@ -12,6 +12,8 @@ from raggov.calibration import ConfidenceInterval
 
 from raggov.models.citation_faithfulness import CitationFaithfulnessReport
 from raggov.models.grounding import GroundingEvidenceBundle
+from raggov.models.retrieval_diagnosis import RetrievalDiagnosisReport
+from raggov.models.version_validity import VersionValidityReport
 
 
 class FailureStage(str, Enum):
@@ -55,6 +57,7 @@ class FailureType(str, Enum):
     RETRIEVAL_DEPTH_LIMIT = "RETRIEVAL_DEPTH_LIMIT"
     RERANKER_FAILURE = "RERANKER_FAILURE"
     GENERATION_IGNORE = "GENERATION_IGNORE"
+    INCOMPLETE_DIAGNOSIS = "INCOMPLETE_DIAGNOSIS"
     CLEAN = "CLEAN"
 
 
@@ -272,6 +275,8 @@ class AnalyzerResult(BaseModel):
     fix_confidence: float | None = None
     citation_probe_results: list[dict[str, Any]] | None = None
     citation_faithfulness_report: CitationFaithfulnessReport | None = None
+    version_validity_report: VersionValidityReport | None = None
+    retrieval_diagnosis_report: RetrievalDiagnosisReport | None = None
     diagnostic_rollup: dict[str, Any] | None = None
     """
     RAGChecker-inspired claim-level diagnostic summary produced by
@@ -293,6 +298,13 @@ class Diagnosis(BaseModel):
     model_config = ConfigDict(frozen=False, extra="forbid")
 
     run_id: str
+    diagnosis_mode: str = "external-enhanced"
+    external_signals_used: list[str] = Field(default_factory=list)
+    missing_external_providers: list[str] = Field(default_factory=list)
+    fallback_heuristics_used: list[str] = Field(default_factory=list)
+    degraded: bool = False
+    degraded_external_mode: bool = False  # Alias to degraded for clarity
+    external_adapter_errors: list[str] = Field(default_factory=list)
     primary_failure: FailureType
     secondary_failures: list[FailureType] = Field(default_factory=list)
     root_cause_stage: FailureStage
@@ -313,8 +325,15 @@ class Diagnosis(BaseModel):
     ncv_report: dict[str, Any] | None = None
     pipeline_health_score: float | None = None
     first_failing_node: str | None = None
+    first_uncertain_node: str | None = None
+    ncv_bottleneck_description: str | None = None
+    ncv_downstream_failure_chain: list[str] = Field(default_factory=list)
+    ncv_missing_reports: list[str] = Field(default_factory=list)
+    ncv_fallback_heuristics_used: list[str] = Field(default_factory=list)
     citation_faithfulness: str | None = None
     citation_faithfulness_report: CitationFaithfulnessReport | None = None
+    version_validity_report: VersionValidityReport | None = None
+    retrieval_diagnosis_report: RetrievalDiagnosisReport | None = None
     failure_chain: list[str] = Field(default_factory=list)
     semantic_entropy: float | None = None
     confidence_intervals: list[ConfidenceInterval] | None = None
@@ -338,6 +357,20 @@ class Diagnosis(BaseModel):
             f"Stage: {self.root_cause_stage.value}"
         )
         lines.append(line1)
+        
+        # Incomplete diagnosis details
+        if self.primary_failure == FailureType.INCOMPLETE_DIAGNOSIS:
+            # Look for critical analyzer or provider names in evidence
+            critical_names = {
+                "ClaimGroundingAnalyzer", 
+                "RetrievalDiagnosisAnalyzerV0", 
+                "NCVPipelineVerifier",
+                "CitationFaithfulnessAnalyzerV0",
+                "ParserValidationAnalyzer"
+            }
+            missing = [e for e in self.evidence if e in critical_names or e.startswith("External Provider:")]
+            if missing:
+                lines.append(f"Missing Critical: {', '.join(missing)}")
 
         # Line 2: Should answer, risk, confidence
         line2 = (
@@ -355,7 +388,16 @@ class Diagnosis(BaseModel):
                 else "N/A"
             )
             first_failure = self.first_failing_node if self.first_failing_node is not None else "None"
-            lines.append(f"Pipeline health: {health_text} | First failure: {first_failure}")
+            line3 = f"Pipeline health: {health_text} | First failure: {first_failure}"
+            if self.first_uncertain_node:
+                line3 += f" | First uncertain: {self.first_uncertain_node}"
+            lines.append(line3)
+            
+            if self.ncv_bottleneck_description:
+                lines.append(f"Bottleneck: {self.ncv_bottleneck_description}")
+            
+            if self.ncv_missing_reports:
+                lines.append(f"Missing evidence: {', '.join(self.ncv_missing_reports)}")
 
         # Line 4: Failure chain (if present)
         if self.failure_chain:

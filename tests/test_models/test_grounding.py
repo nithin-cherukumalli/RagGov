@@ -7,7 +7,8 @@ from raggov.models.grounding import (
     ClaimEvidenceRecord,
     ClaimVerificationLabel,
     CalibrationStatus,
-    StructuredClaimRepresentation
+    StructuredClaimRepresentation,
+    normalize_claim_verification_label,
 )
 
 
@@ -15,6 +16,22 @@ def test_claim_verification_label_enum():
     assert ClaimVerificationLabel.ENTAILED == "entailed"
     assert ClaimVerificationLabel.CONTRADICTED == "contradicted"
     assert ClaimVerificationLabel.INSUFFICIENT == "insufficient"
+
+
+def test_unsupported_label_is_normalized():
+    assert normalize_claim_verification_label("unsupported") == ClaimVerificationLabel.INSUFFICIENT
+    assert normalize_claim_verification_label("insufficient") == ClaimVerificationLabel.INSUFFICIENT
+    assert normalize_claim_verification_label("contradiction") == ClaimVerificationLabel.CONTRADICTED
+    assert normalize_claim_verification_label("support") == ClaimVerificationLabel.ENTAILED
+    assert normalize_claim_verification_label("unclear") == ClaimVerificationLabel.NEUTRAL
+
+    record = ClaimEvidenceRecord(
+        claim_id="c-unsupported",
+        claim_text="Unsupported claim.",
+        verification_label="unsupported",
+    )
+
+    assert record.verification_label == ClaimVerificationLabel.INSUFFICIENT
 
 
 def test_calibration_status_enum():

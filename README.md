@@ -185,8 +185,13 @@ print(diagnosis.should_have_answered)
 ### CLI
 
 ```bash
-raggov diagnose run.json
+raggov diagnose run.json --mode external-enhanced
 ```
+
+GovRAG supports the following diagnosis modes:
+- `external-enhanced` (default): Attempts to use advanced external signals (like structured LLM claim verification and A2P) but degrades gracefully to native heuristics if dependencies are missing, clearly tracking what was unavailable.
+- `native`: Uses only native heuristics. Faster and operates entirely offline with no external dependencies.
+- `calibrated`: (Reserved for future ARES PPI-corrected outputs)
 
 GovRAG will:
 

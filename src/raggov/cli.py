@@ -41,15 +41,27 @@ console = Console()
 
 
 @app.command()
-def diagnose(run_file: Path) -> None:
+def diagnose(
+    run_file: Path,
+    mode: str = typer.Option("external-enhanced", "--mode", help="Diagnosis mode: external-enhanced, native, or calibrated"),
+) -> None:
     """Diagnose a RAGRun JSON file."""
+    if mode == "calibrated":
+        console.print("[red]Not Implemented[/red]: Calibrated mode is not yet available natively.")
+        raise typer.Exit(code=1)
+
     try:
         run = _load_run(run_file)
     except (OSError, json.JSONDecodeError, ValidationError) as exc:
         _print_validation_error(exc)
         raise typer.Exit(code=1) from exc
 
-    diagnosis = DiagnosisEngine().diagnose(run)
+    engine_config = {"mode": mode}
+    diagnosis = DiagnosisEngine(config=engine_config).diagnose(run)
+    
+    if diagnosis.degraded_external_mode:
+        console.print(f"[yellow]Warning: Running in degraded external mode. Missing providers: {', '.join(diagnosis.missing_external_providers)}[/yellow]")
+
     console.print(_diagnosis_panel(diagnosis))
 
     output_path = Path.cwd() / f"{run.run_id}_diagnosis.json"
@@ -352,6 +364,11 @@ def _diagnosis_panel(diagnosis: Diagnosis) -> Panel:
 
     table.add_row("Run ID", diagnosis.run_id)
     table.add_row("Timestamp", diagnosis.created_at.isoformat())
+    table.add_row("Mode", diagnosis.diagnosis_mode)
+    if diagnosis.external_signals_used:
+        table.add_row("External Signals", ", ".join(diagnosis.external_signals_used))
+    if diagnosis.external_adapter_errors:
+        table.add_row("Adapter Errors", ", ".join(diagnosis.external_adapter_errors), style="red")
     table.add_row("Primary failure", _failure_text(diagnosis.primary_failure))
     table.add_row(
         "Should have answered",

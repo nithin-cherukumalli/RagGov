@@ -51,7 +51,10 @@ def run_diagnosis_suite(case_ids: list[str]) -> DiagnosisGoldenSuiteResult:
 
     for case_id in case_ids:
         case = load_diagnosis_golden_case(case_id)
-        diagnosis = diagnose_file(_resolve_run_fixture(case.run_fixture), config=case.engine_config)
+        config = case.engine_config or {}
+        if "mode" not in config:
+            config["mode"] = "native"
+        diagnosis = diagnose_file(_resolve_run_fixture(case.run_fixture), config=config)
         evaluation = evaluate_diagnosis_case(case, diagnosis)
 
         primary_failures[diagnosis.primary_failure.value] += 1

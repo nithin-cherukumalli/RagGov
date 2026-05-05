@@ -256,11 +256,15 @@ class ClaimDiagnosticRollupBuilder:
 
         # ---- Label counts --------------------------------------------------
         entailed = [r for r in records if r.verification_label == "entailed"]
-        unsupported = [r for r in records if r.verification_label == "unsupported"]
+        unsupported = [
+            r
+            for r in records
+            if r.verification_label in {"unsupported", "insufficient"}
+        ]
         contradicted = [r for r in records if r.verification_label == "contradicted"]
         abstained = [
             r for r in records
-            if r.verification_label not in {"entailed", "unsupported", "contradicted"}
+            if r.verification_label not in {"entailed", "unsupported", "insufficient", "contradicted"}
         ]
 
         # ---- Failure mode classification ------------------------------------

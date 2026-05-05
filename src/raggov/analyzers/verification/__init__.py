@@ -1,5 +1,8 @@
 """Verification analyzers."""
 
-from raggov.analyzers.verification.ncv import NCVNode, NCVPipelineVerifier, NCVReport, NodeResult
+from raggov.analyzers.verification.ncv import NCVPipelineVerifier
+from raggov.models.ncv import NCVNode, NCVNodeResult, NCVReport
 
-__all__ = ["NCVNode", "NodeResult", "NCVReport", "NCVPipelineVerifier"]
+NodeResult = NCVNodeResult
+
+__all__ = ["NCVNode", "NCVNodeResult", "NodeResult", "NCVReport", "NCVPipelineVerifier"]

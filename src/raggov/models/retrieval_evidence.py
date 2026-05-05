@@ -15,7 +15,7 @@ IMPORTANT:
 from __future__ import annotations
 
 from enum import Enum
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -32,6 +32,7 @@ class RelevanceMethod(str, Enum):
     """Method used to determine query relevance for a chunk."""
     LEXICAL_OVERLAP = "lexical_overlap"
     EMBEDDING_SIMILARITY = "embedding_similarity"
+    CROSS_ENCODER = "cross_encoder"
     LLM_JUDGE = "llm_judge"
     NLI = "nli"
     UNAVAILABLE = "unavailable"
@@ -74,6 +75,7 @@ class RetrievalMethodType(str, Enum):
 class CalibrationStatus(str, Enum):
     """Calibration state of the retrieval evidence profile."""
     UNCALIBRATED = "uncalibrated"
+    UNCALIBRATED_LOCALLY = "uncalibrated_locally"
     MOCK_CALIBRATED = "mock_calibrated"
     CALIBRATED = "calibrated"
 
@@ -94,6 +96,8 @@ class ChunkEvidenceProfile(BaseModel):
     source_doc_id: Optional[str] = None
     query_relevance_label: QueryRelevanceLabel = QueryRelevanceLabel.UNKNOWN
     query_relevance_score: Optional[float] = None
+    native_relevance_label: QueryRelevanceLabel = QueryRelevanceLabel.UNKNOWN
+    native_relevance_score: Optional[float] = None
     relevance_method: RelevanceMethod = RelevanceMethod.UNAVAILABLE
     supported_claim_ids: List[str] = Field(default_factory=list)
     contradicted_claim_ids: List[str] = Field(default_factory=list)
@@ -101,6 +105,8 @@ class ChunkEvidenceProfile(BaseModel):
     citation_status: CitationStatus = CitationStatus.UNKNOWN
     freshness_status: FreshnessStatus = FreshnessStatus.UNKNOWN
     evidence_role: EvidenceRole = EvidenceRole.UNKNOWN
+    external_provider: Optional[str] = None
+    external_metric_name: Optional[str] = None
     warnings: List[str] = Field(default_factory=list)
 
 
@@ -127,6 +133,7 @@ class RetrievalEvidenceProfile(BaseModel):
     contradictory_pairs: List[Tuple[str, str]] = Field(default_factory=list)
     phantom_citation_doc_ids: List[str] = Field(default_factory=list)
     stale_doc_ids: List[str] = Field(default_factory=list)
+    external_signals: List[dict[str, Any]] = Field(default_factory=list)
     method_type: RetrievalMethodType = RetrievalMethodType.HEURISTIC_BASELINE
     calibration_status: CalibrationStatus = CalibrationStatus.UNCALIBRATED
     recommended_for_gating: bool = False

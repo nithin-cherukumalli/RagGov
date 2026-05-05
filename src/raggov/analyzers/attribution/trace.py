@@ -5,6 +5,7 @@ Aggregates structured diagnostic evidence from all prior analyzers.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -66,6 +67,25 @@ class AttributionTrace:
 
     # Failure context
     failure_types_present: set[FailureType] = field(default_factory=set)
+
+    # Diagnosis mode metadata
+    diagnosis_mode: str | None = None
+    external_signals_used: list[str] = field(default_factory=list)
+
+    # Retrieval diagnosis report signals
+    has_retrieval_diagnosis_report: bool = False
+    retrieval_primary_failure_type: str | None = None
+
+    # NCV report signals
+    has_ncv_report: bool = False
+    ncv_first_failing_node: str | None = None
+    ncv_downstream_failure_chain: list[str] = field(default_factory=list)
+    ncv_bottleneck_description: str | None = None
+
+    # External verifier providers (for evidence labelling)
+    claim_verifier_provider: str | None = None
+    citation_verifier_provider: str | None = None
+    retrieval_signal_provider: str | None = None
 
     # Trace notes (for missing/unavailable data)
     trace_notes: list[str] = field(default_factory=list)
@@ -149,6 +169,91 @@ def extract_attribution_trace(run: RAGRun, prior_results: list[AnalyzerResult]) 
         r.failure_type for r in prior_results if r.status in {"fail", "warn"} and r.failure_type is not None
     }
 
+    # Extract diagnosis mode metadata
+    diagnosis_mode: str | None = None
+    external_signals_used: list[str] = []
+    for r in prior_results:
+        if hasattr(r, "diagnosis_mode") and r.diagnosis_mode:
+            diagnosis_mode = r.diagnosis_mode
+            break
+
+    # Extract retrieval diagnosis report signals
+    has_retrieval_diagnosis_report = False
+    retrieval_primary_failure_type: str | None = None
+    retrieval_diag = _retrieval_diagnosis_from_prior(run, prior_results)
+    if retrieval_diag is not None:
+        has_retrieval_diagnosis_report = True
+        retrieval_primary_failure_type = getattr(
+            getattr(retrieval_diag, "primary_failure_type", None), "value", None
+        ) or str(getattr(retrieval_diag, "primary_failure_type", ""))
+        if retrieval_primary_failure_type:
+            external_signals_used.append(f"retrieval_diagnosis:{retrieval_primary_failure_type}")
+    else:
+        trace_notes.append("no_retrieval_diagnosis_report_available")
+
+    # Extract NCV report signals
+    has_ncv_report = False
+    ncv_first_failing_node: str | None = None
+    ncv_downstream_failure_chain: list[str] = []
+    ncv_bottleneck_description: str | None = None
+    ncv_result = _analyzer_result_by_name(prior_results, "NCVPipelineVerifier")
+    if ncv_result is not None and ncv_result.evidence:
+        try:
+            ncv_report_data = json.loads(ncv_result.evidence[0])
+            has_ncv_report = True
+            ncv_first_failing_node = ncv_report_data.get("first_failing_node")
+            raw_chain = ncv_report_data.get("downstream_failure_chain", [])
+            ncv_downstream_failure_chain = [
+                (n.get("value", n) if isinstance(n, dict) else str(n)) for n in raw_chain
+            ]
+            ncv_bottleneck_description = ncv_report_data.get("bottleneck_description")
+            if ncv_first_failing_node:
+                external_signals_used.append(f"ncv_first_failing:{ncv_first_failing_node}")
+        except (json.JSONDecodeError, AttributeError, TypeError):
+            trace_notes.append("ncv_report_parse_failed")
+    else:
+        trace_notes.append("no_ncv_report_available")
+
+    # Extract claim verifier provider from grounding bundle or claim results
+    claim_verifier_provider: str | None = None
+    grounding_result = _analyzer_result_by_name(prior_results, "ClaimGroundingAnalyzer")
+    if grounding_result is not None:
+        bundle = grounding_result.grounding_evidence_bundle
+        if bundle is not None:
+            for rec in getattr(bundle, "claim_evidence_records", []):
+                method = getattr(rec, "verifier_method", None)
+                if method and method not in {"unknown", "heuristic"}:
+                    claim_verifier_provider = method
+                    external_signals_used.append(f"claim_verifier:{method}")
+                    break
+        if claim_verifier_provider is None:
+            for cr in claim_results:
+                method = getattr(cr, "verification_method", None)
+                if method and method not in {"unknown", "heuristic", None}:
+                    claim_verifier_provider = method
+                    break
+
+    # Extract citation verifier provider from CitationFaithfulnessReport
+    citation_verifier_provider: str | None = None
+    cit_faith_report = _citation_faithfulness_report_from_prior(run, prior_results)
+    if cit_faith_report is not None:
+        for rec in getattr(cit_faith_report, "records", []):
+            provider = getattr(rec, "external_signal_provider", None)
+            if provider:
+                citation_verifier_provider = provider
+                external_signals_used.append(f"citation_verifier:{provider}")
+                break
+
+    # Extract retrieval signal provider from run metadata
+    retrieval_signal_provider: str | None = None
+    run_meta = getattr(run, "metadata", None) or {}
+    for ext_result in run_meta.get("external_evaluation_results", []):
+        provider = getattr(ext_result, "provider", None)
+        if provider:
+            retrieval_signal_provider = str(provider)
+            external_signals_used.append(f"retrieval_signal:{retrieval_signal_provider}")
+            break
+
     return AttributionTrace(
         claim_results=claim_results,
         sufficiency_result=sufficiency_result,
@@ -170,6 +275,17 @@ def extract_attribution_trace(run: RAGRun, prior_results: list[AnalyzerResult]) 
         security_failure_types=security_failure_types,
         security_evidence=security_evidence,
         failure_types_present=failure_types_present,
+        diagnosis_mode=diagnosis_mode,
+        external_signals_used=external_signals_used,
+        has_retrieval_diagnosis_report=has_retrieval_diagnosis_report,
+        retrieval_primary_failure_type=retrieval_primary_failure_type,
+        has_ncv_report=has_ncv_report,
+        ncv_first_failing_node=ncv_first_failing_node,
+        ncv_downstream_failure_chain=ncv_downstream_failure_chain,
+        ncv_bottleneck_description=ncv_bottleneck_description,
+        claim_verifier_provider=claim_verifier_provider,
+        citation_verifier_provider=citation_verifier_provider,
+        retrieval_signal_provider=retrieval_signal_provider,
         trace_notes=trace_notes,
     )
 
@@ -203,4 +319,24 @@ def _analyzer_result_by_name(
     for result in prior_results:
         if result.analyzer_name == analyzer_name:
             return result
+    return None
+
+
+def _retrieval_diagnosis_from_prior(run: RAGRun, prior_results: list[AnalyzerResult]) -> Any:
+    """Extract RetrievalDiagnosisReport from run or prior results."""
+    if getattr(run, "retrieval_diagnosis_report", None) is not None:
+        return run.retrieval_diagnosis_report
+    for result in prior_results:
+        if getattr(result, "retrieval_diagnosis_report", None) is not None:
+            return result.retrieval_diagnosis_report
+    return None
+
+
+def _citation_faithfulness_report_from_prior(run: RAGRun, prior_results: list[AnalyzerResult]) -> Any:
+    """Extract CitationFaithfulnessReport from run or prior results."""
+    if getattr(run, "citation_faithfulness_report", None) is not None:
+        return run.citation_faithfulness_report
+    for result in prior_results:
+        if getattr(result, "citation_faithfulness_report", None) is not None:
+            return result.citation_faithfulness_report
     return None

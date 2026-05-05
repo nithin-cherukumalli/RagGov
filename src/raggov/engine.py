@@ -17,6 +17,7 @@ from raggov.analyzers.parsing.parser_validation import ParserValidationAnalyzer
 from raggov.analyzers.retrieval.citation import CitationMismatchAnalyzer
 from raggov.analyzers.retrieval.evidence_profile import RetrievalEvidenceProfilerV0
 from raggov.analyzers.retrieval.inconsistency import InconsistentChunksAnalyzer
+from raggov.analyzers.retrieval_diagnosis import RetrievalDiagnosisAnalyzerV0
 from raggov.analyzers.retrieval.scope import ScopeViolationAnalyzer
 from raggov.analyzers.retrieval.stale import StaleRetrievalAnalyzer
 from raggov.analyzers.security.anomalies import RetrievalAnomalyAnalyzer
@@ -27,6 +28,10 @@ from raggov.analyzers.sufficiency.claim_aware import ClaimAwareSufficiencyAnalyz
 from raggov.analyzers.sufficiency.sufficiency import SufficiencyAnalyzer
 from raggov.analyzers.taxonomy_classifier.layer6 import Layer6TaxonomyClassifier
 from raggov.analyzers.verification.ncv import NCVPipelineVerifier
+from raggov.analyzers.version_validity import (
+    TemporalSourceValidityAnalyzerV1,
+    VersionValidityAnalyzerV1,
+)
 from raggov.models.diagnosis import (
     AnalyzerResult,
     Diagnosis,
@@ -40,6 +45,8 @@ from raggov.taxonomy import (
     FAILURE_PRIORITY,
     should_have_answered,
 )
+from raggov.evaluators.base import ExternalEvaluationResult
+from raggov.evaluators.registry import create_standard_registry
 
 
 logger = logging.getLogger(__name__)
@@ -52,6 +59,9 @@ class DiagnosisEngine:
         "Layer6TaxonomyClassifier",
         "A2PAttributionAnalyzer",
         "CitationFaithfulnessAnalyzerV0",
+        "TemporalSourceValidityAnalyzerV1",
+        "VersionValidityAnalyzerV1",
+        "RetrievalDiagnosisAnalyzerV0",
     }
     STATUS_ORDER = {
         "fail": 0,
@@ -59,6 +69,14 @@ class DiagnosisEngine:
         "pass": 2,
         "skip": 3,
     }
+    CRITICAL_ANALYZER_TYPES = (
+        ClaimGroundingAnalyzer,
+        CitationFaithfulnessAnalyzerV0,
+        CitationFaithfulnessProbe,
+        RetrievalDiagnosisAnalyzerV0,
+        NCVPipelineVerifier,
+        A2PAttributionAnalyzer,
+    )
 
     def __init__(
         self,
@@ -66,22 +84,154 @@ class DiagnosisEngine:
         analyzers: Sequence[BaseAnalyzer] | None = None,
     ) -> None:
         self.config = config or {}
+        
+        mode = self.config.get("mode", "external-enhanced")
+        self.config["mode"] = mode
+        
+        if mode == "calibrated":
+            raise NotImplementedError("Calibrated mode is not yet available natively.")
+            
+        enabled_providers = self.config.get("enabled_external_providers", [])
+        if mode == "external-enhanced" and "enabled_external_providers" not in self.config:
+            enabled_providers = [
+                "structured_llm_claim", "structured_llm_citation",
+                "cross_encoder_relevance", "ragas", "deepeval",
+                "refchecker_claim", "refchecker_citation", "ragchecker",
+                "a2p",
+            ]
+            self.config["enabled_external_providers"] = enabled_providers
+            
+        has_llm = bool(self.config.get("llm_client")) or bool(self.config.get("llm_fn"))
+        
+        if mode == "native":
+            self.config["claim_verifier"] = "heuristic"
+            self.config["citation_verifier"] = "native"
+            self.config["retrieval_relevance_provider"] = "native"
+            self.config["enable_a2p"] = False
+            self.config["enabled_external_providers"] = []
+        else:
+            if "structured_llm_claim" in enabled_providers:
+                self.config.setdefault("claim_verifier", "structured_llm")
+            if "structured_llm_citation" in enabled_providers:
+                self.config.setdefault("citation_verifier", "structured_llm")
+            if "refchecker_claim" in enabled_providers:
+                self.config.setdefault("claim_verifier", self.config.get("claim_verifier", "refchecker"))
+            if "refchecker_citation" in enabled_providers:
+                self.config.setdefault("citation_verifier", self.config.get("citation_verifier", "refchecker"))
+            if "cross_encoder_relevance" in enabled_providers:
+                self.config.setdefault("retrieval_relevance_provider", "cross_encoder")
+            if "a2p" in enabled_providers:
+                self.config.setdefault("enable_a2p", True)
+                
+        self.external_registry = create_standard_registry(self.config)
         self.analyzers = list(analyzers) if analyzers is not None else self._default_analyzers()
 
     def diagnose(self, run: RAGRun) -> Diagnosis:
-        """Run the research-backed 5-layer analyzer suite and return merged diagnosis.
-
-        Architecture:
-        - Layer 1 (Intake Gate): Structural validation
-        - Layer 2 (Retrieval Health): Retrieval correctness
-        - Layer 3 (Grounding): Answer support verification
-        - Layer 4 (Security): System compromise detection
-        - Layer 5 (Attribution): Root cause + confidence
-
-        Each layer's results feed into subsequent layers for progressive refinement.
-        """
+        """Run the research-backed 5-layer analyzer suite and return merged diagnosis."""
         results: list[AnalyzerResult] = []
         result_weights: dict[str, float] = {}
+
+        mode = self.config.get("mode", "external-enhanced")
+        enabled_providers = self.config.get("enabled_external_providers", [])
+        has_llm = bool(self.config.get("llm_client")) or bool(self.config.get("llm_fn"))
+        
+        missing_external_providers = []
+        external_signals_used = []
+        external_adapter_errors = []
+        fallback_heuristics_used = []
+        degraded_external_mode = False
+
+        if mode == "external-enhanced":
+            eval_providers_to_run = [p for p in enabled_providers if p not in ("structured_llm_claim", "structured_llm_citation")]
+            if self.config.get("retrieval_relevance_provider") == "native" and "cross_encoder_relevance" in eval_providers_to_run:
+                eval_providers_to_run.remove("cross_encoder_relevance")
+            eval_results = self.external_registry.evaluate_enabled(
+                run,
+                eval_providers_to_run,
+                strict_mode=self.config.get("strict_external_evaluators", False),
+            )
+            
+            if self.config.get("claim_verifier") == "structured_llm" and not has_llm:
+                if "structured_llm_claim" not in missing_external_providers:
+                    missing_external_providers.append("structured_llm_claim")
+                degraded_external_mode = True
+
+            if self.config.get("citation_verifier") == "structured_llm" and not has_llm:
+                if "structured_llm_citation" not in missing_external_providers:
+                    missing_external_providers.append("structured_llm_citation")
+                degraded_external_mode = True
+
+            run.metadata["external_evaluation_results"] = [r.model_dump() for r in eval_results]
+            
+            for r in eval_results:
+                name = r.adapter_name or str(r.provider.value)
+                if r.succeeded:
+                    external_signals_used.append(name)
+                elif r.missing_dependency:
+                    missing_external_providers.append(name)
+                    degraded_external_mode = True
+                else:
+                    # In non-strict mode, some errors might be considered missing providers 
+                    # if they are due to environmental reasons.
+                    if "not installed" in (r.error or "").lower():
+                        missing_external_providers.append(name)
+                        degraded_external_mode = True
+                    else:
+                        external_adapter_errors.append(f"{name}: {r.error}")
+
+        # Maintain legacy a2p check
+        if "a2p" in enabled_providers and mode != "native":
+            if not has_llm:
+                if "a2p" not in missing_external_providers:
+                    missing_external_providers.append("a2p")
+                if "legacy_failure_level_heuristic" not in fallback_heuristics_used:
+                    fallback_heuristics_used.append("legacy_failure_level_heuristic")
+                degraded_external_mode = True
+            else:
+                if "a2p" not in external_signals_used:
+                    external_signals_used.append("a2p")
+
+        # Map external signals/missing providers to fallbacks for backward compatibility
+        if "structured_llm_claim" in missing_external_providers:
+            if "heuristic_claim_verifier" not in fallback_heuristics_used:
+                fallback_heuristics_used.append("heuristic_claim_verifier")
+
+        if "cross_encoder_relevance" in missing_external_providers:
+            if "lexical_overlap_relevance" not in fallback_heuristics_used:
+                fallback_heuristics_used.append("lexical_overlap_relevance")
+
+        if "ragas" in missing_external_providers:
+            if "native_retrieval_signals_only" not in fallback_heuristics_used:
+                fallback_heuristics_used.append("native_retrieval_signals_only")
+
+        if "deepeval" in missing_external_providers:
+            if "native_retrieval_signals_only" not in fallback_heuristics_used:
+                fallback_heuristics_used.append("native_retrieval_signals_only")
+
+        if "ragchecker" in missing_external_providers:
+            if "native_retrieval_signals_only" not in fallback_heuristics_used:
+                fallback_heuristics_used.append("native_retrieval_signals_only")
+
+        if "refchecker_claim" in missing_external_providers:
+            if "heuristic_claim_verifier" not in fallback_heuristics_used:
+                fallback_heuristics_used.append("heuristic_claim_verifier")
+
+        if "refchecker_citation" in missing_external_providers:
+            if "native_citation_verifier" not in fallback_heuristics_used:
+                fallback_heuristics_used.append("native_citation_verifier")
+
+        if mode == "external-enhanced" and self.config.get("strict_external_evaluators"):
+            if missing_external_providers or external_adapter_errors:
+                raise RuntimeError(
+                    f"Strict mode enabled but external providers missing or failed: "
+                    f"missing={missing_external_providers}, errors={external_adapter_errors}"
+                )
+
+        run.metadata["external_signals_used"] = external_signals_used
+        run.metadata["missing_external_providers"] = missing_external_providers
+        run.metadata["external_adapter_errors"] = external_adapter_errors
+        run.metadata["degraded_external_mode"] = degraded_external_mode
+        run.metadata["fallback_heuristics_used"] = fallback_heuristics_used
 
         for analyzer in self.analyzers:
             if isinstance(
@@ -92,6 +242,8 @@ class DiagnosisEngine:
                     CitationMismatchAnalyzer,
                     InconsistentChunksAnalyzer,
                     CitationFaithfulnessAnalyzerV0,
+                    TemporalSourceValidityAnalyzerV1,
+                    VersionValidityAnalyzerV1,
                 ),
             ):
                 self._ensure_retrieval_evidence_profile(run)
@@ -105,6 +257,7 @@ class DiagnosisEngine:
                     Layer6TaxonomyClassifier,
                     SemanticEntropyAnalyzer,
                     ClaimAwareSufficiencyAnalyzer,
+                    RetrievalDiagnosisAnalyzerV0,
                 ),
             ):
                 config_update: dict[str, Any] = {
@@ -137,7 +290,7 @@ class DiagnosisEngine:
             result_weights.setdefault(result.analyzer_name, analyzer.weight)
             self._attach_result_outputs(run, result)
 
-        primary_failure = self._primary_failure(results, result_weights)
+        primary_failure, missing_critical = self._primary_failure(results, result_weights, run)
         primary_result = self._primary_result(results, primary_failure, result_weights)
         secondary_failures = self._secondary_failures(results, primary_failure, result_weights)
 
@@ -194,11 +347,22 @@ class DiagnosisEngine:
         ncv_report = None
         pipeline_health_score = None
         first_failing_node = None
+        first_uncertain_node = None
+        ncv_bottleneck_description = None
+        ncv_downstream_failure_chain = []
+        ncv_missing_reports = []
+        ncv_fallback_heuristics_used = []
+
         if ncv_result is not None and ncv_result.evidence:
             try:
                 ncv_report = json.loads(ncv_result.evidence[0])
                 pipeline_health_score = ncv_report.get("pipeline_health_score")
                 first_failing_node = ncv_report.get("first_failing_node")
+                first_uncertain_node = ncv_report.get("first_uncertain_node")
+                ncv_bottleneck_description = ncv_report.get("bottleneck_description")
+                ncv_downstream_failure_chain = ncv_report.get("downstream_failure_chain", [])
+                ncv_missing_reports = ncv_report.get("missing_reports", [])
+                ncv_fallback_heuristics_used = ncv_report.get("fallback_heuristics_used", [])
             except (json.JSONDecodeError, IndexError):
                 logger.warning("Failed to parse NCV report from evidence")
 
@@ -233,6 +397,30 @@ class DiagnosisEngine:
             elif citation_faithfulness_result.status == "warn":
                 citation_faithfulness = "partial"
 
+        version_validity_result = next(
+            (
+                r
+                for r in results
+                if r.analyzer_name
+                in {"TemporalSourceValidityAnalyzerV1", "VersionValidityAnalyzerV1"}
+            ),
+            None,
+        )
+        version_validity_report = (
+            version_validity_result.version_validity_report
+            if version_validity_result is not None
+            else None
+        )
+        retrieval_diagnosis_result = next(
+            (r for r in results if r.analyzer_name == "RetrievalDiagnosisAnalyzerV0"),
+            None,
+        )
+        retrieval_diagnosis_report = (
+            retrieval_diagnosis_result.retrieval_diagnosis_report
+            if retrieval_diagnosis_result is not None
+            else None
+        )
+
         grounding_result = next(
             (r for r in results if r.analyzer_name == "ClaimGroundingAnalyzer"),
             None,
@@ -241,6 +429,13 @@ class DiagnosisEngine:
 
         diagnosis = Diagnosis(
             run_id=run.run_id,
+            diagnosis_mode=mode,
+            external_signals_used=external_signals_used,
+            missing_external_providers=missing_external_providers,
+            fallback_heuristics_used=fallback_heuristics_used,
+            degraded=degraded_external_mode,
+            degraded_external_mode=degraded_external_mode,
+            external_adapter_errors=external_adapter_errors,
             primary_failure=primary_failure,
             secondary_failures=secondary_failures,
             root_cause_stage=root_cause_stage,
@@ -248,7 +443,7 @@ class DiagnosisEngine:
             security_risk=_max_risk(results),
             confidence=confidence,
             claim_results=diagnosis_claim_results,
-            evidence=self._evidence(results),
+            evidence=self._evidence(results) + missing_critical,
             recommended_fix=self._recommended_fix(primary_failure, primary_result),
             checks_run=[result.analyzer_name for result in results],
             checks_skipped=[
@@ -262,8 +457,15 @@ class DiagnosisEngine:
             ncv_report=ncv_report,
             pipeline_health_score=pipeline_health_score,
             first_failing_node=first_failing_node,
+            first_uncertain_node=first_uncertain_node,
+            ncv_bottleneck_description=ncv_bottleneck_description,
+            ncv_downstream_failure_chain=ncv_downstream_failure_chain,
+            ncv_missing_reports=ncv_missing_reports,
+            ncv_fallback_heuristics_used=ncv_fallback_heuristics_used,
             citation_faithfulness=citation_faithfulness,
             citation_faithfulness_report=citation_faithfulness_report,
+            version_validity_report=version_validity_report,
+            retrieval_diagnosis_report=retrieval_diagnosis_report,
             failure_chain=failure_chain,
             semantic_entropy=semantic_entropy,
         )
@@ -327,6 +529,8 @@ class DiagnosisEngine:
             CitationMismatchAnalyzer(self.config),
             InconsistentChunksAnalyzer(self.config),
             CitationFaithfulnessAnalyzerV0(self.config),
+            TemporalSourceValidityAnalyzerV1(self.config),
+            RetrievalDiagnosisAnalyzerV0(self.config),
             CitationFaithfulnessProbe(self.config),
             # ════════════════════════════════════════════════════════════════
             # LAYER 4 — SECURITY
@@ -343,9 +547,14 @@ class DiagnosisEngine:
         ]
 
         # Optional analyzers (enabled via config flags)
-        if self.config.get("enable_ncv", False):
+        enable_ncv = self.config.get("enable_ncv")
+        if enable_ncv is None:
+            # Enable by default in external-enhanced mode
+            enable_ncv = (self.config.get("mode") == "external-enhanced")
+
+        if enable_ncv:
             # Insert after grounding + claim-aware sufficiency + citation faithfulness, before security
-            analyzers.insert(10, NCVPipelineVerifier(self.config))
+            analyzers.insert(12, NCVPipelineVerifier(self.config))
 
         if self.config.get("enable_a2p", False):
             analyzers.append(A2PAttributionAnalyzer(self.config))
@@ -357,6 +566,21 @@ class DiagnosisEngine:
             return analyzer.analyze(run)
         except Exception as exc:
             logger.exception("Analyzer %s failed", analyzer.name())
+            if isinstance(analyzer, self.CRITICAL_ANALYZER_TYPES):
+                error_payload = {
+                    "event": "critical_analyzer_error",
+                    "analyzer": analyzer.name(),
+                    "error_type": type(exc).__name__,
+                    "message": str(exc),
+                }
+                return AnalyzerResult(
+                    analyzer_name=analyzer.name(),
+                    status="fail",
+                    failure_type=FailureType.INCOMPLETE_DIAGNOSIS,
+                    stage=FailureStage.UNKNOWN,
+                    evidence=[json.dumps(error_payload)],
+                    remediation=DEFAULT_REMEDIATIONS[FailureType.INCOMPLETE_DIAGNOSIS],
+                )
             return AnalyzerResult(
                 analyzer_name=analyzer.name(),
                 status="skip",
@@ -367,7 +591,24 @@ class DiagnosisEngine:
         """Populate retrieval evidence once for analyzers that consume it."""
         if run.retrieval_evidence_profile is not None:
             return
-        run.retrieval_evidence_profile = RetrievalEvidenceProfilerV0(self.config).build(run)
+            
+        profiler = RetrievalEvidenceProfilerV0(self.config)
+        profile = profiler.build(run)
+        
+        # Apply external signals if available in run.metadata
+        eval_results_raw = run.metadata.get("external_evaluation_results", [])
+        signals = []
+        for item in eval_results_raw:
+            if isinstance(item, dict):
+                try:
+                    res = ExternalEvaluationResult.model_validate(item)
+                    signals.extend(res.signals)
+                except Exception:
+                    continue
+            elif isinstance(item, ExternalEvaluationResult):
+                signals.extend(item.signals)
+                
+        run.retrieval_evidence_profile = profiler.apply_external_relevance_signals(profile, signals)
         run.metadata["retrieval_evidence_profile_used"] = True
 
     def _attach_result_outputs(self, run: RAGRun, result: AnalyzerResult) -> None:
@@ -379,14 +620,27 @@ class DiagnosisEngine:
             )
         if result.citation_faithfulness_report is not None:
             run.citation_faithfulness_report = result.citation_faithfulness_report
+        if result.version_validity_report is not None:
+            run.version_validity_report = result.version_validity_report
+        if result.retrieval_diagnosis_report is not None:
+            run.retrieval_diagnosis_report = result.retrieval_diagnosis_report
 
     def _primary_failure(
         self,
         results: list[AnalyzerResult],
         result_weights: dict[str, float],
-    ) -> FailureType:
+        run: RAGRun,
+    ) -> tuple[FailureType, list[str]]:
         ranked_failures = self._ranked_failure_types(results, result_weights)
-        return ranked_failures[0][0] if ranked_failures else FailureType.CLEAN
+        primary = ranked_failures[0][0] if ranked_failures else FailureType.CLEAN
+        
+        # Reliability Gate: Prevent false CLEAN if critical evidence is missing
+        if primary == FailureType.CLEAN:
+            missing_critical = self._get_missing_critical_evidence(results, run)
+            if missing_critical:
+                return FailureType.INCOMPLETE_DIAGNOSIS, missing_critical
+                
+        return primary, []
 
     def _primary_result(
         self,
@@ -528,6 +782,116 @@ class DiagnosisEngine:
             )
         )
         return ranked
+
+    def _get_missing_critical_evidence(
+        self, results: list[AnalyzerResult], run: RAGRun
+    ) -> list[str]:
+        """Check if mandatory analyzers for the current mode completed successfully."""
+        mode = self.config.get("mode", "external-enhanced")
+        completed_names = {r.analyzer_name for r in results if r.status in {"pass", "warn"}}
+        
+        # Analyzers that failed with INCOMPLETE_DIAGNOSIS (crashed) are not "completed"
+        failed_critical = {
+            r.analyzer_name for r in results 
+            if r.status == "fail" and r.failure_type == FailureType.INCOMPLETE_DIAGNOSIS
+        }
+        completed_names -= failed_critical
+
+        missing = []
+        
+        # 1. ClaimGrounding is always critical
+        if "ClaimGroundingAnalyzer" not in completed_names:
+            if not (
+                mode == "native"
+                and self._has_acceptable_native_claim_grounding_skip(results)
+            ):
+                missing.append("ClaimGroundingAnalyzer")
+            
+        # 2. RetrievalDiagnosis is critical in enhanced, optional in native (but checked if present)
+        if mode == "external-enhanced":
+            if "RetrievalDiagnosisAnalyzerV0" not in completed_names:
+                missing.append("RetrievalDiagnosisAnalyzerV0")
+            if "NCVPipelineVerifier" not in completed_names:
+                missing.append("NCVPipelineVerifier")
+        else:
+            # Native mode: only critical if specifically enabled in analyzers list
+            # Since we use default_analyzers, it's always there unless overridden.
+            # User requirement: RetrievalDiagnosisAnalyzer result if retrieval diagnosis enabled
+            # We'll assume it's enabled if it's in the suite.
+            if any(isinstance(a, RetrievalDiagnosisAnalyzerV0) for a in self.analyzers):
+                if "RetrievalDiagnosisAnalyzerV0" not in completed_names:
+                    missing.append("RetrievalDiagnosisAnalyzerV0")
+
+        # 3. Citation Faithfulness
+        if mode == "external-enhanced":
+            # Critical unless answer has no citations
+            if run.cited_doc_ids and "CitationFaithfulnessAnalyzerV0" not in completed_names:
+                missing.append("CitationFaithfulnessAnalyzerV0")
+        elif self._native_citation_faithfulness_required(run):
+            if "CitationFaithfulnessAnalyzerV0" not in completed_names:
+                missing.append("CitationFaithfulnessAnalyzerV0")
+
+        # 4. Parser Validation (if enabled)
+        if any(isinstance(a, ParserValidationAnalyzer) for a in self.analyzers):
+            if "ParserValidationAnalyzer" not in completed_names:
+                missing.append("ParserValidationAnalyzer")
+
+        # 5. Version Validity (if metadata or cited docs exist)
+        if mode == "external-enhanced":
+            has_version_context = bool(run.metadata.get("corpus_metadata")) or bool(run.cited_doc_ids)
+            if has_version_context:
+                if "VersionValidityAnalyzerV1" not in completed_names and "TemporalSourceValidityAnalyzerV1" not in completed_names:
+                    missing.append("VersionValidityAnalyzerV1")
+
+        # 6. External Providers (if configured in enhanced mode)
+        if mode == "external-enhanced":
+            expected_providers = self.config.get("enabled_external_providers", [])
+            missing_providers = run.metadata.get("missing_external_providers", [])
+            for provider in expected_providers:
+                if provider in missing_providers:
+                    # Check if this provider is considered critical (e.g. structured_llm_claim)
+                    if provider in {"structured_llm_claim", "a2p"}:
+                        missing.append(f"External Provider: {provider}")
+
+        return missing
+
+    def _has_acceptable_native_claim_grounding_skip(
+        self,
+        results: list[AnalyzerResult],
+    ) -> bool:
+        """Allow native CLEAN when claim extraction has no claim to verify.
+
+        This is deliberately narrow: only the explicit "no claims extracted"
+        skip is non-blocking in native mode. Crashes, unavailable analyzers,
+        no retrieved chunks, and other skips still block CLEAN through the
+        critical-evidence gate.
+        """
+        grounding = next(
+            (result for result in results if result.analyzer_name == "ClaimGroundingAnalyzer"),
+            None,
+        )
+        if grounding is None or grounding.status != "skip":
+            return False
+        return any("no claims extracted" in evidence for evidence in grounding.evidence)
+
+    def _native_citation_faithfulness_required(self, run: RAGRun) -> bool:
+        if bool(self.config.get("enable_citation_faithfulness")) or bool(
+            self.config.get("citation_faithfulness_required")
+        ):
+            return True
+
+        raw_records = run.metadata.get("claim_evidence_records")
+        if raw_records:
+            return bool(run.cited_doc_ids)
+
+        bundle = run.metadata.get("grounding_evidence_bundle")
+        if bundle is None:
+            return False
+        if hasattr(bundle, "claim_evidence_records"):
+            return bool(run.cited_doc_ids and bundle.claim_evidence_records)
+        if isinstance(bundle, dict):
+            return bool(run.cited_doc_ids and bundle.get("claim_evidence_records"))
+        return False
 
 
 def _max_risk(results: list[AnalyzerResult]) -> SecurityRisk:

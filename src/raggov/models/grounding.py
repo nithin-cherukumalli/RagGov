@@ -16,7 +16,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class ClaimVerificationLabel(str, Enum):
@@ -26,6 +26,38 @@ class ClaimVerificationLabel(str, Enum):
     NEUTRAL = "neutral"
     INSUFFICIENT = "insufficient"
     UNVERIFIED = "unverified"
+
+
+def normalize_claim_verification_label(raw: str | ClaimVerificationLabel) -> ClaimVerificationLabel:
+    """Normalize verifier label aliases to GovRAG's internal claim label enum."""
+    if isinstance(raw, ClaimVerificationLabel):
+        return raw
+
+    value = str(raw).strip().lower().replace("-", "_").replace(" ", "_")
+    aliases = {
+        "entailed": ClaimVerificationLabel.ENTAILED,
+        "support": ClaimVerificationLabel.ENTAILED,
+        "supported": ClaimVerificationLabel.ENTAILED,
+        "supports": ClaimVerificationLabel.ENTAILED,
+        "contradicted": ClaimVerificationLabel.CONTRADICTED,
+        "contradiction": ClaimVerificationLabel.CONTRADICTED,
+        "contradicts": ClaimVerificationLabel.CONTRADICTED,
+        "unsupported": ClaimVerificationLabel.INSUFFICIENT,
+        "insufficient": ClaimVerificationLabel.INSUFFICIENT,
+        "not_supported": ClaimVerificationLabel.INSUFFICIENT,
+        "unverified": ClaimVerificationLabel.UNVERIFIED,
+        "unknown": ClaimVerificationLabel.NEUTRAL,
+        "unclear": ClaimVerificationLabel.NEUTRAL,
+        "neutral": ClaimVerificationLabel.NEUTRAL,
+        "abstain": ClaimVerificationLabel.NEUTRAL,
+    }
+    try:
+        return aliases[value]
+    except KeyError as exc:
+        valid = ", ".join(sorted(aliases))
+        raise ValueError(
+            f"Invalid claim verification label {raw!r}. Expected one of: {valid}"
+        ) from exc
 
 
 class CalibrationStatus(str, Enum):
@@ -88,6 +120,7 @@ class ClaimEvidenceRecord(BaseModel):
     # Calibration and Trust
     calibration_status: CalibrationStatus = CalibrationStatus.UNAVAILABLE
     uncertainty_signals: Dict[str, Any] = Field(default_factory=dict)
+    external_signal_records: List[Dict[str, Any]] = Field(default_factory=list)
     
     # Provenance and Context
     provenance: Dict[str, Any] = Field(default_factory=dict)
@@ -104,6 +137,11 @@ class ClaimEvidenceRecord(BaseModel):
     created_by: str = "system"
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
+    @field_validator("verification_label", mode="before")
+    @classmethod
+    def _normalize_verification_label(cls, value: object) -> ClaimVerificationLabel:
+        return normalize_claim_verification_label(value)  # type: ignore[arg-type]
+
 class GroundingEvidenceBundle(BaseModel):
     """
     Stable interface for sharing structured grounding evidence with downstream analyzers.
@@ -117,4 +155,5 @@ class GroundingEvidenceBundle(BaseModel):
     diagnostic_rollup: Optional[Dict[str, Any]] = None
     citation_support_summary: Dict[str, Any] = Field(default_factory=dict)
     calibration_summary: Dict[str, Any] = Field(default_factory=dict)
+    external_signal_records: List[Dict[str, Any]] = Field(default_factory=list)
     metadata: Dict[str, Any] = Field(default_factory=dict)

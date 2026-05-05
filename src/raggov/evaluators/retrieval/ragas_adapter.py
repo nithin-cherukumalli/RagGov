@@ -1,0 +1,235 @@
+"""Optional RAGAS retrieval/context signal adapter.
+
+RAGAS is an optional dependency. Install via: pip install govrag[eval] or pip install ragas
+
+Input mapping from RAGRun:
+  question / query  = run.query
+  answer            = run.final_answer
+  contexts          = [chunk.text for chunk in run.retrieved_chunks]
+  reference         = run.metadata.get("reference_answer")  (optional gold answer)
+
+If reference is missing:
+  context_recall requires reference — a visible ExternalSignalRecord with
+  label="missing_reference_input" is emitted instead of silently skipping.
+  context_precision and faithfulness may still run.
+
+Signal label thresholds (uncalibrated, configurable):
+  >= 0.75  → high
+  0.40–0.75 → medium
+  < 0.40   → low
+  None / error → unavailable
+"""
+
+from __future__ import annotations
+
+import importlib
+from typing import Any
+
+from raggov.evaluators.base import (
+    ExternalEvaluationResult,
+    ExternalEvaluatorProvider,
+    ExternalSignalRecord,
+    ExternalSignalType,
+)
+from raggov.models.run import RAGRun
+
+
+_RAGAS_METRICS: dict[str, tuple[str, ExternalSignalType, str]] = {
+    "context_precision": (
+        "ragas_context_precision",
+        ExternalSignalType.retrieval_context_precision,
+        "Low context precision is advisory evidence for retrieval noise.",
+    ),
+    "context_recall": (
+        "ragas_context_recall",
+        ExternalSignalType.retrieval_context_recall,
+        "Low context recall is advisory evidence for retrieval miss.",
+    ),
+    "claim_recall": (
+        "ragas_claim_recall",
+        ExternalSignalType.claim_recall,
+        "Low claim recall is advisory evidence for retrieval miss.",
+    ),
+    "faithfulness": (
+        "ragas_faithfulness",
+        ExternalSignalType.faithfulness,
+        "Faithfulness is advisory grounding evidence and must not override GovRAG claim verification.",
+    ),
+}
+
+# Metrics that require a reference/gold answer to run.
+_REFERENCE_REQUIRED_METRICS: frozenset[str] = frozenset({"context_recall"})
+
+# Default derived-label thresholds (uncalibrated).
+_DEFAULT_HIGH_THRESHOLD: float = 0.75
+_DEFAULT_LOW_THRESHOLD: float = 0.40
+
+
+def _derive_label(value: Any, *, high: float, low: float) -> str:
+    """Map a numeric metric value to a human-readable label."""
+    if not isinstance(value, (int, float)):
+        return "unavailable"
+    if value >= high:
+        return "high"
+    if value >= low:
+        return "medium"
+    return "low"
+
+
+class RagasRetrievalSignalProvider:
+    """Provide advisory RAGAS retrieval/context metrics when RAGAS is installed.
+
+    This adapter:
+    - Is fully optional; missing RAGAS returns succeeded=False, missing_dependency=True.
+    - Emits ExternalSignalRecord objects with calibration_status="uncalibrated_locally"
+      and recommended_for_gating=False.
+    - Derives human-readable labels (high/medium/low) using configurable thresholds.
+    - Surfaces missing reference inputs for metrics that require them.
+    - Never directly sets a GovRAG FailureType. GovRAG owns all diagnosis decisions.
+    """
+
+    name: str = "ragas"
+    provider: ExternalEvaluatorProvider = ExternalEvaluatorProvider.ragas
+
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
+        self.config = config or {}
+        self._high_threshold: float = float(
+            self.config.get("ragas_label_high_threshold", _DEFAULT_HIGH_THRESHOLD)
+        )
+        self._low_threshold: float = float(
+            self.config.get("ragas_label_low_threshold", _DEFAULT_LOW_THRESHOLD)
+        )
+
+    def is_available(self) -> bool:
+        try:
+            importlib.import_module("ragas")
+            return True
+        except ImportError:
+            return False
+
+    def evaluate(self, run: RAGRun) -> ExternalEvaluationResult:
+        """Evaluate RAGAS metrics for the given RAGRun.
+
+        Returns ExternalEvaluationResult with:
+        - succeeded=False, missing_dependency=True   if ragas is not installed.
+        - succeeded=False, error=<msg>               if evaluation raises.
+        - succeeded=True, signals=[...]              on success.
+
+        Signals use provider=ragas, calibration_status="uncalibrated_locally",
+        recommended_for_gating=False. Each signal includes a derived label
+        (high/medium/low/unavailable) with clearly-marked uncalibrated thresholds.
+        """
+        if not self.is_available():
+            return ExternalEvaluationResult(
+                provider=self.provider,
+                succeeded=False,
+                missing_dependency=True,
+                error=(
+                    "ragas: package not installed. "
+                    "Install optional extra `govrag[eval]` or `pip install ragas`."
+                ),
+            )
+
+        try:
+            payload = self._metric_payload(run)
+        except Exception as exc:
+            return ExternalEvaluationResult(
+                provider=self.provider,
+                succeeded=False,
+                error=f"ragas evaluation failed: {exc}",
+            )
+
+        # Determine whether a reference answer is available.
+        reference = run.metadata.get("reference_answer") if run.metadata else None
+
+        signals: list[ExternalSignalRecord] = []
+
+        # Check for metrics that require reference but reference is missing.
+        for metric in _REFERENCE_REQUIRED_METRICS:
+            if metric in payload and reference is None:
+                signals.append(
+                    ExternalSignalRecord(
+                        provider=self.provider,
+                        signal_type=ExternalSignalType.custom,
+                        metric_name=f"ragas_{metric}_missing_reference",
+                        value=None,
+                        label="missing_reference_input",
+                        explanation=(
+                            f"RAGAS metric '{metric}' requires a reference/gold answer "
+                            "which is absent from run.metadata['reference_answer']. "
+                            "Result may be unreliable or skipped by RAGAS."
+                        ),
+                        raw_payload={"metric": metric, "reference_present": False},
+                        method_type="external_signal_adapter",
+                        calibration_status="uncalibrated_locally",
+                        recommended_for_gating=False,
+                        limitations=[
+                            "missing_reference_input_for_metric",
+                            "ragas_signal_is_advisory_not_diagnostic",
+                        ],
+                    )
+                )
+
+        # Emit a signal for each metric present in the payload.
+        for metric, value in payload.items():
+            if metric not in _RAGAS_METRICS:
+                continue
+            signals.append(self._signal(metric, value))
+
+        return ExternalEvaluationResult(
+            provider=self.provider,
+            succeeded=True,
+            signals=signals,
+            raw_payload=dict(payload),
+        )
+
+    def score_relevance(
+        self, query: str, chunks: list[str]
+    ) -> list[ExternalSignalRecord]:
+        payload = self.config.get("metric_runner", lambda _run: {})(
+            {"query": query, "chunks": chunks}
+        )
+        return [
+            self._signal(metric, value)
+            for metric, value in dict(payload).items()
+            if metric in _RAGAS_METRICS
+        ]
+
+    def _metric_payload(self, run: RAGRun) -> dict[str, Any]:
+        runner = self.config.get("metric_runner")
+        if runner is not None:
+            return dict(runner(run))
+
+        configured = self.config.get("metric_results")
+        if configured is not None:
+            return dict(configured)
+
+        return {}
+
+    def _signal(self, metric: str, value: Any) -> ExternalSignalRecord:
+        metric_name, signal_type, interpretation = _RAGAS_METRICS[metric]
+        label = _derive_label(
+            value,
+            high=self._high_threshold,
+            low=self._low_threshold,
+        )
+        return ExternalSignalRecord(
+            provider=self.provider,
+            signal_type=signal_type,
+            metric_name=metric_name,
+            value=value,
+            label=label,
+            explanation=interpretation,
+            raw_payload={"metric": metric, "value": value},
+            method_type="external_signal_adapter",
+            calibration_status="uncalibrated_locally",
+            recommended_for_gating=False,
+            limitations=[
+                f"label_thresholds_uncalibrated: high>={self._high_threshold}, low<{self._low_threshold}",
+                "ragas_signal_is_advisory_not_diagnostic",
+            ],
+        )
+
+
+# Backward-compatible import name for the previous skeleton.
+RAGASAdapter = RagasRetrievalSignalProvider

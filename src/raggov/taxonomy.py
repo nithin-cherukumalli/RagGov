@@ -72,6 +72,9 @@ FAILURE_MESSAGES: dict[FailureType, str] = {
     FailureType.GENERATION_IGNORE: (
         "LLM ignored relevant context and generated from parametric memory."
     ),
+    FailureType.INCOMPLETE_DIAGNOSIS: (
+        "A critical analyzer failed, so GovRAG could not complete diagnosis safely."
+    ),
     FailureType.CLEAN: "No diagnostic failure was detected.",
 }
 
@@ -163,6 +166,9 @@ DEFAULT_REMEDIATIONS: dict[FailureType, str] = {
     FailureType.GENERATION_IGNORE: (
         "Strengthen grounding instructions or use a more instruction-following model."
     ),
+    FailureType.INCOMPLETE_DIAGNOSIS: (
+        "Inspect critical analyzer errors before trusting the diagnosis result."
+    ),
     FailureType.CLEAN: "No remediation is required.",
 }
 
@@ -181,6 +187,7 @@ FAILURE_PRIORITY: list[FailureType] = [
     FailureType.RETRIEVAL_DEPTH_LIMIT,
     FailureType.RERANKER_FAILURE,
     FailureType.GENERATION_IGNORE,
+    FailureType.INCOMPLETE_DIAGNOSIS,
     FailureType.CONTRADICTED_CLAIM,
     FailureType.INSUFFICIENT_CONTEXT,
     FailureType.UNSUPPORTED_CLAIM,
@@ -201,4 +208,5 @@ def should_have_answered(failure_type: FailureType) -> bool:
         FailureType.SUSPICIOUS_CHUNK,
         FailureType.INSUFFICIENT_CONTEXT,
         FailureType.PRIVACY_VIOLATION,
+        FailureType.INCOMPLETE_DIAGNOSIS,
     }

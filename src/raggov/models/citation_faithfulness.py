@@ -15,7 +15,7 @@ IMPORTANT:
 from __future__ import annotations
 
 from enum import Enum
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -90,6 +90,11 @@ class ClaimCitationFaithfulnessRecord(BaseModel):
     explanation: Optional[str] = None
     warnings: List[str] = Field(default_factory=list)
     limitations: List[str] = Field(default_factory=list)
+    external_signal_provider: Optional[str] = None
+    external_signal_label: Optional[str] = None
+    external_signal_raw_payload: Optional[dict[str, Any]] = None
+    external_signal_error: Optional[str] = None
+    external_signal_fallback_used: bool = False
 
 
 class CitationFaithfulnessReport(BaseModel):
@@ -119,3 +124,5 @@ class CitationFaithfulnessReport(BaseModel):
     )
     recommended_for_gating: bool = False
     limitations: List[str] = Field(default_factory=list)
+    external_evaluator_used: bool = False
+    external_evaluator_error: Optional[str] = None

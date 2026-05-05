@@ -22,6 +22,7 @@ from raggov.models.retrieval_evidence import QueryRelevanceLabel, RelevanceMetho
 RetrievalRelevanceMethod = Literal[
     "lexical_overlap",
     "embedding_similarity",
+    "cross_encoder",
     "llm_judge",
     "unavailable",
 ]

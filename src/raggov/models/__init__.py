@@ -9,6 +9,15 @@ from raggov.models.citation_faithfulness import (
     CitationSupportLabel,
     ClaimCitationFaithfulnessRecord,
 )
+from raggov.models.ncv import (
+    NCVCalibrationStatus,
+    NCVEvidenceSignal,
+    NCVMethodType,
+    NCVNode,
+    NCVNodeResult,
+    NCVNodeStatus,
+    NCVReport,
+)
 from raggov.models.retrieval_evidence import (
     CalibrationStatus as RetrievalCalibrationStatus,
     ChunkEvidenceProfile,
@@ -20,6 +29,25 @@ from raggov.models.retrieval_evidence import (
     RetrievalEvidenceProfile,
     RetrievalMethodType,
 )
+from raggov.models.retrieval_diagnosis import (
+    ClaimRetrievalDiagnosisRecord,
+    RetrievalDiagnosisCalibrationStatus,
+    RetrievalDiagnosisMethodType,
+    RetrievalDiagnosisReport,
+    RetrievalEvidenceSignal,
+    RetrievalFailureType,
+)
+from raggov.models.version_validity import (
+    ClaimSourceValidityRecord,
+    DocumentValidityRecord,
+    DocumentValidityRisk,
+    DocumentValidityStatus,
+    ValidityEvidenceSource,
+    VersionValidityCalibrationStatus,
+    VersionValidityMethodType,
+    VersionValidityReport,
+)
+from raggov.models.grounding import normalize_claim_verification_label
 
 __all__ = [
     "CitationCalibrationStatus",
@@ -30,12 +58,34 @@ __all__ = [
     "CitationSupportLabel",
     "ChunkEvidenceProfile",
     "ClaimCitationFaithfulnessRecord",
+    "ClaimRetrievalDiagnosisRecord",
     "CitationStatus",
+    "ClaimSourceValidityRecord",
+    "DocumentValidityRecord",
+    "DocumentValidityRisk",
+    "DocumentValidityStatus",
     "EvidenceRole",
     "FreshnessStatus",
+    "NCVCalibrationStatus",
+    "NCVEvidenceSignal",
+    "NCVMethodType",
+    "NCVNode",
+    "NCVNodeResult",
+    "NCVNodeStatus",
+    "NCVReport",
+    "normalize_claim_verification_label",
     "QueryRelevanceLabel",
     "RelevanceMethod",
     "RetrievalCalibrationStatus",
+    "RetrievalDiagnosisCalibrationStatus",
+    "RetrievalDiagnosisMethodType",
+    "RetrievalDiagnosisReport",
+    "RetrievalEvidenceSignal",
     "RetrievalEvidenceProfile",
+    "RetrievalFailureType",
     "RetrievalMethodType",
+    "ValidityEvidenceSource",
+    "VersionValidityCalibrationStatus",
+    "VersionValidityMethodType",
+    "VersionValidityReport",
 ]

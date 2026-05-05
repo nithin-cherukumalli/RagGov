@@ -38,6 +38,7 @@ class VerificationResult:
     contradicting_chunk_ids: list[str] = field(default_factory=list)
     value_matches: list[dict[str, str]] = field(default_factory=list)
     value_conflicts: list[dict[str, str]] = field(default_factory=list)
+    external_signal_records: list[dict[str, Any]] = field(default_factory=list)
     triplet_results: list[TripletVerificationResult] = field(default_factory=list)
 
 

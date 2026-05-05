@@ -217,6 +217,25 @@ def test_claim_grounding_fails_when_unsupported_fraction_reaches_threshold() -> 
     assert result.stage == FailureStage.GROUNDING
 
 
+def test_claim_grounding_does_not_crash_on_unsupported() -> None:
+    run = run_with_answer(
+        "Warranty support requires international on-site repairs.",
+        [chunk("chunk-1", "Refund policy covers hardware returns for thirty days.")],
+    )
+
+    result = ClaimGroundingAnalyzer({"fail_threshold": 0.5}).analyze(run)
+
+    assert result.status == "fail"
+    assert result.failure_type == FailureType.UNSUPPORTED_CLAIM
+    assert result.claim_results is not None
+    assert result.claim_results[0].label == "unsupported"
+    assert result.grounding_evidence_bundle is not None
+    assert (
+        result.grounding_evidence_bundle.claim_evidence_records[0].verification_label
+        == "insufficient"
+    )
+
+
 def test_claim_grounding_contradiction_is_always_at_least_warn() -> None:
     run = run_with_answer(
         "The refund policy covers hardware returns for thirty days.",

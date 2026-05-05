@@ -349,7 +349,15 @@ class A2PAttributionAnalyzer(BaseAnalyzer):
             predict = "Fixing value-level hallucination is predicted to resolve the contradiction while preserving the claim structure."
         elif claim.label == "unsupported" and record and not record.supporting_chunk_ids and record.candidate_evidence_chunks:
             # Check if candidates were high-scoring but failed verification
-            max_candidate_score = max((c.score for c in record.candidate_evidence_chunks), default=0.0)
+            max_candidate_score = max(
+                (
+                    getattr(c, "score", None)
+                    if getattr(c, "score", None) is not None
+                    else getattr(c, "raw_support_score", 0.0)
+                    for c in record.candidate_evidence_chunks
+                ),
+                default=0.0,
+            )
             if max_candidate_score > 0.7: # Heuristic threshold for "it was there but ignored"
                 primary_cause = "context_ignored"
                 abduct = (

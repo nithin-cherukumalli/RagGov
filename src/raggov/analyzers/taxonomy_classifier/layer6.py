@@ -121,6 +121,16 @@ NCV_STAGE_FAILURES = {
     "CONTEXT_ASSEMBLY": ("CHUNKING", "boundary_errors"),
     "CLAIM_GROUNDING": ("GENERATION", "hallucination"),
     "ANSWER_COMPLETENESS": ("GENERATION", "hallucination"),
+    "query_understanding": ("RETRIEVAL", "off_topic_retrieval"),
+    "parser_validity": ("PARSING", "lost_structure"),
+    "retrieval_coverage": ("RETRIEVAL", "missing_relevant_docs"),
+    "retrieval_precision": ("RETRIEVAL", "noisy_or_misranked_results"),
+    "context_assembly": ("CHUNKING", "boundary_errors"),
+    "version_validity": ("RETRIEVAL", "stale_or_invalid_source"),
+    "claim_support": ("GENERATION", "hallucination"),
+    "citation_support": ("GROUNDING", "citation_mismatch"),
+    "answer_completeness": ("GENERATION", "hallucination"),
+    "security_risk": ("SECURITY", "adversarial_context"),
 }
 
 
@@ -223,6 +233,8 @@ class Layer6TaxonomyClassifier(BaseAnalyzer):
                     )
                 )
             elif result.failure_type == FailureType.METADATA_LOSS:
+                if self._is_parser_profile_missing_only(result):
+                    continue
                 failures.append(
                     self._candidate(
                         result,
@@ -235,6 +247,15 @@ class Layer6TaxonomyClassifier(BaseAnalyzer):
                 )
 
         return self._dedupe_failures(failures)
+
+    def _is_parser_profile_missing_only(self, result: AnalyzerResult) -> bool:
+        """Keep missing parser profile visible without promoting it as root cause."""
+        evidence_text = " ".join(str(item) for item in result.evidence)
+        return (
+            result.analyzer_name == "ParserValidationAnalyzer"
+            and "parser_validation_profile_missing" in evidence_text
+            and "parser_validation_profile_malformed" not in evidence_text
+        )
 
     def _detect_retrieval_failures(
         self,
@@ -330,8 +351,6 @@ class Layer6TaxonomyClassifier(BaseAnalyzer):
     ) -> list[WeightedStageFailure]:
         """Detect CHUNKING stage failures."""
         failures: list[WeightedStageFailure] = []
-
-        avg_score = statistics.mean(chunk_scores) if chunk_scores else 0.0
 
         for order, result in enumerate(prior_results):
             if result.status not in ("fail", "warn"):

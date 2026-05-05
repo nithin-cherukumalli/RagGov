@@ -207,6 +207,26 @@ def test_detects_unsupported_citation_from_claim_support_label() -> None:
     assert report.records[0].faithfulness_risk == CitationFaithfulnessRisk.HIGH
 
 
+def test_citation_faithfulness_does_not_crash_on_unsupported() -> None:
+    result, report = analyze(
+        run_with_records(
+            [
+                ClaimEvidenceRecord(
+                    claim_id="claim-unsupported",
+                    claim_text="Unsupported claim.",
+                    verification_label="unsupported",
+                    cited_doc_ids=["doc-1"],
+                )
+            ],
+            chunks=[chunk("c1", "doc-1")],
+        )
+    )
+
+    assert result.status == "warn"
+    assert report.records[0].citation_support_label == CitationSupportLabel.UNSUPPORTED
+    assert report.unsupported_claim_ids == ["claim-unsupported"]
+
+
 def test_detects_unsupported_citation() -> None:
     result, report = analyze(
         run_with_records(

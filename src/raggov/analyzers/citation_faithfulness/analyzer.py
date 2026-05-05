@@ -10,6 +10,9 @@ faithfulness method.
 from __future__ import annotations
 
 from raggov.analyzers.base import BaseAnalyzer
+from raggov.evaluators.base import ExternalSignalRecord
+from raggov.evaluators.citation.structured_llm import StructuredLLMCitationVerifierAdapter
+from raggov.evaluators.citation.refchecker_adapter import RefCheckerCitationSignalProvider
 from raggov.models.citation_faithfulness import (
     CitationCalibrationStatus,
     CitationEvidenceSource,
@@ -50,6 +53,27 @@ class CitationFaithfulnessAnalyzerV0(BaseAnalyzer):
 
     weight = 0.7
 
+    def __init__(self, config: dict | None = None) -> None:
+        super().__init__(config)
+        self._citation_verifier = None
+        self._refchecker_citation_provider: RefCheckerCitationSignalProvider | None = None
+        self._external_verifier_error: str | None = None
+        if self.config.get("citation_verifier") == "structured_llm":
+            self._citation_verifier = StructuredLLMCitationVerifierAdapter(self.config)
+            if not self._citation_verifier.is_available():
+                self._external_verifier_error = (
+                    "structured_llm_citation: no LLM client configured; native citation rollup fallback was used."
+                )
+        elif self.config.get("citation_verifier") == "refchecker":
+            rc = RefCheckerCitationSignalProvider(self.config)
+            if rc.is_available():
+                self._refchecker_citation_provider = rc
+            else:
+                self._external_verifier_error = (
+                    "refchecker_citation: package not installed; native citation rollup fallback was used. "
+                    "Install via `pip install refchecker`."
+                )
+
     def analyze(self, run: RAGRun) -> AnalyzerResult:
         records = self._claim_evidence_records(run)
         if not run.final_answer or not records:
@@ -74,6 +98,21 @@ class CitationFaithfulnessAnalyzerV0(BaseAnalyzer):
             )
 
         if report.unsupported_claim_ids or report.missing_citation_claim_ids:
+            return AnalyzerResult(
+                analyzer_name=self.name(),
+                status="warn",
+                failure_type=FailureType.CITATION_MISMATCH,
+                stage=FailureStage.GROUNDING,
+                evidence=evidence,
+                remediation=_REMEDIATION,
+                citation_faithfulness_report=report,
+            )
+
+        if any(
+            r.citation_support_label == CitationSupportLabel.UNKNOWN
+            and r.external_signal_label == "unclear"
+            for r in report.records
+        ):
             return AnalyzerResult(
                 analyzer_name=self.name(),
                 status="warn",
@@ -135,6 +174,8 @@ class CitationFaithfulnessAnalyzerV0(BaseAnalyzer):
             calibration_status=CitationCalibrationStatus.UNCALIBRATED,
             recommended_for_gating=False,
             limitations=list(_LIMITATIONS),
+            external_evaluator_used=any(r.external_signal_provider for r in built_records),
+            external_evaluator_error=self._external_verifier_error,
         )
 
     def _build_record(
@@ -171,7 +212,7 @@ class CitationFaithfulnessAnalyzerV0(BaseAnalyzer):
             contradicted_chunk_ids=contradicted_chunk_ids,
         )
 
-        return ClaimCitationFaithfulnessRecord(
+        citation_record = ClaimCitationFaithfulnessRecord(
             claim_id=claim.claim_id,
             claim_text=claim.claim_text,
             cited_doc_ids=cited_doc_ids,
@@ -185,6 +226,123 @@ class CitationFaithfulnessAnalyzerV0(BaseAnalyzer):
             explanation=explanation,
             limitations=list(_LIMITATIONS),
         )
+        return self._apply_external_signal(
+            run=run,
+            citation_record=citation_record,
+            claim=claim,
+            cited_doc_ids=cited_doc_ids,
+            cited_chunk_ids=cited_chunk_ids,
+        )
+
+    def _apply_external_signal(
+        self,
+        *,
+        run: RAGRun,
+        citation_record: ClaimCitationFaithfulnessRecord,
+        claim: ClaimEvidenceRecord,
+        cited_doc_ids: list[str],
+        cited_chunk_ids: list[str],
+    ) -> ClaimCitationFaithfulnessRecord:
+        verifier_type = self.config.get("citation_verifier")
+        if verifier_type not in ("structured_llm", "refchecker"):
+            return citation_record
+
+        citation_record.external_signal_fallback_used = True
+
+        # --- RefChecker branch ---
+        if verifier_type == "refchecker":
+            if self._refchecker_citation_provider is None or self._external_verifier_error:
+                citation_record.external_signal_error = self._external_verifier_error
+                citation_record.warnings.append(
+                    self._external_verifier_error or "refchecker_citation unavailable"
+                )
+                return citation_record
+            cited_doc_id, cited_chunk_id, cited_text = self._primary_cited_source(
+                run, cited_doc_ids, cited_chunk_ids
+            )
+            signals = self._refchecker_citation_provider.verify_citations(
+                cited_ids=[cited_doc_id],
+                chunks=[cited_text],
+            )
+            if not signals:
+                citation_record.warnings.append("refchecker_citation returned no signal")
+                return citation_record
+            self._apply_signal_to_record(citation_record, signals[0])
+            return citation_record
+
+        # --- structured_llm branch ---
+        if self._citation_verifier is None or self._external_verifier_error:
+            citation_record.external_signal_error = self._external_verifier_error
+            citation_record.warnings.append(
+                self._external_verifier_error or "structured_llm_citation unavailable"
+            )
+            return citation_record
+
+        cited_doc_id, cited_chunk_id, cited_text = self._primary_cited_source(
+            run, cited_doc_ids, cited_chunk_ids
+        )
+        result = self._citation_verifier.evaluate_citation(
+            claim_id=claim.claim_id,
+            claim_text=claim.claim_text,
+            cited_doc_id=cited_doc_id,
+            cited_chunk_id=cited_chunk_id,
+            cited_text=cited_text,
+            retrieved_context=[chunk.text for chunk in run.retrieved_chunks],
+        )
+        if not result.succeeded or not result.signals:
+            citation_record.external_signal_error = result.error
+            citation_record.warnings.append(result.error or "structured_llm_citation returned no signal")
+            return citation_record
+
+        signal = result.signals[0]
+        self._apply_signal_to_record(citation_record, signal)
+        return citation_record
+
+    def _primary_cited_source(
+        self,
+        run: RAGRun,
+        cited_doc_ids: list[str],
+        cited_chunk_ids: list[str],
+    ) -> tuple[str, str | None, str]:
+        chunks_by_id = {chunk.chunk_id: chunk for chunk in run.retrieved_chunks}
+        for chunk_id in cited_chunk_ids:
+            chunk = chunks_by_id.get(chunk_id)
+            if chunk is not None:
+                return chunk.source_doc_id, chunk.chunk_id, chunk.text
+
+        cited_doc_set = set(cited_doc_ids)
+        for chunk in run.retrieved_chunks:
+            if chunk.source_doc_id in cited_doc_set:
+                return chunk.source_doc_id, chunk.chunk_id, chunk.text
+
+        return (
+            cited_doc_ids[0] if cited_doc_ids else "",
+            cited_chunk_ids[0] if cited_chunk_ids else None,
+            "",
+        )
+
+    def _apply_signal_to_record(
+        self,
+        record: ClaimCitationFaithfulnessRecord,
+        signal: ExternalSignalRecord,
+    ) -> None:
+        record.external_signal_fallback_used = False
+        record.external_signal_provider = signal.provider.value
+        record.external_signal_label = signal.label
+        record.external_signal_raw_payload = signal.raw_payload
+        record.explanation = signal.explanation
+        label = signal.label
+        if label == "supports":
+            record.citation_support_label = CitationSupportLabel.FULLY_SUPPORTED
+        elif label == "contradicts":
+            record.citation_support_label = CitationSupportLabel.CONTRADICTED
+        elif label == "does_not_support":
+            record.citation_support_label = CitationSupportLabel.UNSUPPORTED
+        elif label == "citation_missing":
+            record.citation_support_label = CitationSupportLabel.CITATION_MISSING
+        elif label == "unclear":
+            record.citation_support_label = CitationSupportLabel.UNKNOWN
+        record.faithfulness_risk = self._risk(record.citation_support_label)
 
     def _support_label(
         self,
@@ -374,4 +532,11 @@ class CitationFaithfulnessAnalyzerV0(BaseAnalyzer):
             label = record.citation_support_label.value
             counts[label] = counts.get(label, 0) + 1
         count_text = ", ".join(f"{label}={count}" for label, count in sorted(counts.items()))
-        return [f"Citation faithfulness summary: total={len(report.records)}, {count_text}"]
+        evidence = [f"Citation faithfulness summary: total={len(report.records)}, {count_text}"]
+        
+        if report.external_evaluator_used:
+            evidence.append("External citation verifier: provider=structured_llm, signal_type=citation_support")
+        if report.external_evaluator_error:
+            evidence.append(f"External citation verifier unavailable: {report.external_evaluator_error}")
+            
+        return evidence

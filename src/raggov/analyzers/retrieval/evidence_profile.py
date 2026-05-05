@@ -28,12 +28,14 @@ from raggov.analyzers.retrieval.relevance import (
     LexicalOverlapRelevanceScorer,
     RetrievalRelevanceScorer,
 )
+from raggov.evaluators.base import ExternalSignalRecord, ExternalSignalType
 from raggov.models.chunk import RetrievedChunk
 from raggov.models.corpus import CorpusEntry
 from raggov.models.retrieval_evidence import (
     CalibrationStatus,
     ChunkEvidenceProfile,
     CitationStatus,
+    EvidenceRole,
     FreshnessStatus,
     QueryRelevanceLabel,
     RelevanceMethod,
@@ -41,6 +43,12 @@ from raggov.models.retrieval_evidence import (
     RetrievalMethodType,
 )
 from raggov.models.run import RAGRun
+
+_EXTERNAL_RELEVANCE_LABEL_MAP = {
+    "relevant": QueryRelevanceLabel.RELEVANT,
+    "partial": QueryRelevanceLabel.PARTIAL,
+    "irrelevant": QueryRelevanceLabel.IRRELEVANT,
+}
 
 
 # Defaults match ScopeViolationAnalyzer and StaleRetrievalAnalyzer exactly.
@@ -174,6 +182,8 @@ class RetrievalEvidenceProfilerV0:
             source_doc_id=chunk.source_doc_id,
             query_relevance_label=rel.label,
             query_relevance_score=rel.score,
+            native_relevance_label=rel.label,
+            native_relevance_score=rel.score,
             relevance_method=RelevanceMethod(rel.method),
             citation_status=self._citation_status(chunk, cited_set),
             freshness_status=freshness.status,
@@ -185,6 +195,111 @@ class RetrievalEvidenceProfilerV0:
         if not cited_set:
             return CitationStatus.UNKNOWN
         return CitationStatus.CITED if chunk.source_doc_id in cited_set else CitationStatus.UNCITED
+
+    def apply_external_relevance_signals(
+        self,
+        profile: RetrievalEvidenceProfile,
+        signals: list[ExternalSignalRecord],
+    ) -> RetrievalEvidenceProfile:
+        """Apply external retrieval relevance signals to an existing profile.
+
+        Updates chunk profiles matching signal.affected_chunk_ids with
+        external relevance scores and recomputes noisy_chunk_ids.
+
+        Does NOT change lexical-overlap-labeled chunks not mentioned in signals.
+        Returns the same profile object (mutated in place) for chaining.
+
+        Signals with signal_type != retrieval_relevance are ignored.
+        Missing dependency or empty signals: profile is returned unchanged.
+        """
+        relevance_signals: dict[str, ExternalSignalRecord] = {}
+        for signal in signals:
+            if signal.signal_type != ExternalSignalType.retrieval_relevance:
+                continue
+            for cid in signal.affected_chunk_ids:
+                relevance_signals[cid] = signal
+
+        if not relevance_signals:
+            return profile
+
+        existing_signal_keys = {
+            (
+                str(signal.get("provider")),
+                str(signal.get("metric_name")),
+                tuple(signal.get("affected_chunk_ids", [])),
+            )
+            for signal in profile.external_signals
+            if isinstance(signal, dict)
+        }
+        for signal in relevance_signals.values():
+            payload = signal.model_dump(mode="json")
+            key = (
+                str(payload.get("provider")),
+                str(payload.get("metric_name")),
+                tuple(payload.get("affected_chunk_ids", [])),
+            )
+            if key not in existing_signal_keys:
+                profile.external_signals.append(payload)
+                existing_signal_keys.add(key)
+
+        updated_chunks: list[ChunkEvidenceProfile] = []
+        for cp in profile.chunks:
+            sig = relevance_signals.get(cp.chunk_id)
+            if sig is None:
+                updated_chunks.append(cp)
+                continue
+            label = _EXTERNAL_RELEVANCE_LABEL_MAP.get(
+                str(sig.label or "").lower(), QueryRelevanceLabel.UNKNOWN
+            )
+            score = float(sig.value) if isinstance(sig.value, (int, float)) else None
+            
+            # Map relevance to evidence role
+            role = cp.evidence_role
+            if label == QueryRelevanceLabel.IRRELEVANT:
+                role = EvidenceRole.NOISE
+            elif label == QueryRelevanceLabel.RELEVANT:
+                role = EvidenceRole.NECESSARY_SUPPORT
+            elif label == QueryRelevanceLabel.PARTIAL:
+                role = EvidenceRole.PARTIAL_SUPPORT
+
+            updated_chunks.append(
+                ChunkEvidenceProfile(
+                    **{
+                        **cp.model_dump(),
+                        "query_relevance_label": label,
+                        "query_relevance_score": score,
+                        "relevance_method": RelevanceMethod.CROSS_ENCODER,
+                        "evidence_role": role,
+                        "external_provider": sig.provider.value if hasattr(sig.provider, "value") else str(sig.provider),
+                        "external_metric_name": sig.metric_name,
+                    }
+                )
+            )
+
+        profile.chunks = updated_chunks
+        profile.noisy_chunk_ids = [
+            cp.chunk_id
+            for cp in profile.chunks
+            if cp.query_relevance_label
+            in (QueryRelevanceLabel.IRRELEVANT, QueryRelevanceLabel.PARTIAL)
+        ]
+        has_issues = any(
+            [
+                profile.phantom_citation_doc_ids,
+                profile.stale_doc_ids,
+                profile.noisy_chunk_ids,
+                profile.contradictory_pairs,
+            ]
+        )
+        profile.overall_retrieval_status = "degraded" if has_issues else "ok"
+        profile.calibration_status = CalibrationStatus.UNCALIBRATED_LOCALLY
+        profile.method_type = RetrievalMethodType.PRACTICAL_APPROXIMATION
+        
+        if "external_relevance_signals_applied" not in " ".join(profile.limitations):
+            profile.limitations = list(profile.limitations) + [
+                "external_relevance_signals_applied: cross-encoder scores are uncalibrated locally"
+            ]
+        return profile
 
     def _contradiction_candidates(
         self, chunks: list[RetrievedChunk]

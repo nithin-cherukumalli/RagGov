@@ -85,18 +85,40 @@ def candidate_insufficient_context(claim: ClaimResult, trace: AttributionTrace) 
     if claim.label != "unsupported":
         return None
 
-    if not claim.supporting_chunk_ids and (
+    sufficiency_signals = (
         trace.sufficiency_result is not None and not trace.sufficiency_result.sufficient
-    ):
+    )
+    retrieval_miss_signal = trace.retrieval_primary_failure_type == "retrieval_miss"
+    ncv_coverage_signal = trace.ncv_first_failing_node == "retrieval_coverage"
+
+    if not claim.supporting_chunk_ids and (sufficiency_signals or retrieval_miss_signal or ncv_coverage_signal):
         evidence_for = [
             "Claim is unsupported with no supporting chunks",
-            f"Sufficiency analyzer reports insufficient context (method: {trace.sufficiency_method})",
         ]
-
-        if trace.sufficiency_result.missing_evidence:
+        if sufficiency_signals:
             evidence_for.append(
-                f"Missing evidence gaps: {len(trace.sufficiency_result.missing_evidence)} items"
+                f"Sufficiency analyzer reports insufficient context (method: {trace.sufficiency_method})"
             )
+            if trace.sufficiency_result and trace.sufficiency_result.missing_evidence:
+                evidence_for.append(
+                    f"Missing evidence gaps: {len(trace.sufficiency_result.missing_evidence)} items"
+                )
+
+        # Strengthen from retrieval diagnosis report
+        if retrieval_miss_signal:
+            evidence_for.append(
+                "RetrievalDiagnosisReport.primary_failure_type=retrieval_miss confirms coverage gap"
+            )
+        if not trace.has_retrieval_diagnosis_report:
+            evidence_for.append("[advisory] retrieval_diagnosis_report unavailable — heuristic fallback only")
+
+        # Strengthen from NCV report
+        if ncv_coverage_signal:
+            evidence_for.append(
+                f"NCVPipelineVerifier first failing node: {trace.ncv_first_failing_node} confirms retrieval coverage failure"
+            )
+            if trace.ncv_bottleneck_description:
+                evidence_for.append(f"NCV bottleneck: {trace.ncv_bottleneck_description}")
 
         if trace.avg_score < 0.6:
             evidence_for.append(f"Low average retrieval score: {trace.avg_score:.2f}")
@@ -111,6 +133,12 @@ def candidate_insufficient_context(claim: ClaimResult, trace: AttributionTrace) 
                 "suggesting evidence is present but weak"
             )
 
+        supporting_analyzers = ["SufficiencyAnalyzer", "ClaimAwareSufficiencyAnalyzer"]
+        if retrieval_miss_signal:
+            supporting_analyzers.append("RetrievalDiagnosisReport")
+        if ncv_coverage_signal:
+            supporting_analyzers.append("NCVPipelineVerifier")
+
         return CandidateCause(
             cause_id=f"{claim.claim_text[:50]}_insufficient_context",
             cause_type="insufficient_context_or_retrieval_miss",
@@ -119,7 +147,7 @@ def candidate_insufficient_context(claim: ClaimResult, trace: AttributionTrace) 
             evidence_against=evidence_against,
             affected_claims=[claim.claim_text],
             affected_chunk_ids=list(claim.candidate_chunk_ids),
-            supporting_analyzers=["SufficiencyAnalyzer", "ClaimAwareSufficiencyAnalyzer"],
+            supporting_analyzers=supporting_analyzers,
             contradicting_analyzers=[],
             abduct=(
                 "Claim is unsupported with no supporting chunks while sufficiency indicates missing evidence; "
@@ -142,47 +170,69 @@ def candidate_weak_evidence(claim: ClaimResult, trace: AttributionTrace) -> Cand
     if claim.label != "unsupported":
         return None
 
+    noise_signal = trace.retrieval_primary_failure_type in {"retrieval_noise", "rank_failure_unknown"}
+
     if claim.candidate_chunk_ids and not claim.supporting_chunk_ids:
         evidence_reason_lower = (claim.evidence_reason or "").lower()
-        if any(
+        if not any(
             term in evidence_reason_lower
             for term in ["weak", "partial", "below support threshold", "ambiguous"]
-        ):
-            evidence_for = [
-                f"Claim has {len(claim.candidate_chunk_ids)} candidate chunks but zero supporting chunks",
-                f"Evidence reason indicates weak support: {claim.evidence_reason}",
-            ]
+        ) and not noise_signal:
+            return None
 
-            if claim.verification_method:
-                evidence_for.append(f"Verification method: {claim.verification_method}")
+        evidence_for = [
+            f"Claim has {len(claim.candidate_chunk_ids)} candidate chunks but zero supporting chunks",
+        ]
+        if claim.evidence_reason:
+            evidence_for.append(f"Evidence reason indicates weak support: {claim.evidence_reason}")
 
-            evidence_against = []
-            if trace.sufficiency_result and not trace.sufficiency_result.sufficient:
-                evidence_against.append(
-                    "Sufficiency reports insufficient context, suggesting retrieval miss rather than weak evidence"
-                )
+        if claim.verification_method:
+            evidence_for.append(f"Verification method: {claim.verification_method}")
 
-            return CandidateCause(
-                cause_id=f"{claim.claim_text[:50]}_weak_evidence",
-                cause_type="weak_or_ambiguous_evidence",
-                stage=FailureStage.GROUNDING,
-                evidence_for=evidence_for,
-                evidence_against=evidence_against,
-                affected_claims=[claim.claim_text],
-                affected_chunk_ids=list(claim.candidate_chunk_ids),
-                supporting_analyzers=["ClaimGroundingAnalyzer"],
-                contradicting_analyzers=[],
-                abduct=(
-                    "Claim has related chunks but evidence quality is weak/ambiguous, "
-                    "indicating noisy retrieval or partial context."
-                ),
-                act="Tighten evidence matching thresholds or filter noisy candidates before grounding.",
-                predict=(
-                    "Stronger evidence filtering should reduce unsupported claims driven by ambiguous context."
-                ),
-                predicted_fix_effect="would_partially_fix",
-                calibration_status="uncalibrated",
+        # Strengthen from retrieval diagnosis report
+        if noise_signal:
+            evidence_for.append(
+                f"RetrievalDiagnosisReport.primary_failure_type={trace.retrieval_primary_failure_type} "
+                "confirms noisy or mis-ranked retrieval"
             )
+
+        # Surface claim verifier provider
+        if trace.claim_verifier_provider:
+            evidence_for.append(
+                f"Claim verifier provider: {trace.claim_verifier_provider}"
+            )
+
+        evidence_against = []
+        if trace.sufficiency_result and not trace.sufficiency_result.sufficient:
+            evidence_against.append(
+                "Sufficiency reports insufficient context, suggesting retrieval miss rather than weak evidence"
+            )
+
+        supporting_analyzers = ["ClaimGroundingAnalyzer"]
+        if noise_signal:
+            supporting_analyzers.append("RetrievalDiagnosisReport")
+
+        return CandidateCause(
+            cause_id=f"{claim.claim_text[:50]}_weak_evidence",
+            cause_type="weak_or_ambiguous_evidence",
+            stage=FailureStage.GROUNDING,
+            evidence_for=evidence_for,
+            evidence_against=evidence_against,
+            affected_claims=[claim.claim_text],
+            affected_chunk_ids=list(claim.candidate_chunk_ids),
+            supporting_analyzers=supporting_analyzers,
+            contradicting_analyzers=[],
+            abduct=(
+                "Claim has related chunks but evidence quality is weak/ambiguous, "
+                "indicating noisy retrieval or partial context."
+            ),
+            act="Tighten evidence matching thresholds or filter noisy candidates before grounding.",
+            predict=(
+                "Stronger evidence filtering should reduce unsupported claims driven by ambiguous context."
+            ),
+            predicted_fix_effect="would_partially_fix",
+            calibration_status="uncalibrated",
+        )
 
     return None
 
@@ -206,11 +256,21 @@ def candidate_generation_contradicted(claim: ClaimResult, trace: AttributionTrac
         if claim.evidence_reason:
             evidence_for.append(f"Evidence reason: {claim.evidence_reason}")
 
+        # Surface claim verifier provider for evidence traceability
+        if trace.claim_verifier_provider:
+            evidence_for.append(
+                f"Claim verifier provider: {trace.claim_verifier_provider} — confirms external contradiction signal"
+            )
+
         evidence_against = []
         if trace.avg_score < 0.6:
             evidence_against.append(
                 f"Low retrieval scores ({trace.avg_score:.2f}) suggest poor quality evidence"
             )
+
+        supporting_analyzers = ["ClaimGroundingAnalyzer"]
+        if trace.claim_verifier_provider:
+            supporting_analyzers.append(trace.claim_verifier_provider)
 
         return CandidateCause(
             cause_id=f"{claim.claim_text[:50]}_generation_contradicted",
@@ -220,7 +280,7 @@ def candidate_generation_contradicted(claim: ClaimResult, trace: AttributionTrac
             evidence_against=evidence_against,
             affected_claims=[claim.claim_text],
             affected_chunk_ids=list(claim.contradicting_chunk_ids),
-            supporting_analyzers=["ClaimGroundingAnalyzer"],
+            supporting_analyzers=supporting_analyzers,
             contradicting_analyzers=[],
             abduct=(
                 "Claim contradicts retrieved evidence (value conflicts/contradicting chunks), "

@@ -54,7 +54,34 @@ class ParserValidationAnalyzer(BaseAnalyzer):
         if not run.retrieved_chunks:
             return self.skip("no retrieved chunks available")
 
-        profile = self._resolve_profile(run)
+        try:
+            profile = self._resolve_profile(run)
+        except (ValueError, TypeError, Exception) as exc:
+            return AnalyzerResult(
+                analyzer_name=self.name(),
+                status="warn",
+                stage=FailureStage.PARSING,
+                failure_type=FailureType.METADATA_LOSS,
+                evidence=[
+                    "parser_validation_profile_malformed",
+                    f"Parser profile validation failed: {str(exc)}",
+                ],
+                remediation="Provide a valid parser_validation_profile to enable parser-stage validation.",
+            )
+
+        if profile is None:
+            return AnalyzerResult(
+                analyzer_name=self.name(),
+                status="warn",
+                stage=FailureStage.PARSING,
+                failure_type=FailureType.METADATA_LOSS,
+                evidence=[
+                    "parser_validation_profile_missing",
+                    "parser validation skipped because no parser/chunking profile was provided",
+                ],
+                remediation="Provide parser_validation_profile metadata to enable parser-stage validation.",
+            )
+
         config = self._build_config(profile)
         engine = ParserValidationEngine(config=config)
 
@@ -107,7 +134,11 @@ class ParserValidationAnalyzer(BaseAnalyzer):
             remediation=primary.remediation,
         )
 
-    def _resolve_profile(self, run: RAGRun) -> ParserValidationProfile:
+    def _resolve_profile(self, run: RAGRun) -> ParserValidationProfile | None:
+        """
+        Resolve the parser validation profile from config or run metadata.
+        Returns None if no profile is provided (calling code handles as 'warn').
+        """
         if self.profile is not None:
             return self.profile
 
@@ -121,12 +152,7 @@ class ParserValidationAnalyzer(BaseAnalyzer):
             if run_profile is not None:
                 return self._coerce_profile(run_profile)
 
-        raise ValueError(
-            "ParserValidationAnalyzer requires ParserValidationProfile. Pass "
-            "profile=..., config['parser_validation_profile'], or "
-            "run.metadata['parser_validation_profile']. Set infer_from_legacy=True "
-            "during migration if old metadata aliases should be accepted temporarily."
-        )
+        return None
 
     def _coerce_profile(self, value: Any) -> ParserValidationProfile:
         if isinstance(value, ParserValidationProfile):

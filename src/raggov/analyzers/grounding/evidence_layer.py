@@ -161,11 +161,16 @@ class ClaimEvidenceBuilder:
         chunks: list[RetrievedChunk],
     ) -> ClaimEvidenceRecord:
         candidates = self._selector.select_candidates(claim, query, chunks)
+        claim_id = f"claim_{index:03d}"
         
         # Default claim-level verification
-        output = self._verifier.verify(claim, query, candidates)
+        output = self._verifier.verify(
+            claim,
+            query,
+            candidates,
+            metadata={"claim_id": claim_id},
+        )
         
-        claim_id = f"claim_{index:03d}"
         triplets: list[ClaimTriplet] | None = None
         
         # Triplet verification path (optional)
@@ -223,6 +228,7 @@ class ClaimEvidenceBuilder:
             evidence_reason=output.rationale + (f" [Calibrated via {calibrated.source}]" if calibrated.source else ""),
             value_matches=output.value_matches,
             value_conflicts=output.value_conflicts,
+            external_signal_records=list(output.external_signal_records),
             fallback_used=output.fallback_used,
             provenance={"analyzer": "ClaimEvidenceBuilder_v1"},
             structured_representation=StructuredClaimRepresentation(triplets=triplets) if triplets else None
@@ -279,6 +285,4 @@ class ClaimEvidenceBuilder:
             contradicting_chunk_ids=list(set(contradicting_ids)),
             triplet_results=triplet_results,
         )
-
-
 

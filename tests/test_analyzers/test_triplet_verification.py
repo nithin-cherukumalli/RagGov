@@ -100,7 +100,7 @@ def test_triplet_verification_flow():
     
     assert len(records) == 1
     assert records[0].verification_label == "entailed"
-    assert records[0].verification_method == "triplet_llm"
+    assert records[0].verifier_method == "triplet_llm"
     assert triplet_verifier.call_count == 1
 
 
@@ -134,7 +134,7 @@ def test_triplet_verification_fallback_on_extraction_failure():
     records = builder.build(["Test claim"], "q", [])
     
     assert records[0].verification_label == "entailed"
-    assert records[0].verification_method == "base"
+    assert records[0].verifier_method == "base"
     assert triplet_verifier.call_count == 0
 
 

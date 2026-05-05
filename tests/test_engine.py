@@ -10,12 +10,11 @@ from typer.testing import CliRunner
 
 from raggov.analyzers.base import BaseAnalyzer
 from raggov.analyzers.attribution.a2p import A2PAttributionAnalyzer
+from raggov.analyzers.grounding.support import ClaimGroundingAnalyzer
 from raggov.analyzers.confidence.semantic_entropy import SemanticEntropyAnalyzer
-from raggov.analyzers.grounding.citation_faithfulness import CitationFaithfulnessProbe
 from raggov.analyzers.parsing.parser_validation import ParserValidationAnalyzer
 from raggov.analyzers.retrieval.citation import CitationMismatchAnalyzer
 from raggov.analyzers.taxonomy_classifier.layer6 import Layer6TaxonomyClassifier
-from raggov.analyzers.verification.ncv import NCVPipelineVerifier
 from raggov.calibration import ARESCalibrator, CalibrationSample
 from raggov.cli import app
 from raggov.engine import DiagnosisEngine, _max_risk, diagnose
@@ -61,6 +60,13 @@ class FaultyAnalyzer(BaseAnalyzer):
 
     def analyze(self, run: RAGRun) -> AnalyzerResult:
         raise RuntimeError("test crash")
+
+
+class CrashingClaimGroundingAnalyzer(ClaimGroundingAnalyzer):
+    """Critical analyzer that raises to test non-clean crash handling."""
+
+    def analyze(self, run: RAGRun) -> AnalyzerResult:
+        raise RuntimeError("critical grounding boom")
 
 
 class WeightedStaticAnalyzer(BaseAnalyzer):
@@ -212,7 +218,8 @@ def test_engine_uses_priority_and_default_remediation() -> None:
 
 
 def test_engine_catches_analyzer_exceptions_and_marks_skip(caplog: pytest.LogCaptureFixture) -> None:
-    diagnosis = DiagnosisEngine(analyzers=[CrashingAnalyzer()]).diagnose(run())
+    grounding_pass = StaticAnalyzer(AnalyzerResult(analyzer_name="ClaimGroundingAnalyzer", status="pass"))
+    diagnosis = DiagnosisEngine(analyzers=[CrashingAnalyzer(), grounding_pass], config={"mode": "native"}).diagnose(run())
 
     assert diagnosis.primary_failure == FailureType.CLEAN
     assert diagnosis.root_cause_stage == FailureStage.UNKNOWN
@@ -221,6 +228,19 @@ def test_engine_catches_analyzer_exceptions_and_marks_skip(caplog: pytest.LogCap
     assert diagnosis.analyzer_results[0].status == "skip"
     assert diagnosis.analyzer_results[0].evidence == ["boom"]
     assert "Analyzer CrashingAnalyzer failed" in caplog.text
+
+
+def test_critical_analyzer_crash_cannot_return_clean(caplog: pytest.LogCaptureFixture) -> None:
+    diagnosis = DiagnosisEngine(analyzers=[CrashingClaimGroundingAnalyzer()]).diagnose(run())
+
+    assert diagnosis.primary_failure == FailureType.INCOMPLETE_DIAGNOSIS
+    assert diagnosis.root_cause_stage == FailureStage.UNKNOWN
+    assert not diagnosis.should_have_answered
+    assert diagnosis.checks_skipped == []
+    assert diagnosis.analyzer_results[0].status == "fail"
+    assert diagnosis.analyzer_results[0].failure_type == FailureType.INCOMPLETE_DIAGNOSIS
+    assert "critical grounding boom" in diagnosis.analyzer_results[0].evidence[0]
+    assert "Analyzer CrashingClaimGroundingAnalyzer failed" in caplog.text
 
 
 def test_engine_isolates_faulty_analyzer_and_continues_with_others() -> None:
@@ -315,14 +335,24 @@ def test_default_suite_includes_parser_validation_first() -> None:
 
 
 def test_ncv_is_opt_in_via_flag() -> None:
-    """NCVPipelineVerifier should only run when enable_ncv=True."""
-    # Without flag - should NOT be in default suite
-    engine = DiagnosisEngine(config={})
+    """NCVPipelineVerifier should only run when enable_ncv=True or in external-enhanced mode."""
+    # In native mode without flag - should NOT be in suite
+    engine = DiagnosisEngine(config={"mode": "native"})
     analyzer_names = [analyzer.__class__.__name__ for analyzer in engine.analyzers]
     assert "NCVPipelineVerifier" not in analyzer_names
 
-    # With flag - should be present
-    engine = DiagnosisEngine(config={"enable_ncv": True})
+    # In external-enhanced mode without flag - should be present by default
+    engine = DiagnosisEngine(config={"mode": "external-enhanced"})
+    analyzer_names = [analyzer.__class__.__name__ for analyzer in engine.analyzers]
+    assert "NCVPipelineVerifier" in analyzer_names
+
+    # Explicitly disabled in external-enhanced mode - should NOT be present
+    engine = DiagnosisEngine(config={"mode": "external-enhanced", "enable_ncv": False})
+    analyzer_names = [analyzer.__class__.__name__ for analyzer in engine.analyzers]
+    assert "NCVPipelineVerifier" not in analyzer_names
+
+    # Explicitly enabled in native mode - should be present
+    engine = DiagnosisEngine(config={"mode": "native", "enable_ncv": True})
     analyzer_names = [analyzer.__class__.__name__ for analyzer in engine.analyzers]
     assert "NCVPipelineVerifier" in analyzer_names
     # Should be inserted after grounding, before security
@@ -394,7 +424,10 @@ def test_engine_populates_ncv_fields_in_diagnosis() -> None:
     assert any(result.analyzer_name == "NCVPipelineVerifier" for result in diagnosis.analyzer_results)
     assert diagnosis.ncv_report is not None
     assert diagnosis.pipeline_health_score is not None
-    assert diagnosis.first_failing_node == "ANSWER_COMPLETENESS"
+    assert diagnosis.first_failing_node == "answer_completeness"
+    assert diagnosis.first_uncertain_node is None or isinstance(diagnosis.first_uncertain_node, str)
+    assert diagnosis.ncv_bottleneck_description is not None
+    assert isinstance(diagnosis.ncv_missing_reports, list)
 
 
 def test_engine_populates_citation_faithfulness_field() -> None:
@@ -427,12 +460,24 @@ def test_engine_diagnoses_v1_fixtures(
 ) -> None:
     fixture_run = RAGRun.model_validate_json((FIXTURES / fixture_name).read_text())
 
-    diagnosis = diagnose(fixture_run)
+    diagnosis = diagnose(fixture_run, config={"mode": "native"})
 
     assert diagnosis.primary_failure == primary_failure
     assert diagnosis.should_have_answered is should_answer
     assert diagnosis.security_risk == security_risk
     assert diagnosis.analyzer_results
+
+
+def test_unsupported_claims_fixture_not_clean() -> None:
+    fixture_run = RAGRun.model_validate_json((FIXTURES / "unsupported_claims.json").read_text())
+
+    diagnosis = diagnose(fixture_run, config={"mode": "native"})
+
+    assert diagnosis.primary_failure != FailureType.CLEAN
+    assert diagnosis.primary_failure in {
+        FailureType.UNSUPPORTED_CLAIM,
+        FailureType.INCOMPLETE_DIAGNOSIS,
+    }
 
 
 @pytest.mark.parametrize(
@@ -449,7 +494,7 @@ def test_cli_diagnose_fixture_files(
     run_id = json.loads(fixture_path.read_text())["run_id"]
 
     with runner.isolated_filesystem(temp_dir=tmp_path):
-        result = runner.invoke(app, ["diagnose", str(fixture_path)])
+        result = runner.invoke(app, ["diagnose", str(fixture_path), "--mode", "native"])
         output_file = Path(f"{run_id}_diagnosis.json")
 
         assert result.exit_code == 0
@@ -513,7 +558,7 @@ def test_layer6_and_attribution_surface_root_cause_correctly() -> None:
     )
 
     # Run engine in deterministic mode (no LLM)
-    engine = DiagnosisEngine(config={"enable_a2p": False})
+    engine = DiagnosisEngine(config={"mode": "native", "enable_a2p": False})
     diagnosis = engine.diagnose(fixture_run)
 
     # Assert Layer6TaxonomyClassifier ran
@@ -568,6 +613,24 @@ def test_layer6_and_attribution_surface_root_cause_correctly() -> None:
     # Assert summary includes failure chain
     summary = diagnosis.summary()
     assert "Failure chain:" in summary, "Summary should include failure chain"
+
+
+def test_missing_parser_profile_does_not_override_concrete_retrieval_failure() -> None:
+    fixture_run = RAGRun.model_validate_json(
+        (FIXTURES / "insufficient_context.json").read_text()
+    )
+
+    diagnosis = DiagnosisEngine(config={"mode": "native", "enable_a2p": False}).diagnose(fixture_run)
+
+    assert diagnosis.primary_failure == FailureType.INSUFFICIENT_CONTEXT
+    assert diagnosis.root_cause_stage in {
+        FailureStage.RETRIEVAL,
+        FailureStage.SUFFICIENCY,
+        FailureStage.CHUNKING,
+    }
+    assert any("parser_validation_profile_missing" in item for item in diagnosis.evidence)
+    assert diagnosis.layer6_report is not None
+    assert diagnosis.layer6_report["primary_stage"] != "PARSING"
 
 
 def test_a2p_attribution_provides_detailed_fix() -> None:

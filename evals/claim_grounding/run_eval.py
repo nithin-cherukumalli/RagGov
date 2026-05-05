@@ -100,11 +100,11 @@ def predict(
     # Map ClaimEvidenceRecord back to VerificationResult for metrics
     return VerificationResult(
         label=record.verification_label,
-        raw_score=record.raw_support_score,
+        raw_score=record.verifier_score,
         evidence_chunk_id=record.supporting_chunk_ids[0] if record.supporting_chunk_ids else None,
         evidence_span=None,
         rationale=record.evidence_reason,
-        verifier_name=record.verification_method,
+        verifier_name=record.verifier_method,
         fallback_used=record.fallback_used,
         supporting_chunk_ids=record.supporting_chunk_ids,
         contradicting_chunk_ids=record.contradicting_chunk_ids,

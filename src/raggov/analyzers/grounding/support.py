@@ -16,12 +16,15 @@ from raggov.models.grounding import GroundingEvidenceBundle
 from raggov.calibration import ClaimCalibrationLoader
 from raggov.analyzers.grounding.triplets import build_triplet_extractor
 from raggov.analyzers.grounding.verifiers import (
+    AbstainingVerifier,
     EvidenceVerifier,
     HeuristicValueOverlapVerifier,
     StructuredLLMClaimVerifier,
     TripletVerifier,
     LLMTripletVerifierV1,
 )
+from raggov.evaluators.claim.structured_llm import StructuredLLMClaimVerifierAdapter
+from raggov.evaluators.claim.refchecker_adapter import RefCheckerClaimSignalProvider
 from raggov.analyzers.grounding.candidate_selection import EvidenceCandidateSelector
 from raggov.analyzers.retrieval.scope import STOPWORDS
 from raggov.models.chunk import RetrievedChunk
@@ -42,6 +45,18 @@ REMEDIATION = (
 _CALIBRATION_NOTE = (
     "[Uncalibrated heuristic support score, not calibrated confidence.]"
 )
+
+
+def _claim_result_label(record: ClaimEvidenceRecord) -> str:
+    if record.verification_label == "insufficient":
+        return "unsupported"
+    if record.verification_label == "neutral":
+        return "abstain"
+    if record.verification_label == "unverified":
+        return "abstain"
+    return getattr(record.verification_label, "value", str(record.verification_label))
+
+
 def _record_to_claim_result(record: ClaimEvidenceRecord) -> ClaimResult:
     """Convert a ClaimEvidenceRecord to a ClaimResult for backward compatibility."""
     # Only append the uncalibrated note if status is actually uncalibrated
@@ -51,7 +66,7 @@ def _record_to_claim_result(record: ClaimEvidenceRecord) -> ClaimResult:
         
     return ClaimResult(
         claim_text=record.claim_text,
-        label=record.verification_label,
+        label=_claim_result_label(record),  # type: ignore[arg-type]
         supporting_chunk_ids=record.supporting_chunk_ids,
         candidate_chunk_ids=[c.chunk_id for c in record.candidate_evidence_chunks],
         contradicting_chunk_ids=record.contradicting_chunk_ids,
@@ -76,15 +91,38 @@ class ClaimGroundingAnalyzer(BaseAnalyzer):
     def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__(config)
         self._selector = EvidenceCandidateSelector(self.config)
+        requested_verifier = self.config.get("claim_verifier")
         mode = self.config.get("claim_verifier_mode", "heuristic")
         has_llm_client = bool(self.config.get("llm_client"))
-        if mode == "structured_llm" and has_llm_client:
+        self._external_verifier_error: str | None = None
+        if requested_verifier == "structured_llm":
+            if has_llm_client or self.config.get("llm_fn"):
+                self._verifier = StructuredLLMClaimVerifierAdapter(self.config)
+            else:
+                self._external_verifier_error = (
+                    "structured_llm_claim: no LLM client configured; native fallback used."
+                )
+                self._verifier = HeuristicValueOverlapVerifier(self.config)
+        elif mode == "structured_llm" and has_llm_client:
             self._verifier = StructuredLLMClaimVerifier(self.config)
         elif self.config.get("use_llm", False) and has_llm_client:
             # Only use LLM verifier when an actual llm_client is provided
             self._verifier = StructuredLLMClaimVerifier(self.config)
+        elif requested_verifier == "refchecker":
+            rc = RefCheckerClaimSignalProvider(self.config)
+            if rc.is_available():
+                self._verifier = HeuristicValueOverlapVerifier(self.config)
+                self._refchecker_claim_provider: RefCheckerClaimSignalProvider | None = rc
+            else:
+                self._external_verifier_error = (
+                    "refchecker_claim: package not installed; native fallback used. "
+                    "Install via `pip install refchecker`."
+                )
+                self._verifier = HeuristicValueOverlapVerifier(self.config)
+                self._refchecker_claim_provider = None
         else:
             self._verifier = HeuristicValueOverlapVerifier(self.config)
+            self._refchecker_claim_provider = None
         
         # Calibration setup
         calib_path = self.config.get("claim_calibration_path")
@@ -135,6 +173,11 @@ class ClaimGroundingAnalyzer(BaseAnalyzer):
         )
 
         # Create the evidence bundle for downstream consumers
+        external_signal_records = [
+            signal
+            for record in records
+            for signal in record.external_signal_records
+        ]
         bundle = GroundingEvidenceBundle(
             claim_evidence_records=records,
             diagnostic_rollup=rollup.as_dict(),
@@ -146,6 +189,7 @@ class ClaimGroundingAnalyzer(BaseAnalyzer):
                 "calibration_status": records[0].calibration_status if records else "unavailable",
                 "average_score": sum(r.verifier_score for r in records) / len(records) if records else 0.0,
             },
+            external_signal_records=external_signal_records,
         )
 
         failed_results = [r for r in claim_results if r.label in {"unsupported", "contradicted"}]
@@ -170,6 +214,19 @@ class ClaimGroundingAnalyzer(BaseAnalyzer):
             f"structured={len(claim_results) - fallback_count}, "
             f"fallback={fallback_count}"
         )
+        if self.config.get("claim_verifier") == "structured_llm":
+            evidence.append("External claim verifier: provider=structured_llm, signal_type=claim_support")
+        if self.config.get("claim_verifier") == "refchecker":
+            rc_status = "available" if getattr(self, "_refchecker_claim_provider", None) else "missing_dependency"
+            evidence.append(f"External claim verifier: provider=refchecker, status={rc_status}, signal_type=claim_support")
+        if external_signal_records:
+            providers = sorted({str(signal.get("provider")) for signal in external_signal_records})
+            evidence.append(
+                "External claim signal metadata preserved: "
+                f"providers={','.join(providers)}, signals={len(external_signal_records)}"
+            )
+        if self._external_verifier_error:
+            evidence.append(f"External claim verifier unavailable: {self._external_verifier_error}")
         # Append RAGChecker-inspired failure pattern summary
         pattern_line = (
             f"Diagnostic patterns [{rollup.diagnostic_version}]: "
