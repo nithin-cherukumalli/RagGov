@@ -6,6 +6,7 @@ GovRAG provides stage-aware failure attribution, but the diagnostic strength dep
 
 GovRAG operates under three distinct modes:
 - **external-enhanced**: This is the default. The engine will utilize LLM-based verification, adapter integrations (e.g. RAGAS, DeepEval), and other semantic features if available. When dependencies are missing, the system warns the user, gracefully falling back to native heuristics, and lists unfulfilled features in `missing_external_providers`.
+  By default, the mode now prefers the local package-based adapters and keeps LLM-backed verification, A2P, and cross-encoder retrieval as explicit opt-ins so a normal install can run without API credentials or model downloads.
 - **native**: GovRAG will forcefully disable any external calls (no LLM, no adapters). Grounding defaults to heuristics. This mode is completely offline and fast but may have a higher false-negative rate for complex semantic contradictions.
 - **calibrated**: (Unimplemented) Future mode for ARES PPI-corrected outputs.
 

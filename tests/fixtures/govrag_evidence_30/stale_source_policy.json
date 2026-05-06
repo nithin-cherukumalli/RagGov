@@ -1,0 +1,59 @@
+{
+  "case_id": "stale_source_policy",
+  "description": "Answer relies on stale SDK documentation and cites the stale sources.",
+  "query": "How do I create a streaming response with the NovaAI Python SDK?",
+  "retrieved_chunks": [
+    {
+      "chunk_id": "stale-source-chunk-1",
+      "text": "In NovaAI SDK version 1.x, streaming responses are created with client.stream_response.",
+      "source_doc_id": "novaai-doc-legacy-streaming",
+      "score": 0.87
+    },
+    {
+      "chunk_id": "stale-source-chunk-2",
+      "text": "Legacy examples recommend creating NovaClient directly and iterating over stream_response output.",
+      "source_doc_id": "novaai-doc-legacy-client",
+      "score": 0.84
+    }
+  ],
+  "final_answer": "In NovaAI SDK version 1.x, streaming responses are created with client.stream_response.",
+  "citations": ["novaai-doc-legacy-streaming", "novaai-doc-legacy-client"],
+  "cited_doc_ids": ["novaai-doc-legacy-streaming", "novaai-doc-legacy-client"],
+  "corpus_metadata": {
+    "query_date": "2026-05-01T00:00:00Z",
+    "entries": [
+      {
+        "doc_id": "novaai-doc-legacy-streaming",
+        "text": "In NovaAI SDK version 1.x, streaming responses are created with client.stream_response.",
+        "timestamp": "2024-04-10T00:00:00Z",
+        "metadata": {
+          "status": "active"
+        }
+      },
+      {
+        "doc_id": "novaai-doc-legacy-client",
+        "text": "Legacy examples recommend creating NovaClient directly and iterating over stream_response output.",
+        "timestamp": "2024-04-11T00:00:00Z",
+        "metadata": {
+          "status": "active"
+        }
+      }
+    ]
+  },
+  "parser_validation_profile": null,
+  "mode": "external-enhanced",
+  "expected": {
+    "primary_failure": "STALE_RETRIEVAL",
+    "not_clean": true,
+    "required_reports": [
+      "version_validity_report",
+      "retrieval_diagnosis_report",
+      "citation_faithfulness_report"
+    ],
+    "required_evidence_signals": [
+      "stale document"
+    ],
+    "expected_missing_external_providers": [],
+    "expected_degraded_external_mode": false
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "case_id": "parser_damage_table",
+  "description": "Parser profile promises table-aware chunking but the retrieved chunk is flattened.",
+  "query": "What are the vacancies by district?",
+  "retrieved_chunks": [
+    {
+      "chunk_id": "parser-damage-chunk-1",
+      "text": "District Vacancies Category Warangal 5 Grade A Khammam 3 Grade B",
+      "source_doc_id": "parser-table-doc-1",
+      "score": 0.8
+    }
+  ],
+  "final_answer": "Warangal has 5 vacancies and Khammam has 3.",
+  "citations": ["parser-table-doc-1"],
+  "cited_doc_ids": ["parser-table-doc-1"],
+  "corpus_metadata": {
+    "query_date": "2026-05-01T00:00:00Z",
+    "entries": [
+      {
+        "doc_id": "parser-table-doc-1",
+        "text": "District Vacancies Category Warangal 5 Grade A Khammam 3 Grade B",
+        "timestamp": "2026-04-01T00:00:00Z",
+        "metadata": {
+          "status": "active"
+        }
+      }
+    ]
+  },
+  "parser_validation_profile": {
+    "chunking_strategy": {
+      "strategy_type": "table_aware",
+      "preserves_table_structure": true,
+      "preserves_table_headers": true,
+      "preserves_source_elements": true,
+      "allows_mid_sentence_start": false,
+      "allows_cross_section_chunk": true,
+      "allows_table_flattening": false,
+      "requires_page_metadata": true,
+      "requires_provenance": true
+    },
+    "infer_from_legacy": true
+  },
+  "mode": "external-enhanced",
+  "expected": {
+    "primary_failure": "TABLE_STRUCTURE_LOSS",
+    "not_clean": true,
+    "required_reports": [
+      "parser_validation_evidence"
+    ],
+    "required_evidence_signals": [
+      "TABLE_STRUCTURE_LOSS"
+    ],
+    "expected_missing_external_providers": [],
+    "expected_degraded_external_mode": false
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "case_id": "retrieval_miss_policy",
+  "description": "Answer introduces strike details that are not present in retrieved evidence.",
+  "query": "What happened during the 1913 Meridian Textile Strike?",
+  "retrieved_chunks": [
+    {
+      "chunk_id": "retrieval-miss-chunk-1",
+      "text": "The Meridian Textile Strike began after mill workers protested a proposed wage reduction. The dispute centered on loom assignments and overtime rules.",
+      "source_doc_id": "meridian-doc-1",
+      "score": 0.77
+    },
+    {
+      "chunk_id": "retrieval-miss-chunk-2",
+      "text": "Archive notes describe several public meetings held during the textile dispute, but do not list the final settlement date or the number of workers.",
+      "source_doc_id": "meridian-doc-2",
+      "score": 0.72
+    }
+  ],
+  "final_answer": "The strike began on March 4, 1913, when 1,200 workers led by Clara Benton walked out of three mills and later won a 12 percent wage increase.",
+  "citations": ["meridian-doc-1", "meridian-doc-2"],
+  "cited_doc_ids": ["meridian-doc-1", "meridian-doc-2"],
+  "corpus_metadata": {
+    "query_date": "2026-05-01T00:00:00Z",
+    "entries": [
+      {
+        "doc_id": "meridian-doc-1",
+        "text": "The Meridian Textile Strike began after mill workers protested a proposed wage reduction. The dispute centered on loom assignments and overtime rules.",
+        "timestamp": "2026-01-20T00:00:00Z",
+        "metadata": {
+          "status": "active"
+        }
+      },
+      {
+        "doc_id": "meridian-doc-2",
+        "text": "Archive notes describe several public meetings held during the textile dispute, but do not list the final settlement date or the number of workers.",
+        "timestamp": "2026-01-21T00:00:00Z",
+        "metadata": {
+          "status": "active"
+        }
+      }
+    ]
+  },
+  "parser_validation_profile": null,
+  "mode": "external-enhanced",
+  "expected": {
+    "primary_failure": "INSUFFICIENT_CONTEXT",
+    "not_clean": true,
+    "required_reports": [
+      "retrieval_diagnosis_report",
+      "citation_faithfulness_report",
+      "grounding_claim_results"
+    ],
+    "required_evidence_signals": [
+      "retrieval_miss"
+    ],
+    "expected_missing_external_providers": [],
+    "expected_degraded_external_mode": false
+  }
+}

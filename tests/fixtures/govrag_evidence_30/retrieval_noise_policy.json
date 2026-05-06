@@ -1,0 +1,55 @@
+{
+  "case_id": "retrieval_noise_policy",
+  "description": "Most retrieved chunks are irrelevant to the refund-policy query.",
+  "query": "What is the refund window for the Helio plan?",
+  "retrieved_chunks": [
+    {
+      "chunk_id": "noise-chunk-1",
+      "text": "Helio subscribers may request a refund within fourteen days of the initial purchase.",
+      "source_doc_id": "helio-refund-doc-1",
+      "score": 0.54
+    },
+    {
+      "chunk_id": "noise-chunk-2",
+      "text": "The football club changed coaches after a poor run of away results.",
+      "source_doc_id": "sports-doc-1",
+      "score": 0.51
+    },
+    {
+      "chunk_id": "noise-chunk-3",
+      "text": "The weather service forecast heavy rain over the coastal districts this week.",
+      "source_doc_id": "weather-doc-1",
+      "score": 0.49
+    }
+  ],
+  "final_answer": "Helio subscribers may request a refund within fourteen days of the initial purchase.",
+  "citations": ["helio-refund-doc-1"],
+  "cited_doc_ids": ["helio-refund-doc-1"],
+  "corpus_metadata": {
+    "query_date": "2026-05-01T00:00:00Z",
+    "entries": [
+      {
+        "doc_id": "helio-refund-doc-1",
+        "text": "Helio subscribers may request a refund within fourteen days of the initial purchase.",
+        "timestamp": "2026-04-01T00:00:00Z",
+        "metadata": {
+          "status": "active"
+        }
+      }
+    ]
+  },
+  "parser_validation_profile": null,
+  "mode": "external-enhanced",
+  "expected": {
+    "primary_failure": "RETRIEVAL_ANOMALY",
+    "not_clean": true,
+    "required_reports": [
+      "retrieval_diagnosis_report"
+    ],
+    "required_evidence_signals": [
+      "noisy_chunk_ids"
+    ],
+    "expected_missing_external_providers": [],
+    "expected_degraded_external_mode": false
+  }
+}

@@ -40,8 +40,9 @@ pip install deepeval
 If packaging extras are configured by the project release, the equivalent install pattern is:
 
 ```bash
-pip install "govrag[eval]"   # installs ragas, deepeval, ragchecker
+pip install "govrag[eval]"   # installs sentence-transformers, ragas, deepeval, ragchecker
 pip install "govrag[claim]"  # installs refchecker
+pip install "govrag[external]"  # installs the full local external-enhanced stack
 pip install "govrag[llm]"    # installs openai, anthropic
 ```
 
@@ -63,7 +64,7 @@ Callers can inspect this result and decide how to handle it. The pipeline does n
 
 To control how external adapters are consumed, GovRAG configuration supports a `mode` parameter:
 
-- `external-enhanced` (default): Attempts to use specified external signals (like structured LLM tools). If dependencies are missing or the LLM is not configured, it gracefully degrades to heuristics and populates `missing_external_providers`.
+- `external-enhanced` (default): Uses the local package-based evaluator stack by default (`ragas`, `deepeval`, `refchecker`, `ragchecker`). LLM-backed claim/citation verification, A2P, and cross-encoder retrieval are opt-in so a fresh install does not degrade immediately due to missing credentials or uncached models.
 - `native`: Force-disables all external signals. Analyzers fall back completely to internal heuristic scoring.
 - `calibrated`: (Reserved for future ARES PPI-corrected outputs)
 

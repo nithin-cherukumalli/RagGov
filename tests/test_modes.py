@@ -7,6 +7,15 @@ from raggov.engine import DiagnosisEngine
 def test_diagnosis_engine_default_mode():
     engine = DiagnosisEngine({})
     assert engine.config.get("mode") == "external-enhanced"
+    assert engine.config.get("enabled_external_providers") == [
+        "ragas",
+        "deepeval",
+        "refchecker_claim",
+        "refchecker_citation",
+        "ragchecker",
+    ]
+    assert engine.config.get("retrieval_relevance_provider") == "native"
+    assert engine.config.get("enable_a2p") is False
 
 
 def test_diagnosis_engine_native_mode_overrides_external():
@@ -30,6 +39,7 @@ def test_diagnosis_engine_calibrated_mode_raises():
 def test_diagnosis_engine_missing_external_providers():
     config: EngineConfig = {
         "mode": "external-enhanced",
+        "enabled_external_providers": ["structured_llm_claim", "a2p"],
         "llm_client": None,  # Missing LLM
         "enable_triplet_extraction": True,
     }

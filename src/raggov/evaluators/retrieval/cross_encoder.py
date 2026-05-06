@@ -17,6 +17,7 @@ Config keys:
 
 from __future__ import annotations
 
+import importlib.util
 import logging
 import sys
 from typing import Any
@@ -77,6 +78,7 @@ class CrossEncoderRetrievalRelevanceProvider:
         self._partial_threshold: float = float(
             cfg.get("partial_threshold", _DEFAULT_PARTIAL_THRESHOLD)
         )
+        self._allow_model_downloads: bool = bool(cfg.get("allow_model_downloads", False))
         self._model: Any | None = None
         self._single_score_cursor: int = 0
 
@@ -85,7 +87,11 @@ class CrossEncoderRetrievalRelevanceProvider:
     # ------------------------------------------------------------------
 
     def is_available(self) -> bool:
-        return self._model is not None or "sentence_transformers" in sys.modules
+        return (
+            self._model is not None
+            or "sentence_transformers" in sys.modules
+            or importlib.util.find_spec("sentence_transformers") is not None
+        )
 
     def evaluate(self, run: RAGRun) -> ExternalEvaluationResult:
         """Score all retrieved chunks in run against the query.
@@ -214,7 +220,18 @@ class CrossEncoderRetrievalRelevanceProvider:
     def _load_model(self) -> Any:
         if self._model is None:
             from sentence_transformers import CrossEncoder
-            self._model = CrossEncoder(self._model_name)
+            try:
+                self._model = CrossEncoder(
+                    self._model_name,
+                    local_files_only=not self._allow_model_downloads,
+                )
+            except Exception as exc:
+                if not self._allow_model_downloads:
+                    raise RuntimeError(
+                        "cross_encoder model not cached locally. "
+                        "Pre-download the model or set allow_model_downloads=True."
+                    ) from exc
+                raise
         return self._model
 
     def _predict(self, query: str, texts: list[str]) -> list[float]:

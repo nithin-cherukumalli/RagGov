@@ -72,10 +72,14 @@ def _mock_sentence_transformers(scores: list[float]) -> tuple[MagicMock, Any]:
 # ---------------------------------------------------------------------------
 
 
-def test_missing_dependency_returns_not_succeeded() -> None:
+def test_missing_dependency_returns_not_succeeded(monkeypatch: pytest.MonkeyPatch) -> None:
     # Remove sentence_transformers from sys.modules to simulate absence.
     original = sys.modules.pop("sentence_transformers", None)
     try:
+        monkeypatch.setattr(
+            "raggov.evaluators.retrieval.cross_encoder.importlib.util.find_spec",
+            lambda name: None if name == "sentence_transformers" else object(),
+        )
         provider = CrossEncoderRetrievalRelevanceProvider()
         # Re-create instance after removing the module so _model cache is clear
         result = provider.evaluate(_make_run())
@@ -88,9 +92,13 @@ def test_missing_dependency_returns_not_succeeded() -> None:
             sys.modules["sentence_transformers"] = original
 
 
-def test_missing_dependency_is_available_returns_false() -> None:
+def test_missing_dependency_is_available_returns_false(monkeypatch: pytest.MonkeyPatch) -> None:
     original = sys.modules.pop("sentence_transformers", None)
     try:
+        monkeypatch.setattr(
+            "raggov.evaluators.retrieval.cross_encoder.importlib.util.find_spec",
+            lambda name: None if name == "sentence_transformers" else object(),
+        )
         provider = CrossEncoderRetrievalRelevanceProvider()
         assert provider.is_available() is False
     finally:
@@ -98,15 +106,57 @@ def test_missing_dependency_is_available_returns_false() -> None:
             sys.modules["sentence_transformers"] = original
 
 
-def test_score_relevance_returns_empty_when_unavailable() -> None:
+def test_is_available_returns_true_when_dependency_is_installed_but_not_imported(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original = sys.modules.pop("sentence_transformers", None)
+    try:
+        monkeypatch.setattr(
+            "raggov.evaluators.retrieval.cross_encoder.importlib.util.find_spec",
+            lambda name: object() if name == "sentence_transformers" else None,
+        )
+        provider = CrossEncoderRetrievalRelevanceProvider()
+        assert provider.is_available() is True
+    finally:
+        if original is not None:
+            sys.modules["sentence_transformers"] = original
+
+
+def test_score_relevance_returns_empty_when_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
     """score_relevance() returns [] (not raises) when unavailable — callers check is_available()."""
     original = sys.modules.pop("sentence_transformers", None)
     try:
+        monkeypatch.setattr(
+            "raggov.evaluators.retrieval.cross_encoder.importlib.util.find_spec",
+            lambda name: None if name == "sentence_transformers" else object(),
+        )
         provider = CrossEncoderRetrievalRelevanceProvider()
         result = provider.score_relevance("query", ["chunk text"])
         assert result == []
     finally:
         if original is not None:
+            sys.modules["sentence_transformers"] = original
+
+
+def test_missing_cached_model_fails_fast_without_download_attempt() -> None:
+    fake_module = ModuleType("sentence_transformers")
+    fake_cls = MagicMock(side_effect=OSError("model files not found"))
+    fake_module.CrossEncoder = fake_cls  # type: ignore[attr-defined]
+    original = sys.modules.get("sentence_transformers")
+    sys.modules["sentence_transformers"] = fake_module
+    try:
+        provider = CrossEncoderRetrievalRelevanceProvider()
+        result = provider.evaluate(_make_run())
+        assert result.succeeded is False
+        assert "not cached locally" in (result.error or "")
+        fake_cls.assert_called_once_with(
+            "cross-encoder/ms-marco-MiniLM-L-6-v2",
+            local_files_only=True,
+        )
+    finally:
+        if original is None:
+            sys.modules.pop("sentence_transformers", None)
+        else:
             sys.modules["sentence_transformers"] = original
 
 
@@ -550,10 +600,14 @@ def test_diagnosis_does_not_import_sentence_transformers() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_no_silent_fallback_when_missing_dependency() -> None:
+def test_no_silent_fallback_when_missing_dependency(monkeypatch: pytest.MonkeyPatch) -> None:
     """Missing dependency must be surfaced; provider must not return empty success."""
     original = sys.modules.pop("sentence_transformers", None)
     try:
+        monkeypatch.setattr(
+            "raggov.evaluators.retrieval.cross_encoder.importlib.util.find_spec",
+            lambda name: None if name == "sentence_transformers" else object(),
+        )
         provider = CrossEncoderRetrievalRelevanceProvider()
         result = provider.evaluate(_make_run())
         assert result.succeeded is False
@@ -624,9 +678,15 @@ def test_scorer_protocol_returns_relevance_score_object() -> None:
         restore()
 
 
-def test_scorer_protocol_returns_unknown_when_unavailable() -> None:
+def test_scorer_protocol_returns_unknown_when_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     original = sys.modules.pop("sentence_transformers", None)
     try:
+        monkeypatch.setattr(
+            "raggov.evaluators.retrieval.cross_encoder.importlib.util.find_spec",
+            lambda name: None if name == "sentence_transformers" else object(),
+        )
         provider = CrossEncoderRetrievalRelevanceProvider()
         score_obj = provider.score("test query", "some chunk text")
         assert score_obj.label == QueryRelevanceLabel.UNKNOWN

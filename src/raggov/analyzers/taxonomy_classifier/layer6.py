@@ -203,6 +203,7 @@ class Layer6TaxonomyClassifier(BaseAnalyzer):
             failure_type=None,
             stage=stage_map.get(primary_stage, FailureStage.UNKNOWN),
             evidence=[json.dumps(report_dict)],
+            layer6_report=report_dict,
             remediation=engineer_action,
         )
 

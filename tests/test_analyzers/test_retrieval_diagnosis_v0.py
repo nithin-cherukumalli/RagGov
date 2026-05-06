@@ -240,6 +240,37 @@ def test_missing_upstream_reports_warn_without_silent_fallback() -> None:
     assert report.fallback_heuristics_used == []
 
 
+def test_no_claims_skip_does_not_require_grounding_or_citation_reports() -> None:
+    profile = RetrievalEvidenceProfile(run_id="run-retrieval-diagnosis", chunks=[])
+    version = VersionValidityReport(run_id="run-retrieval-diagnosis")
+    grounding_skip = AnalyzerResult(
+        analyzer_name="ClaimGroundingAnalyzer",
+        status="skip",
+        evidence=["no claims extracted from final answer"],
+    )
+    sufficiency = AnalyzerResult(
+        analyzer_name="SufficiencyAnalyzer",
+        status="pass",
+        sufficiency_result=SufficiencyResult(sufficient=True, method="test"),
+    )
+    analyzer = RetrievalDiagnosisAnalyzerV0(
+        {"mode": "external-enhanced", "prior_results": [grounding_skip, sufficiency]}
+    )
+
+    result = analyzer.analyze(
+        run(
+            chunks=[chunk("chunk-1", "doc-1")],
+            retrieval_profile=profile,
+            version_report=version,
+        )
+    )
+    report = result.retrieval_diagnosis_report
+
+    assert result.status == "pass"
+    assert report is not None
+    assert report.primary_failure_type == RetrievalFailureType.NO_CLEAR_RETRIEVAL_FAILURE
+
+
 def test_default_engine_places_retrieval_diagnosis_after_source_validity() -> None:
     names = [analyzer.__class__.__name__ for analyzer in DiagnosisEngine(config={}).analyzers]
 
@@ -367,7 +398,12 @@ def test_missing_external_signal_warns_in_external_enhanced_mode() -> None:
     version = VersionValidityReport(run_id="run-retrieval-diagnosis")
 
     analyzer = RetrievalDiagnosisAnalyzerV0(
-        {"mode": "external-enhanced", "prior_results": [sufficiency, grounding]}
+        {
+            "mode": "external-enhanced",
+            "prior_results": [sufficiency, grounding],
+            "enabled_external_providers": ["cross_encoder_relevance"],
+            "retrieval_relevance_provider": "cross_encoder",
+        }
     )
     test_run = run(chunks=[chunk("chunk-1", "doc-1")], retrieval_profile=profile, citation_report=citation, version_report=version)
     

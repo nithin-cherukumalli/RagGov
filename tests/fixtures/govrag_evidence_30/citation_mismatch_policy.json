@@ -1,0 +1,59 @@
+{
+  "case_id": "citation_mismatch_policy",
+  "description": "Claim is plausible, but the cited document does not support it.",
+  "query": "What is the refund window for the Helio plan?",
+  "retrieved_chunks": [
+    {
+      "chunk_id": "citation-mismatch-chunk-1",
+      "text": "Helio subscribers may request a refund within fourteen days of the initial purchase.",
+      "source_doc_id": "helio-refund-doc-1",
+      "score": 0.91
+    },
+    {
+      "chunk_id": "citation-mismatch-chunk-2",
+      "text": "Customers who downgrade keep access to premium features until the billing period ends.",
+      "source_doc_id": "helio-downgrade-doc-2",
+      "score": 0.82
+    }
+  ],
+  "final_answer": "Helio subscribers may request a refund within fourteen days of the initial purchase.",
+  "citations": ["helio-downgrade-doc-2"],
+  "cited_doc_ids": ["helio-downgrade-doc-2"],
+  "corpus_metadata": {
+    "query_date": "2026-05-01T00:00:00Z",
+    "entries": [
+      {
+        "doc_id": "helio-refund-doc-1",
+        "text": "Helio subscribers may request a refund within fourteen days of the initial purchase.",
+        "timestamp": "2026-04-01T00:00:00Z",
+        "metadata": {
+          "status": "active"
+        }
+      },
+      {
+        "doc_id": "helio-downgrade-doc-2",
+        "text": "Customers who downgrade keep access to premium features until the billing period ends.",
+        "timestamp": "2026-04-02T00:00:00Z",
+        "metadata": {
+          "status": "active"
+        }
+      }
+    ]
+  },
+  "parser_validation_profile": null,
+  "mode": "external-enhanced",
+  "expected": {
+    "primary_failure": "CITATION_MISMATCH",
+    "not_clean": true,
+    "required_reports": [
+      "citation_faithfulness_report",
+      "retrieval_diagnosis_report",
+      "grounding_claim_results"
+    ],
+    "required_evidence_signals": [
+      "citation_mismatch"
+    ],
+    "expected_missing_external_providers": [],
+    "expected_degraded_external_mode": false
+  }
+}

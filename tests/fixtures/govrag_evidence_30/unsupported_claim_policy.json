@@ -1,0 +1,59 @@
+{
+  "case_id": "unsupported_claim_policy",
+  "description": "Answer includes specific unsupported historical claims.",
+  "query": "What happened during the 1913 Meridian Textile Strike?",
+  "retrieved_chunks": [
+    {
+      "chunk_id": "unsupported-claim-chunk-1",
+      "text": "The Meridian Textile Strike began after mill workers protested a proposed wage reduction and changes to overtime rules.",
+      "source_doc_id": "meridian-archive-doc-1",
+      "score": 0.76
+    },
+    {
+      "chunk_id": "unsupported-claim-chunk-2",
+      "text": "The documents do not provide a final settlement date or the number of workers involved.",
+      "source_doc_id": "meridian-archive-doc-2",
+      "score": 0.71
+    }
+  ],
+  "final_answer": "The strike ended on April 18 after state police arrested twenty-seven picketers, and workers won a legally binding eight-hour day.",
+  "citations": ["meridian-archive-doc-1", "meridian-archive-doc-2"],
+  "cited_doc_ids": ["meridian-archive-doc-1", "meridian-archive-doc-2"],
+  "corpus_metadata": {
+    "query_date": "2026-05-01T00:00:00Z",
+    "entries": [
+      {
+        "doc_id": "meridian-archive-doc-1",
+        "text": "The Meridian Textile Strike began after mill workers protested a proposed wage reduction and changes to overtime rules.",
+        "timestamp": "2026-01-20T00:00:00Z",
+        "metadata": {
+          "status": "active"
+        }
+      },
+      {
+        "doc_id": "meridian-archive-doc-2",
+        "text": "The documents do not provide a final settlement date or the number of workers involved.",
+        "timestamp": "2026-01-21T00:00:00Z",
+        "metadata": {
+          "status": "active"
+        }
+      }
+    ]
+  },
+  "parser_validation_profile": null,
+  "mode": "external-enhanced",
+  "expected": {
+    "primary_failure": "UNSUPPORTED_CLAIM",
+    "not_clean": true,
+    "required_reports": [
+      "grounding_claim_results",
+      "citation_faithfulness_report",
+      "retrieval_diagnosis_report"
+    ],
+    "required_evidence_signals": [
+      "unsupported"
+    ],
+    "expected_missing_external_providers": [],
+    "expected_degraded_external_mode": false
+  }
+}

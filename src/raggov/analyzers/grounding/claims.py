@@ -22,7 +22,8 @@ _SUBSTANTIVE_RE = re.compile(
     r"|\b(?:must|shall|require(?:s|d)?|mandated?|prohibit(?:ed)?|exempt|approv(?:al|ed)|"
     r"authoriz(?:ed)?|comply|compliance|permit(?:ted)?|regulations?|rules?|act|polic(?:y|ies)|"
     r"circular|notification|order|deadline|threshold|applicable|effective|enforce(?:d)?|"
-    r"mandatory|optional|waive(?:r)?|gazette)\b",
+    r"mandatory|optional|waive(?:r)?|gazette|refund(?:s|able)?|renewal(?:s)?|"
+    r"downgrade(?:s)?|credit(?:s)?|billing|subscriber(?:s)?)\b",
     re.IGNORECASE,
 )
 

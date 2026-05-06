@@ -29,6 +29,7 @@ from raggov.models.ncv import (
 )
 from raggov.models.retrieval_diagnosis import RetrievalFailureType
 from raggov.models.retrieval_evidence import EvidenceRole, QueryRelevanceLabel
+from raggov.models.result_index import AnalyzerResultIndex
 from raggov.models.run import RAGRun
 from raggov.models.version_validity import DocumentValidityStatus
 from raggov.parser_validation.models import ParserFailureType, ParserSeverity
@@ -87,6 +88,7 @@ class NCVPipelineVerifier(BaseAnalyzer):
 
     def analyze(self, run: RAGRun) -> AnalyzerResult:
         prior_results = self.config.get("weighted_prior_results") or self.config.get("prior_results", [])
+        result_index = AnalyzerResultIndex(prior_results)
         fail_fast = bool(self.config.get("fail_fast", True))
         missing_reports: list[str] = []
         fallback_heuristics_used: list[str] = []
@@ -97,7 +99,7 @@ class NCVPipelineVerifier(BaseAnalyzer):
             node_result = self._check_node(
                 node,
                 run,
-                prior_results,
+                result_index,
                 missing_reports,
                 fallback_heuristics_used,
                 evidence_reports_used,
@@ -125,39 +127,39 @@ class NCVPipelineVerifier(BaseAnalyzer):
         self,
         node: NCVNode,
         run: RAGRun,
-        prior_results: list[AnalyzerResult],
+        result_index: AnalyzerResultIndex,
         missing_reports: list[str],
         fallback_heuristics_used: list[str],
         evidence_reports_used: list[str],
     ) -> NCVNodeResult:
         if node == NCVNode.QUERY_UNDERSTANDING:
-            return self._check_query_understanding(run, prior_results, fallback_heuristics_used, evidence_reports_used)
+            return self._check_query_understanding(run, result_index, fallback_heuristics_used, evidence_reports_used)
         if node == NCVNode.PARSER_VALIDITY:
-            return self._check_parser_validity(prior_results, missing_reports, evidence_reports_used)
+            return self._check_parser_validity(result_index, missing_reports, evidence_reports_used)
         if node == NCVNode.RETRIEVAL_COVERAGE:
-            return self._check_retrieval_coverage(run, prior_results, missing_reports, evidence_reports_used)
+            return self._check_retrieval_coverage(run, result_index, missing_reports, evidence_reports_used)
         if node == NCVNode.RETRIEVAL_PRECISION:
-            return self._check_retrieval_precision(run, prior_results, missing_reports, fallback_heuristics_used, evidence_reports_used)
+            return self._check_retrieval_precision(run, result_index, missing_reports, fallback_heuristics_used, evidence_reports_used)
         if node == NCVNode.CONTEXT_ASSEMBLY:
-            return self._check_context_assembly(run, prior_results, fallback_heuristics_used, evidence_reports_used)
+            return self._check_context_assembly(run, result_index, fallback_heuristics_used, evidence_reports_used)
         if node == NCVNode.VERSION_VALIDITY:
-            return self._check_version_validity(run, prior_results, missing_reports, evidence_reports_used)
+            return self._check_version_validity(run, result_index, missing_reports, evidence_reports_used)
         if node == NCVNode.CLAIM_SUPPORT:
-            return self._check_claim_support(run, prior_results, fallback_heuristics_used, evidence_reports_used)
+            return self._check_claim_support(run, result_index, fallback_heuristics_used, evidence_reports_used)
         if node == NCVNode.CITATION_SUPPORT:
-            return self._check_citation_support(run, prior_results, missing_reports, evidence_reports_used)
+            return self._check_citation_support(run, result_index, missing_reports, evidence_reports_used)
         if node == NCVNode.ANSWER_COMPLETENESS:
             return self._check_answer_completeness(run)
-        return self._check_security_risk(prior_results, missing_reports, evidence_reports_used)
+        return self._check_security_risk(result_index, missing_reports, evidence_reports_used)
 
     def _check_query_understanding(
         self,
         run: RAGRun,
-        prior_results: list[AnalyzerResult],
+        result_index: AnalyzerResultIndex,
         fallback_heuristics_used: list[str],
         evidence_reports_used: list[str],
     ) -> NCVNodeResult:
-        profile = self._get_retrieval_evidence_profile(run, prior_results)
+        profile = self._get_retrieval_evidence_profile(run, result_index)
         if not run.retrieved_chunks:
             return self._node(
                 NCVNode.QUERY_UNDERSTANDING,
@@ -241,11 +243,11 @@ class NCVPipelineVerifier(BaseAnalyzer):
 
     def _check_parser_validity(
         self,
-        prior_results: list[AnalyzerResult],
+        result_index: AnalyzerResultIndex,
         missing_reports: list[str],
         evidence_reports_used: list[str],
     ) -> NCVNodeResult:
-        parser_results = self._get_parser_validation_results(prior_results)
+        parser_results = self._get_parser_validation_results(result_index)
         if not parser_results:
             missing_reports.append("parser_validation_results")
             return self._skip(NCVNode.PARSER_VALIDITY, "Parser validation results are unavailable.")
@@ -993,6 +995,7 @@ class NCVPipelineVerifier(BaseAnalyzer):
                 stage=stage,
                 score=report.pipeline_health_score,
                 evidence=evidence,
+                ncv_report=report.model_dump(mode="json"),
                 remediation=failing_result.recommended_fix or NODE_REMEDIATIONS.get(first_failing_node, DEFAULT_REMEDIATIONS[failure_type]),
             )
 
@@ -1002,6 +1005,7 @@ class NCVPipelineVerifier(BaseAnalyzer):
                 status="warn",
                 score=report.pipeline_health_score,
                 evidence=evidence,
+                ncv_report=report.model_dump(mode="json"),
             )
 
         return AnalyzerResult(
@@ -1009,6 +1013,7 @@ class NCVPipelineVerifier(BaseAnalyzer):
             status="pass",
             score=report.pipeline_health_score,
             evidence=evidence,
+            ncv_report=report.model_dump(mode="json"),
         )
 
     def _node(
@@ -1068,60 +1073,73 @@ class NCVPipelineVerifier(BaseAnalyzer):
             limitation=limitation,
         )
 
-    def _get_result_by_name(self, prior_results: list[AnalyzerResult], analyzer_name: str) -> AnalyzerResult | None:
-        return next((result for result in prior_results if result.analyzer_name == analyzer_name), None)
+    def _result_index(
+        self,
+        results_or_index: AnalyzerResultIndex | list[AnalyzerResult],
+    ) -> AnalyzerResultIndex:
+        if isinstance(results_or_index, AnalyzerResultIndex):
+            return results_or_index
+        return AnalyzerResultIndex(results_or_index)
 
-    def _get_result_by_failure_type(self, prior_results: list[AnalyzerResult], failure_type: FailureType) -> AnalyzerResult | None:
-        return next((result for result in prior_results if result.failure_type == failure_type), None)
+    def _get_result_by_name(
+        self,
+        results_or_index: AnalyzerResultIndex | list[AnalyzerResult],
+        analyzer_name: str,
+    ) -> AnalyzerResult | None:
+        return self._result_index(results_or_index).by_name(analyzer_name)
 
-    def _get_retrieval_diagnosis_report(self, run: RAGRun, prior_results: list[AnalyzerResult]):
+    def _get_result_by_failure_type(
+        self,
+        results_or_index: AnalyzerResultIndex | list[AnalyzerResult],
+        failure_type: FailureType,
+    ) -> AnalyzerResult | None:
+        return self._result_index(results_or_index).by_failure_type(failure_type)
+
+    def _get_retrieval_diagnosis_report(self, run: RAGRun, results_or_index: AnalyzerResultIndex | list[AnalyzerResult]):
         if run.retrieval_diagnosis_report is not None:
             return run.retrieval_diagnosis_report
-        for result in prior_results:
-            if result.retrieval_diagnosis_report is not None:
-                return result.retrieval_diagnosis_report
+        result = self._result_index(results_or_index).latest_with_field("retrieval_diagnosis_report")
+        if result is not None:
+            return result.retrieval_diagnosis_report
         return None
 
-    def _get_retrieval_evidence_profile(self, run: RAGRun, prior_results: list[AnalyzerResult]):
+    def _get_retrieval_evidence_profile(self, run: RAGRun, results_or_index: AnalyzerResultIndex | list[AnalyzerResult]):
         if run.retrieval_evidence_profile is not None:
             return run.retrieval_evidence_profile
-        for result in prior_results:
+        for result in self._result_index(results_or_index).all():
             bundle = result.grounding_evidence_bundle
             if bundle is not None and isinstance(bundle.metadata, dict) and bundle.metadata.get("retrieval_evidence_profile") is not None:
                 return bundle.metadata["retrieval_evidence_profile"]
         return None
 
-    def _get_sufficiency_result(self, prior_results: list[AnalyzerResult]):
-        for result in prior_results:
-            if result.sufficiency_result is not None:
-                return result.sufficiency_result
+    def _get_sufficiency_result(self, results_or_index: AnalyzerResultIndex | list[AnalyzerResult]):
+        result = self._result_index(results_or_index).latest_with_field("sufficiency_result")
+        if result is not None:
+            return result.sufficiency_result
         return None
 
-    def _get_claim_grounding_result(self, prior_results: list[AnalyzerResult]) -> AnalyzerResult | None:
-        for result in prior_results:
-            if result.analyzer_name == "ClaimGroundingAnalyzer" or result.claim_results or result.grounding_evidence_bundle:
-                return result
-        return None
+    def _get_claim_grounding_result(self, results_or_index: AnalyzerResultIndex | list[AnalyzerResult]) -> AnalyzerResult | None:
+        return self._result_index(results_or_index).grounding_result()
 
-    def _get_citation_faithfulness_report(self, run: RAGRun, prior_results: list[AnalyzerResult]):
+    def _get_citation_faithfulness_report(self, run: RAGRun, results_or_index: AnalyzerResultIndex | list[AnalyzerResult]):
         if run.citation_faithfulness_report is not None:
             return run.citation_faithfulness_report
-        for result in prior_results:
-            if result.citation_faithfulness_report is not None:
-                return result.citation_faithfulness_report
+        result = self._result_index(results_or_index).latest_with_field("citation_faithfulness_report")
+        if result is not None:
+            return result.citation_faithfulness_report
         return None
 
-    def _get_version_validity_report(self, run: RAGRun, prior_results: list[AnalyzerResult]):
+    def _get_version_validity_report(self, run: RAGRun, results_or_index: AnalyzerResultIndex | list[AnalyzerResult]):
         if run.version_validity_report is not None:
             return run.version_validity_report
-        for result in prior_results:
-            if result.version_validity_report is not None:
-                return result.version_validity_report
+        result = self._result_index(results_or_index).latest_with_field("version_validity_report")
+        if result is not None:
+            return result.version_validity_report
         return None
 
-    def _get_parser_validation_results(self, prior_results: list[AnalyzerResult]) -> list[Any]:
+    def _get_parser_validation_results(self, results_or_index: AnalyzerResultIndex | list[AnalyzerResult]) -> list[Any]:
         findings: list[Any] = []
-        for result in prior_results:
+        for result in self._result_index(results_or_index).all():
             if result.analyzer_name.lower().startswith("parser") or result.stage == FailureStage.PARSING:
                 if result.diagnostic_rollup and isinstance(result.diagnostic_rollup.get("parser_findings"), list):
                     findings.extend(result.diagnostic_rollup["parser_findings"])
@@ -1137,7 +1155,8 @@ class NCVPipelineVerifier(BaseAnalyzer):
                     findings.append(result)
         return findings
 
-    def _get_security_results(self, prior_results: list[AnalyzerResult]) -> list[AnalyzerResult]:
+    def _get_security_results(self, results_or_index: AnalyzerResultIndex | list[AnalyzerResult]) -> list[AnalyzerResult]:
+        prior_results = self._result_index(results_or_index).all()
         security_failure_types = {
             FailureType.PROMPT_INJECTION,
             FailureType.SUSPICIOUS_CHUNK,

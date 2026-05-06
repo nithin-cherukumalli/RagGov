@@ -148,10 +148,16 @@ Every diagnosis also includes:
 pip install raggov
 ```
 
+For external-enhanced installs without LLM providers:
+
+```bash
+pip install "raggov[external]"
+```
+
 For local development:
 
 ```bash
-pip install -e .[llm]
+pip install -e ".[external,llm]"
 ```
 
 ## Quick Start
@@ -189,7 +195,7 @@ raggov diagnose run.json --mode external-enhanced
 ```
 
 GovRAG supports the following diagnosis modes:
-- `external-enhanced` (default): Attempts to use advanced external signals (like structured LLM claim verification and A2P) but degrades gracefully to native heuristics if dependencies are missing, clearly tracking what was unavailable.
+- `external-enhanced` (default): Uses package-based external signals that install locally (`ragas`, `deepeval`, `refchecker`, `ragchecker`) and keeps heavyweight or credentialed paths like cross-encoder retrieval, structured LLM verification, and A2P as explicit opt-ins.
 - `native`: Uses only native heuristics. Faster and operates entirely offline with no external dependencies.
 - `calibrated`: (Reserved for future ARES PPI-corrected outputs)
 

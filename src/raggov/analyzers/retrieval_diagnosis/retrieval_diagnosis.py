@@ -27,6 +27,7 @@ from raggov.models.retrieval_diagnosis import (
     RetrievalFailureType,
 )
 from raggov.models.retrieval_evidence import EvidenceRole, QueryRelevanceLabel, RelevanceMethod
+from raggov.models.result_index import AnalyzerResultIndex
 from raggov.models.run import RAGRun
 from raggov.models.version_validity import DocumentValidityStatus, VersionValidityReport
 
@@ -374,16 +375,15 @@ class RetrievalDiagnosisAnalyzerV0(BaseAnalyzer):
         prior_results: list[AnalyzerResult],
     ) -> list[str]:
         ids: list[str] = []
+        result_index = AnalyzerResultIndex(prior_results)
         if run.citation_faithfulness_report is not None:
             ids.extend(run.citation_faithfulness_report.phantom_citation_doc_ids)
         if run.retrieval_evidence_profile is not None:
             ids.extend(run.retrieval_evidence_profile.phantom_citation_doc_ids)
-        for result in prior_results:
-            if result.analyzer_name != "CitationMismatchAnalyzer":
-                continue
-            for evidence in result.evidence:
-                if "phantom citation:" in evidence:
-                    ids.append(evidence.split("phantom citation:", 1)[1].strip())
+        mismatch_result = result_index.by_name("CitationMismatchAnalyzer")
+        if mismatch_result is not None and not ids:
+            retrieved_doc_ids = {chunk.source_doc_id for chunk in run.retrieved_chunks}
+            ids.extend(doc_id for doc_id in run.cited_doc_ids if doc_id not in retrieved_doc_ids)
         return sorted(set(ids))
 
     def _phantom_source_report(self, run: RAGRun) -> str:
@@ -542,20 +542,24 @@ class RetrievalDiagnosisAnalyzerV0(BaseAnalyzer):
         run: RAGRun,
         prior_results: list[AnalyzerResult],
     ) -> list[str]:
+        no_claims_required = self._claim_grounding_not_required(prior_results)
         missing: list[str] = []
         if run.retrieval_evidence_profile is None:
             missing.append("retrieval_evidence_profile")
-        if run.citation_faithfulness_report is None:
+        if run.citation_faithfulness_report is None and not no_claims_required:
             missing.append("citation_faithfulness_report")
         if run.version_validity_report is None:
             missing.append("version_validity_report")
         if self._sufficiency_result(prior_results) is None:
             missing.append("sufficiency_result")
-        if not any(result.grounding_evidence_bundle is not None for result in prior_results):
+        if (
+            not no_claims_required
+            and not any(result.grounding_evidence_bundle is not None for result in prior_results)
+        ):
             missing.append("grounding_evidence_bundle")
             
         # Check for missing external retrieval signals in external-enhanced mode
-        if self.config.get("mode") == "external-enhanced":
+        if self._external_retrieval_signal_required():
             profile = run.retrieval_evidence_profile
             has_external = profile is not None and any(
                 cp.relevance_method == RelevanceMethod.CROSS_ENCODER for cp in profile.chunks
@@ -564,6 +568,22 @@ class RetrievalDiagnosisAnalyzerV0(BaseAnalyzer):
                 missing.append("external_retrieval_relevance_signal")
                 
         return missing
+
+    def _claim_grounding_not_required(self, prior_results: list[AnalyzerResult]) -> bool:
+        grounding = AnalyzerResultIndex(prior_results).by_name("ClaimGroundingAnalyzer")
+        if grounding is None:
+            return False
+        return grounding.status == "skip" and any(
+            "no claims extracted" in evidence for evidence in grounding.evidence
+        )
+
+    def _external_retrieval_signal_required(self) -> bool:
+        if self.config.get("mode") != "external-enhanced":
+            return False
+        if self.config.get("retrieval_relevance_provider") == "cross_encoder":
+            return True
+        enabled = set(self.config.get("enabled_external_providers", []))
+        return "cross_encoder_relevance" in enabled
 
     def _unique(self, values: Iterable[str]) -> list[str]:
         return list(dict.fromkeys(value for value in values if value))

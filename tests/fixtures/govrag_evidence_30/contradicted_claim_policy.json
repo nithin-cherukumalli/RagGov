@@ -1,0 +1,44 @@
+{
+  "case_id": "contradicted_claim_policy",
+  "description": "Retrieved evidence directly contradicts the answer claim.",
+  "query": "Does the Helio policy refund hardware purchases?",
+  "retrieved_chunks": [
+    {
+      "chunk_id": "contradicted-claim-chunk-1",
+      "text": "The Helio refund policy does not apply to hardware purchases.",
+      "source_doc_id": "helio-hardware-doc-1",
+      "score": 0.89
+    }
+  ],
+  "final_answer": "The Helio policy refunds hardware purchases.",
+  "citations": ["helio-hardware-doc-1"],
+  "cited_doc_ids": ["helio-hardware-doc-1"],
+  "corpus_metadata": {
+    "query_date": "2026-05-01T00:00:00Z",
+    "entries": [
+      {
+        "doc_id": "helio-hardware-doc-1",
+        "text": "The Helio refund policy does not apply to hardware purchases.",
+        "timestamp": "2026-04-01T00:00:00Z",
+        "metadata": {
+          "status": "active"
+        }
+      }
+    ]
+  },
+  "parser_validation_profile": null,
+  "mode": "external-enhanced",
+  "expected": {
+    "primary_failure": "CONTRADICTED_CLAIM",
+    "not_clean": true,
+    "required_reports": [
+      "grounding_claim_results",
+      "citation_faithfulness_report"
+    ],
+    "required_evidence_signals": [
+      "contradicted"
+    ],
+    "expected_missing_external_providers": [],
+    "expected_degraded_external_mode": false
+  }
+}

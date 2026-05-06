@@ -1,0 +1,44 @@
+{
+  "case_id": "clean_policy_native",
+  "description": "Native-mode clean policy answer for offline baseline sensitivity.",
+  "query": "What is the refund window for the Helio plan?",
+  "retrieved_chunks": [
+    {
+      "chunk_id": "clean-native-chunk-1",
+      "text": "Helio subscribers may request a refund within fourteen days of the initial purchase.",
+      "source_doc_id": "helio-native-doc-1",
+      "score": 0.91
+    }
+  ],
+  "final_answer": "Helio subscribers may request a refund within fourteen days of the initial purchase.",
+  "citations": ["helio-native-doc-1"],
+  "cited_doc_ids": ["helio-native-doc-1"],
+  "corpus_metadata": {
+    "query_date": "2026-05-01T00:00:00Z",
+    "entries": [
+      {
+        "doc_id": "helio-native-doc-1",
+        "text": "Helio subscribers may request a refund within fourteen days of the initial purchase.",
+        "timestamp": "2026-04-01T00:00:00Z",
+        "metadata": {
+          "status": "active"
+        }
+      }
+    ]
+  },
+  "parser_validation_profile": null,
+  "mode": "native",
+  "expected": {
+    "primary_failure": "CLEAN",
+    "not_clean": false,
+    "required_reports": [
+      "retrieval_diagnosis_report",
+      "citation_faithfulness_report",
+      "version_validity_report",
+      "grounding_claim_results"
+    ],
+    "required_evidence_signals": [],
+    "expected_missing_external_providers": [],
+    "expected_degraded_external_mode": false
+  }
+}

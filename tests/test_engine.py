@@ -28,6 +28,14 @@ from raggov.models.diagnosis import (
     SecurityRisk,
 )
 from raggov.models.run import RAGRun
+from raggov.models.ncv import (
+    NCVCalibrationStatus,
+    NCVMethodType,
+    NCVReport,
+    NCVNode,
+    NCVNodeResult,
+    NCVNodeStatus,
+)
 from raggov.parser_validation.models import ChunkingStrategyType, default_chunking_profile
 from raggov.parser_validation.profile import ParserValidationProfile
 from raggov.taxonomy import DEFAULT_REMEDIATIONS
@@ -326,6 +334,99 @@ def test_engine_attaches_confidence_intervals_when_calibrator_configured() -> No
         "retrieval_precision",
         "answer_correctness",
     ]
+
+
+def test_engine_uses_structured_ncv_report_without_json_evidence() -> None:
+    ncv_report = NCVReport(
+        run_id="run-1",
+        node_results=[
+            NCVNodeResult(
+                node=NCVNode.RETRIEVAL_COVERAGE,
+                status=NCVNodeStatus.FAIL,
+                primary_reason="Missing evidence",
+                method_type=NCVMethodType.EVIDENCE_AGGREGATION,
+                calibration_status=NCVCalibrationStatus.UNCALIBRATED,
+            )
+        ],
+        first_failing_node=NCVNode.RETRIEVAL_COVERAGE,
+        first_uncertain_node=None,
+        pipeline_health_score=0.42,
+        bottleneck_description="Pipeline fails at retrieval_coverage.",
+        downstream_failure_chain=[NCVNode.RETRIEVAL_COVERAGE],
+        evidence_reports_used=["RetrievalDiagnosisReport"],
+        missing_reports=[],
+        fallback_heuristics_used=[],
+        method_type=NCVMethodType.EVIDENCE_AGGREGATION,
+        calibration_status=NCVCalibrationStatus.UNCALIBRATED,
+        recommended_for_gating=False,
+        limitations=[],
+    )
+    analyzers = [
+        StaticAnalyzer(
+            AnalyzerResult(
+                analyzer_name="ClaimGroundingAnalyzer",
+                status="pass",
+            )
+        ),
+        StaticAnalyzer(
+            AnalyzerResult(
+                analyzer_name="RetrievalDiagnosisAnalyzerV0",
+                status="pass",
+            )
+        ),
+        StaticAnalyzer(
+            AnalyzerResult(
+                analyzer_name="NCVPipelineVerifier",
+                status="fail",
+                failure_type=FailureType.INSUFFICIENT_CONTEXT,
+                stage=FailureStage.RETRIEVAL,
+                evidence=[],
+                ncv_report=ncv_report.model_dump(mode="json"),
+            )
+        ),
+    ]
+
+    diagnosis = DiagnosisEngine(
+        analyzers=analyzers,
+        config={"mode": "external-enhanced", "enabled_external_providers": []},
+    ).diagnose(run())
+
+    assert diagnosis.ncv_report is not None
+    assert diagnosis.first_failing_node == "retrieval_coverage"
+    assert diagnosis.pipeline_health_score == 0.42
+
+
+def test_engine_uses_structured_layer6_report_without_json_evidence() -> None:
+    analyzers = [
+        StaticAnalyzer(
+            AnalyzerResult(
+                analyzer_name="ClaimGroundingAnalyzer",
+                status="pass",
+            )
+        ),
+        StaticAnalyzer(
+            AnalyzerResult(
+                analyzer_name="Layer6TaxonomyClassifier",
+                status="fail",
+                stage=FailureStage.RETRIEVAL,
+                evidence=[],
+                layer6_report={
+                    "stage_failures": [],
+                    "primary_stage": "RETRIEVAL",
+                    "failure_chain": ["RETRIEVAL", "GENERATION"],
+                    "engineer_action": "Tune retrieval.",
+                },
+            )
+        ),
+    ]
+
+    diagnosis = DiagnosisEngine(
+        analyzers=analyzers,
+        config={"mode": "native"},
+    ).diagnose(run())
+
+    assert diagnosis.layer6_report is not None
+    assert diagnosis.failure_chain == ["RETRIEVAL", "GENERATION"]
 
 
 def test_default_suite_includes_parser_validation_first() -> None:

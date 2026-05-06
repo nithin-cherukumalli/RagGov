@@ -365,8 +365,17 @@ def _diagnosis_panel(diagnosis: Diagnosis) -> Panel:
     table.add_row("Run ID", diagnosis.run_id)
     table.add_row("Timestamp", diagnosis.created_at.isoformat())
     table.add_row("Mode", diagnosis.diagnosis_mode)
+    table.add_row(
+        "External mode",
+        "degraded" if diagnosis.degraded_external_mode else "full",
+    )
     if diagnosis.external_signals_used:
         table.add_row("External Signals", ", ".join(diagnosis.external_signals_used))
+    if diagnosis.missing_external_providers:
+        table.add_row(
+            "Missing Providers",
+            ", ".join(diagnosis.missing_external_providers),
+        )
     if diagnosis.external_adapter_errors:
         table.add_row("Adapter Errors", ", ".join(diagnosis.external_adapter_errors), style="red")
     table.add_row("Primary failure", _failure_text(diagnosis.primary_failure))

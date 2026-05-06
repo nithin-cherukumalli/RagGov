@@ -33,9 +33,17 @@ claim = [
     "refchecker",
 ]
 eval = [
+    "sentence-transformers",
     "ragas",
     "deepeval",
     "ragchecker",
+]
+external = [
+    "sentence-transformers",
+    "ragas",
+    "deepeval",
+    "ragchecker",
+    "refchecker",
 ]
 stresslab = [
     "httpx>=0.27",

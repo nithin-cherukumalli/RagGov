@@ -1,0 +1,56 @@
+{
+  "case_id": "no_claim_clean",
+  "description": "Answer is explanatory and should not produce a false incomplete diagnosis when no claims are extracted.",
+  "query": "How do Python list comprehensions work?",
+  "retrieved_chunks": [
+    {
+      "chunk_id": "no-claim-clean-chunk-1",
+      "text": "A Python list comprehension is a compact syntax for building a new list from an iterable.",
+      "source_doc_id": "python-guide-doc-1",
+      "score": 0.88
+    },
+    {
+      "chunk_id": "no-claim-clean-chunk-2",
+      "text": "A list comprehension returns a list immediately and is best suited for concise transformations.",
+      "source_doc_id": "python-guide-doc-2",
+      "score": 0.84
+    }
+  ],
+  "final_answer": "Python list comprehensions build a new list from an iterable and are best suited for concise transformations over existing values.",
+  "citations": [],
+  "cited_doc_ids": [],
+  "corpus_metadata": {
+    "query_date": "2026-05-01T00:00:00Z",
+    "entries": [
+      {
+        "doc_id": "python-guide-doc-1",
+        "text": "A Python list comprehension is a compact syntax for building a new list from an iterable.",
+        "timestamp": "2026-04-01T00:00:00Z",
+        "metadata": {
+          "status": "active"
+        }
+      },
+      {
+        "doc_id": "python-guide-doc-2",
+        "text": "A list comprehension returns a list immediately and is best suited for concise transformations.",
+        "timestamp": "2026-04-02T00:00:00Z",
+        "metadata": {
+          "status": "active"
+        }
+      }
+    ]
+  },
+  "parser_validation_profile": null,
+  "mode": "external-enhanced",
+  "expected": {
+    "primary_failure": "CLEAN",
+    "not_clean": false,
+    "required_reports": [
+      "retrieval_diagnosis_report",
+      "version_validity_report"
+    ],
+    "required_evidence_signals": [],
+    "expected_missing_external_providers": [],
+    "expected_degraded_external_mode": false
+  }
+}

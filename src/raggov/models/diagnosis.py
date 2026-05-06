@@ -277,6 +277,8 @@ class AnalyzerResult(BaseModel):
     citation_faithfulness_report: CitationFaithfulnessReport | None = None
     version_validity_report: VersionValidityReport | None = None
     retrieval_diagnosis_report: RetrievalDiagnosisReport | None = None
+    layer6_report: dict[str, Any] | None = None
+    ncv_report: dict[str, Any] | None = None
     diagnostic_rollup: dict[str, Any] | None = None
     """
     RAGChecker-inspired claim-level diagnostic summary produced by

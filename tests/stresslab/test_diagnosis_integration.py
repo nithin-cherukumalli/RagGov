@@ -61,6 +61,28 @@ def test_diagnosis_golden_evaluation_matches_real_diagnosis() -> None:
     assert evaluation.matched_overall is True
 
 
+def test_external_enhanced_subset_matches_without_a2p_or_ncv() -> None:
+    provider_config = {
+        "mode": "external-enhanced",
+        "enabled_external_providers": [
+            "ragas",
+            "deepeval",
+            "refchecker_claim",
+            "refchecker_citation",
+            "ragchecker",
+        ],
+        "enable_a2p": False,
+        "enable_ncv": False,
+        "retrieval_relevance_provider": "native",
+    }
+
+    for case_id in ["clean_pass", "prompt_injection", "stale_retrieval"]:
+        case = load_diagnosis_golden_case(case_id)
+        diagnosis = diagnose_file(ROOT / case.run_fixture, config=provider_config)
+        evaluation = evaluate_diagnosis_case(case, diagnosis)
+        assert evaluation.matched_overall is True, f"{case_id}: {evaluation.notes}"
+
+
 def test_write_diagnosis_suite_reports(tmp_path: Path) -> None:
     result = run_diagnosis_suite(["clean_pass", "unsupported_claims"])
 
