@@ -1,0 +1,44 @@
+{
+  "case_id": "stale_source_regulatory_notice",
+  "description": "Answer uses legacy tax API enrollment instructions from stale source material.",
+  "query": "How do I enroll a connector in the DeltaTax e-filing API?",
+  "retrieved_chunks": [
+    {
+      "chunk_id": "stale-regulatory-chunk-1",
+      "text": "Legacy DeltaTax API guides instruct integrators to register a connector by emailing a PDF enrollment form to the onboarding desk.",
+      "source_doc_id": "deltatax-legacy-doc-1",
+      "score": 0.85
+    },
+    {
+      "chunk_id": "stale-regulatory-chunk-2",
+      "text": "The retired connector quickstart says the onboarding desk manually activates the connector after reviewing the PDF form.",
+      "source_doc_id": "deltatax-legacy-doc-2",
+      "score": 0.82
+    }
+  ],
+  "final_answer": "Register the connector by emailing the PDF enrollment form to the DeltaTax onboarding desk, which will manually activate the connector after review.",
+  "citations": ["deltatax-legacy-doc-1", "deltatax-legacy-doc-2"],
+  "cited_doc_ids": ["deltatax-legacy-doc-1", "deltatax-legacy-doc-2"],
+  "corpus_metadata": {
+    "query_date": "2026-05-01T00:00:00Z",
+    "entries": [
+      {
+        "doc_id": "deltatax-legacy-doc-1",
+        "text": "Legacy DeltaTax API guides instruct integrators to register a connector by emailing a PDF enrollment form to the onboarding desk.",
+        "timestamp": "2024-02-03T00:00:00Z",
+        "metadata": {
+          "status": "active"
+        }
+      },
+      {
+        "doc_id": "deltatax-legacy-doc-2",
+        "text": "The retired connector quickstart says the onboarding desk manually activates the connector after reviewing the PDF form.",
+        "timestamp": "2024-02-04T00:00:00Z",
+        "metadata": {
+          "status": "active"
+        }
+      }
+    ]
+  },
+  "parser_validation_profile": null
+}

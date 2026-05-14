@@ -29,6 +29,7 @@ sys.path.insert(0, str(_REPO_ROOT / "src"))
 
 from raggov.analyzers.grounding.triplets import (
     ClaimTriplet,
+    GenericRuleTripletExtractorV0,
     LLMTripletExtractorV1,
     RuleBasedPolicyTripletExtractorV0,
     TripletExtractor,
@@ -335,16 +336,16 @@ class TestBuildTripletExtractorFactory:
         extractor = build_triplet_extractor({})
         assert extractor is None
 
-    def test_enabled_returns_rule_based_extractor(self) -> None:
+    def test_enabled_returns_generic_rule_extractor(self) -> None:
         extractor = build_triplet_extractor({"enable_triplet_extraction": True})
-        assert isinstance(extractor, RuleBasedPolicyTripletExtractorV0)
+        assert isinstance(extractor, GenericRuleTripletExtractorV0)
 
-    def test_llm_mode_without_client_falls_back_to_rule_based(self) -> None:
+    def test_llm_mode_without_client_falls_back_to_generic_rule(self) -> None:
         extractor = build_triplet_extractor(
             {"enable_triplet_extraction": True, "triplet_extractor_mode": "llm_v1"}
         )
         # No llm_client → falls back gracefully
-        assert isinstance(extractor, RuleBasedPolicyTripletExtractorV0)
+        assert isinstance(extractor, GenericRuleTripletExtractorV0)
 
     def test_llm_mode_with_client_returns_llm_extractor(self) -> None:
         client = MagicMock()

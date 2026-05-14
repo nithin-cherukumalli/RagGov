@@ -16,20 +16,23 @@ Claim (sentence) → 1-N ClaimTriplets
 
 Extraction methods
 ------------------
-RuleBasedPolicyTripletExtractorV0
-    Heuristic patterns tuned for Indian government/policy text:
+GenericRuleTripletExtractorV0
+    Domain-agnostic rule baseline for factual subject-predicate-object claims.
+
+GovernmentPolicyTripletExtractorV0
+    Optional non-core heuristic patterns tuned for Indian government/policy text:
     GO numbers, circulars, policy mandates, eligibility rules, deadlines,
     and numeric qualifiers.
 
 LLMTripletExtractorV1  (optional, requires llm_client)
     Prompts an LLM to extract knowledge triplets in JSON.
-    Falls back to RuleBasedPolicyTripletExtractorV0 on parse failure.
+    Falls back to GenericRuleTripletExtractorV0 on parse failure.
 
 Usage
 -----
-    extractor = RuleBasedPolicyTripletExtractorV0()
-    triplets = extractor.extract("G.O.Ms.No. 42 mandates a 60% subsidy for farmers.")
-    # → [ClaimTriplet(subject="G.O.Ms.No. 42", predicate="mandates",
+    extractor = GenericRuleTripletExtractorV0()
+    triplets = extractor.extract("The SDK supports retries in version 2.4.")
+    # → [ClaimTriplet(subject="The SDK", predicate="supports",
     #                  object="subsidy for farmers", values=["60%"], ...)]
 
 Configuration gate
@@ -220,7 +223,67 @@ _OBJECT_RE = re.compile(
 )
 
 
-class RuleBasedPolicyTripletExtractorV0(TripletExtractor):
+_GENERIC_SUBJECT_RE = re.compile(
+    r"\b([A-Z][A-Za-z0-9_.-]*(?:\s+[A-Z][A-Za-z0-9_.-]*){0,6}|"
+    r"(?:the|a|an)\s+[A-Za-z0-9_.-]+(?:\s+[A-Za-z0-9_.-]+){0,5})\b"
+)
+
+
+class GenericRuleTripletExtractorV0(TripletExtractor):
+    """Domain-agnostic rule triplet extractor for simple factual claims."""
+
+    _METHOD = "generic_rule_triplet_v0"
+
+    def extract(
+        self,
+        claim_text: str,
+        source_claim_id: str = "claim_000",
+    ) -> list[ClaimTriplet]:
+        values = [m.group(0).strip() for m in _VALUE_RE.finditer(claim_text)]
+        qualifiers = [m.group(0).strip() for m in _QUALIFIER_RE.finditer(claim_text)]
+        pred_match = _PREDICATE_RE.search(claim_text)
+        if pred_match is None:
+            return []
+
+        before_pred = claim_text[: pred_match.start()].strip().rstrip(",;:")
+        subject = self._extract_subject(before_pred)
+        predicate = pred_match.group(0).strip()
+        obj = self._extract_object(claim_text[pred_match.end():].strip())
+        if not subject or not obj:
+            return []
+
+        return [
+            ClaimTriplet(
+                triplet_id=f"triplet_{uuid.uuid4().hex[:8]}",
+                source_claim_id=source_claim_id,
+                subject=subject,
+                predicate=predicate,
+                object=obj,
+                qualifiers=qualifiers,
+                values=values,
+                source_text_span=claim_text[:160].strip(),
+                extraction_method=self._METHOD,
+            )
+        ]
+
+    def _extract_subject(self, text: str) -> str:
+        if not text:
+            return "unspecified"
+        match = _GENERIC_SUBJECT_RE.search(text)
+        if match:
+            return match.group(0).strip()
+        tokens = text.split()
+        return " ".join(tokens[-6:]).strip()
+
+    def _extract_object(self, text: str) -> str:
+        text = text.strip()
+        m = _OBJECT_RE.match(text)
+        if m:
+            return m.group(1).strip()
+        return text[:120].split(".")[0].split(";")[0].strip()
+
+
+class GovernmentPolicyTripletExtractorV0(TripletExtractor):
     """
     Heuristic triplet extractor tuned for Indian government/policy text.
 
@@ -349,6 +412,10 @@ class RuleBasedPolicyTripletExtractorV0(TripletExtractor):
         return text[:120].split(".")[0].split(";")[0].strip()
 
 
+# Backward-compatible alias for existing government benchmark tests and callers.
+RuleBasedPolicyTripletExtractorV0 = GovernmentPolicyTripletExtractorV0
+
+
 # ---------------------------------------------------------------------------
 # LLM V1 (optional)
 # ---------------------------------------------------------------------------
@@ -358,7 +425,7 @@ class LLMTripletExtractorV1(TripletExtractor):
     LLM-based triplet extractor.
 
     Prompts the LLM to return a JSON array of triplets.  Falls back to
-    RuleBasedPolicyTripletExtractorV0 on any parse or call failure.
+    GenericRuleTripletExtractorV0 on any parse or call failure.
 
     Requirements:
     - ``llm_client`` must expose ``chat(prompt: str) -> str`` or
@@ -378,7 +445,7 @@ class LLMTripletExtractorV1(TripletExtractor):
                 "LLMTripletExtractorV1 requires a non-None llm_client."
             )
         self._client = llm_client
-        self._fallback = RuleBasedPolicyTripletExtractorV0()
+        self._fallback = GenericRuleTripletExtractorV0()
 
     def extract(
         self,
@@ -392,13 +459,13 @@ class LLMTripletExtractorV1(TripletExtractor):
         except Exception as exc:
             logger.warning(
                 "LLMTripletExtractorV1 failed for claim '%s': %s. "
-                "Falling back to RuleBasedPolicyTripletExtractorV0.",
+                "Falling back to GenericRuleTripletExtractorV0.",
                 claim_text[:80],
                 exc,
             )
             fallback = self._fallback.extract(claim_text, source_claim_id)
             for t in fallback:
-                t.extraction_method = f"llm_fallback_to_{RuleBasedPolicyTripletExtractorV0._METHOD}"
+                t.extraction_method = f"llm_fallback_to_{GenericRuleTripletExtractorV0._METHOD}"
             return fallback
 
     def _call_llm(self, claim_text: str) -> str:
@@ -420,7 +487,7 @@ class LLMTripletExtractorV1(TripletExtractor):
             "    object (string): the target of the predicate\n"
             "    qualifiers (array of strings): modifiers like 'effective from', 'up to'\n"
             "    values (array of strings): all numeric, percentage, or date values\n"
-            "- Preserve exact legal identifiers (G.O. numbers, Act names, dates).\n"
+            "- Preserve exact identifiers, versions, dates, numbers, and names.\n"
             "- Do not split or rephrase values.\n"
             "- Return [] if no clear triplet can be extracted.\n\n"
             f"Claim: {claim_text}\n\n"
@@ -485,24 +552,28 @@ def build_triplet_extractor(config: dict[str, Any]) -> TripletExtractor | None:
     -----------
     enable_triplet_extraction : bool   (default False)
         Gate flag.  Nothing happens unless this is True.
-    triplet_extractor_mode : str       (default "rule_based_v0")
-        "rule_based_v0" → RuleBasedPolicyTripletExtractorV0
-        "llm_v1"        → LLMTripletExtractorV1 (requires llm_client)
+    triplet_extractor_mode : str       (default "generic_rule_v0")
+        "generic_rule_v0" → GenericRuleTripletExtractorV0
+        "government_policy_v0" → GovernmentPolicyTripletExtractorV0
+        "rule_based_v0" → deprecated alias for GovernmentPolicyTripletExtractorV0
+        "llm_v1" → LLMTripletExtractorV1 (requires llm_client)
     llm_client : object                (default None)
         Required when triplet_extractor_mode = "llm_v1".
     """
     if not config.get("enable_triplet_extraction", False):
         return None
 
-    mode = config.get("triplet_extractor_mode", "rule_based_v0")
+    mode = config.get("triplet_extractor_mode", "generic_rule_v0")
     if mode == "llm_v1":
         client = config.get("llm_client")
         if client is None:
             logger.warning(
                 "triplet_extractor_mode='llm_v1' requires llm_client; "
-                "falling back to rule_based_v0."
+                "falling back to generic_rule_v0."
             )
-            return RuleBasedPolicyTripletExtractorV0()
+            return GenericRuleTripletExtractorV0()
         return LLMTripletExtractorV1(client)
+    if mode in {"government_policy_v0", "rule_based_policy_v0", "rule_based_v0"}:
+        return GovernmentPolicyTripletExtractorV0()
 
-    return RuleBasedPolicyTripletExtractorV0()
+    return GenericRuleTripletExtractorV0()

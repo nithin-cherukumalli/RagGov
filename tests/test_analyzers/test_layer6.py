@@ -579,14 +579,14 @@ def test_prompt_injection_security_failure() -> None:
     assert security_failure["failure_mode"] == "prompt_injection"
 
 
-def test_retrieval_anomaly_corpus_poisoning() -> None:
-    """RETRIEVAL_ANOMALY → SECURITY stage, corpus_poisoning mode."""
+def test_retrieval_anomaly_noisy_results() -> None:
+    """RETRIEVAL_ANOMALY → RETRIEVAL stage, noisy_or_misranked_results mode."""
     prior_results = [
         AnalyzerResult(
             analyzer_name="RetrievalAnomalyAnalyzer",
             status="fail",
             failure_type=FailureType.RETRIEVAL_ANOMALY,
-            stage=FailureStage.SECURITY,
+            stage=FailureStage.RETRIEVAL,
             evidence=["Anomaly detected"],
             remediation="Audit corpus",
         )
@@ -595,6 +595,35 @@ def test_retrieval_anomaly_corpus_poisoning() -> None:
     analyzer = Layer6TaxonomyClassifier({"prior_results": prior_results})
     result = analyzer.analyze(
         run_with_chunks([chunk("chunk-1", "Anomaly", 0.99)])
+    )
+
+    assert result.status == "fail"
+    assert result.stage == FailureStage.RETRIEVAL
+
+    report = json.loads(result.evidence[0])
+
+    retrieval_failure = next(
+        (f for f in report["stage_failures"] if f["stage"] == "RETRIEVAL"), None
+    )
+    assert retrieval_failure is not None
+    assert retrieval_failure["failure_mode"] == "noisy_or_misranked_results"
+
+def test_suspicious_chunk_still_maps_to_security() -> None:
+    """SUSPICIOUS_CHUNK → SECURITY stage, corpus_poisoning mode."""
+    prior_results = [
+        AnalyzerResult(
+            analyzer_name="PoisoningHeuristicAnalyzer",
+            status="fail",
+            failure_type=FailureType.SUSPICIOUS_CHUNK,
+            stage=FailureStage.SECURITY,
+            evidence=["Suspicious chunk detected"],
+            remediation="Audit corpus",
+        )
+    ]
+
+    analyzer = Layer6TaxonomyClassifier({"prior_results": prior_results})
+    result = analyzer.analyze(
+        run_with_chunks([chunk("chunk-1", "Suspicious", 0.99)])
     )
 
     assert result.status == "fail"

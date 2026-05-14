@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .models import ClaimDiagnosisGoldSet, DiagnosisGoldenCase, StressCase
+from .models import ClaimDiagnosisGoldSet, DiagnosisGoldenCase, RAGFailureGoldenCase, StressCase
 
 FIXTURE_DIR = Path(__file__).resolve().parent / "fixtures"
 DIAGNOSIS_GOLDEN_DIR = Path(__file__).resolve().parent / "diagnosis_fixtures"
@@ -35,3 +35,15 @@ def load_claim_diagnosis_gold_set(name: str = "claim_diagnosis_gold_v1.json") ->
     fixture_name = name if name.endswith(".json") else f"{name}.json"
     fixture_path = GOLDEN_DIR / fixture_name
     return ClaimDiagnosisGoldSet.model_validate_json(fixture_path.read_text(encoding="utf-8"))
+
+
+def load_subtle_rag_failures() -> list[RAGFailureGoldenCase]:
+    """Load the suite of subtle RAG failures."""
+    from .subtle.rag_subtle_failures import SUBTLE_RAG_FAILURES
+    return SUBTLE_RAG_FAILURES
+
+
+def load_common_rag_failures() -> list[RAGFailureGoldenCase]:
+    """Load the suite of common RAG failures."""
+    from .golden.rag_failures import GOLDEN_RAG_FAILURES
+    return GOLDEN_RAG_FAILURES

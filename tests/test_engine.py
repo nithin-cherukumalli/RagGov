@@ -333,6 +333,7 @@ def test_engine_attaches_confidence_intervals_when_calibrator_configured() -> No
         "faithfulness",
         "retrieval_precision",
         "answer_correctness",
+        "overall_confidence",
     ]
 
 
@@ -818,7 +819,7 @@ def test_a2p_receives_weighted_prior_results_in_descending_order() -> None:
     assert a2p.observed_prior_names[:2] == ["high-signal", "low-signal"]
 
 
-def test_primary_failure_prefers_higher_weight_signal_over_failure_priority() -> None:
+def test_primary_failure_policy_prefers_blocking_over_higher_weight_heuristic() -> None:
     analyzers = [
         WeightedStaticAnalyzer(
             AnalyzerResult(
@@ -843,8 +844,8 @@ def test_primary_failure_prefers_higher_weight_signal_over_failure_priority() ->
 
     diagnosis = DiagnosisEngine(analyzers=analyzers).diagnose(run())
 
-    assert diagnosis.primary_failure == FailureType.STALE_RETRIEVAL
-    assert diagnosis.recommended_fix == "refresh retrieval index"
+    assert diagnosis.primary_failure == FailureType.PROMPT_INJECTION
+    assert diagnosis.recommended_fix == DEFAULT_REMEDIATIONS[FailureType.PROMPT_INJECTION]
 
 
 def test_meta_analyzers_do_not_compete_as_primary_evidence_sources() -> None:

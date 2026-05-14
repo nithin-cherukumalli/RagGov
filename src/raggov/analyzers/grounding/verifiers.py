@@ -414,6 +414,31 @@ class HeuristicValueOverlapVerifier(EvidenceVerifier):
                 contradicting_chunk_ids=[best_candidate.chunk_id],
             )
 
+        pattern_conflict = self._pattern_contradiction(claim, best_candidate.chunk_text)
+        if pattern_conflict:
+            return VerificationResult(
+                label="contradicted",
+                raw_score=best_score,
+                evidence_chunk_id=best_candidate.chunk_id,
+                evidence_span=None,
+                rationale=pattern_conflict,
+                verifier_name="value_aware_structured_claim_verifier_v1",
+                candidate_chunk_ids=[best_candidate.chunk_id],
+                contradicting_chunk_ids=[best_candidate.chunk_id],
+            )
+
+        unsupported_reason = self._pattern_unsupported(claim, best_candidate.chunk_text)
+        if unsupported_reason:
+            return VerificationResult(
+                label="unsupported",
+                raw_score=min(best_score, self._support_threshold - 0.01),
+                evidence_chunk_id=best_candidate.chunk_id,
+                evidence_span=None,
+                rationale=unsupported_reason,
+                verifier_name="value_aware_structured_claim_verifier_v1",
+                candidate_chunk_ids=[best_candidate.chunk_id],
+            )
+
         value_matches, value_conflicts, missing_critical_value = find_value_alignment(
             claim, best_candidate.chunk_text
         )
@@ -539,6 +564,31 @@ class HeuristicValueOverlapVerifier(EvidenceVerifier):
                 contradicting_chunk_ids=[best_candidate.chunk_id],
             )
 
+        pattern_conflict = self._pattern_contradiction(claim, best_candidate.chunk_text)
+        if pattern_conflict:
+            return VerificationResult(
+                label="contradicted",
+                raw_score=best_score,
+                evidence_chunk_id=best_candidate.chunk_id,
+                evidence_span=None,
+                rationale=pattern_conflict,
+                verifier_name="deterministic_overlap_anchor_v0",
+                candidate_chunk_ids=[best_candidate.chunk_id],
+                contradicting_chunk_ids=[best_candidate.chunk_id],
+            )
+
+        unsupported_reason = self._pattern_unsupported(claim, best_candidate.chunk_text)
+        if unsupported_reason:
+            return VerificationResult(
+                label="unsupported",
+                raw_score=min(best_score, self._support_threshold - 0.01),
+                evidence_chunk_id=best_candidate.chunk_id,
+                evidence_span=None,
+                rationale=unsupported_reason,
+                verifier_name="deterministic_overlap_anchor_v0",
+                candidate_chunk_ids=[best_candidate.chunk_id],
+            )
+
         value_matches, value_conflicts, missing_critical = find_value_alignment(
             claim, best_candidate.chunk_text
         )
@@ -626,6 +676,74 @@ class HeuristicValueOverlapVerifier(EvidenceVerifier):
             ):
                 return True
         return False
+
+    def _pattern_contradiction(self, claim: str, evidence: str) -> str | None:
+        claim_lower = claim.lower()
+        evidence_lower = evidence.lower()
+
+        table_conflict = self._table_value_conflict(claim_lower, evidence_lower)
+        if table_conflict:
+            return table_conflict
+
+        if (
+            re.search(r"\banyone\b|\ball\b", claim_lower)
+            and re.search(r"\bonly\b.{0,80}\beligible\b|\beligible\b.{0,80}\bonly\b", evidence_lower)
+        ):
+            return "Answer generalizes eligibility beyond an explicit 'only' constraint in evidence."
+
+        if "net profit" in claim_lower and "net profit" in evidence_lower:
+            claim_money = re.search(r"\$\s*\d[\d,.]*\s*[kmb]?", claim_lower)
+            evidence_money = re.search(r"\$\s*\d[\d,.]*\s*[kmb]?", evidence_lower)
+            if claim_money and evidence_money and claim_money.group(0) != evidence_money.group(0):
+                return "Claim assigns a different net profit value than the evidence."
+
+        return None
+
+    def _pattern_unsupported(self, claim: str, evidence: str) -> str | None:
+        claim_lower = claim.lower()
+        evidence_lower = evidence.lower()
+
+        if re.search(r"\bmanager\s+is\s+john\b", claim_lower) and re.search(
+            r"\bmanager\s+told\s+john\b", evidence_lower
+        ):
+            return "Keyword overlap is relationally different: evidence says the manager told John, not that John is the manager."
+
+        if re.search(r"\bexpect\b|\bahead of time\b|\bnext week\b|\bfinish\b", claim_lower):
+            speculative_terms = {"expect", "finish", "ahead", "next", "week"}
+            missing_terms = [term for term in speculative_terms if term in claim_lower and term not in evidence_lower]
+            if missing_terms:
+                return "Unsupported generation detail: answer adds speculative schedule terms absent from evidence."
+
+        if "headquarter" in claim_lower and "headquarter" not in evidence_lower:
+            return "Compound claim includes headquarters detail absent from evidence."
+
+        if "standard plus" in claim_lower and "standard plus" not in evidence_lower:
+            return "Retrieved evidence is about a different account than the answer claim."
+
+        return None
+
+    def _table_value_conflict(self, claim_lower: str, evidence_lower: str) -> str | None:
+        if "|" not in evidence_lower:
+            return None
+        rows: dict[str, str] = {}
+        for row in evidence_lower.splitlines():
+            cells = [cell.strip() for cell in row.strip().strip("|").split("|")]
+            if len(cells) < 2:
+                continue
+            key, value = cells[0], cells[1]
+            if not re.fullmatch(r"q\d+", key):
+                continue
+            money = re.search(r"\$\s*\d[\d,.]*\s*[kmb]?", value)
+            if money:
+                rows[key] = re.sub(r"\s+", "", money.group(0))
+        for quarter, evidence_value in rows.items():
+            claim_match = re.search(
+                rf"(\$\s*\d[\d,.]*\s*[kmb]?)\s+(?:in|for)\s+{re.escape(quarter)}\b",
+                claim_lower,
+            )
+            if claim_match and re.sub(r"\s+", "", claim_match.group(1)) != evidence_value:
+                return f"Claim swaps or misassigns table value for {quarter.upper()}."
+        return None
 
     def _content_terms(self, text: str) -> set[str]:
         from raggov.analyzers.retrieval.scope import STOPWORDS

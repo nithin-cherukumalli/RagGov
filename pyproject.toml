@@ -31,6 +31,14 @@ llm = [
 ]
 claim = [
     "refchecker",
+    "spacy",
+]
+refchecker = [
+    "refchecker",
+    "spacy",
+]
+ragchecker = [
+    "ragchecker",
 ]
 eval = [
     "sentence-transformers",
@@ -44,6 +52,7 @@ external = [
     "deepeval",
     "ragchecker",
     "refchecker",
+    "spacy",
 ]
 stresslab = [
     "httpx>=0.27",

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from raggov.analyzers.base import BaseAnalyzer
@@ -55,6 +56,8 @@ class ParserValidationAnalyzer(BaseAnalyzer):
             return self.skip("no retrieved chunks available")
 
         try:
+            
+            
             profile = self._resolve_profile(run)
         except (ValueError, TypeError, Exception) as exc:
             return AnalyzerResult(
@@ -70,6 +73,9 @@ class ParserValidationAnalyzer(BaseAnalyzer):
             )
 
         if profile is None:
+            fallback = self._text_only_fallback(run)
+            if fallback is not None:
+                return fallback
             return AnalyzerResult(
                 analyzer_name=self.name(),
                 status="warn",
@@ -153,6 +159,120 @@ class ParserValidationAnalyzer(BaseAnalyzer):
                 return self._coerce_profile(run_profile)
 
         return None
+
+    def _text_only_fallback(self, run: RAGRun) -> AnalyzerResult | None:
+        """Detect obvious parser/chunker damage when no rich profile was emitted."""
+        chunks = list(run.retrieved_chunks)
+        texts = [str(chunk.text or "") for chunk in chunks]
+        combined = " ".join(texts)
+        lowered = combined.lower()
+        query_lower = run.query.lower()
+
+        if self._has_chunk_boundary_damage(texts):
+            return AnalyzerResult(
+                analyzer_name=self.name(),
+                status="fail",
+                failure_type=FailureType.CHUNKING_BOUNDARY_ERROR,
+                stage=FailureStage.CHUNKING,
+                evidence=[
+                    "text_only_chunk_boundary_damage",
+                    "Adjacent chunks split a sentence across a boundary.",
+                ],
+                remediation="Adjust chunking strategy to preserve logical units like paragraphs and sections.",
+            )
+
+        if "[lost data]" in lowered or "lost data" in lowered:
+            return AnalyzerResult(
+                analyzer_name=self.name(),
+                status="fail",
+                failure_type=FailureType.TABLE_STRUCTURE_LOSS,
+                stage=FailureStage.PARSING,
+                evidence=[
+                    "text_only_table_data_loss",
+                    "Chunk text explicitly indicates table/OCR data was lost.",
+                ],
+                remediation="Use OCR and parser settings that preserve table cells before chunking.",
+            )
+
+        if self._looks_like_flattened_table(query_lower, combined):
+            return AnalyzerResult(
+                analyzer_name=self.name(),
+                status="fail",
+                failure_type=FailureType.TABLE_STRUCTURE_LOSS,
+                stage=FailureStage.PARSING,
+                evidence=[
+                    "text_only_flattened_table",
+                    "Dense label/value sequence lacks row or column structure.",
+                ],
+                remediation="Use a structure-preserving parser before chunking tabular content.",
+            )
+
+        if self._looks_like_flattened_hierarchy(query_lower, combined):
+            return AnalyzerResult(
+                analyzer_name=self.name(),
+                status="fail",
+                failure_type=FailureType.HIERARCHY_FLATTENING,
+                stage=FailureStage.PARSING,
+                evidence=[
+                    "text_only_flattened_hierarchy",
+                    "Orphaned list items were retrieved without section context.",
+                ],
+                remediation="Preserve heading paths and list hierarchy in parsed chunks.",
+            )
+
+        if self._looks_like_required_metadata_missing(run):
+            return AnalyzerResult(
+                analyzer_name=self.name(),
+                status="fail",
+                failure_type=FailureType.METADATA_LOSS,
+                stage=FailureStage.PARSING,
+                evidence=[
+                    "text_only_required_metadata_missing",
+                    "Query asks for source identity but answer/context lacks section or policy provenance.",
+                ],
+                remediation="Inject document identifiers and section labels into chunks.",
+            )
+
+        return None
+
+    def _has_chunk_boundary_damage(self, texts: list[str]) -> bool:
+        if len(texts) < 2:
+            return False
+        dangling_end = re.compile(r"\b(?:of|for|to|in|on|with|and|or|the|a|an|is|are)$", re.IGNORECASE)
+        for left, right in zip(texts, texts[1:]):
+            left = left.strip()
+            right = right.strip()
+            if not left or not right:
+                continue
+            if dangling_end.search(left) and right[:1].islower():
+                return True
+        return False
+
+    def _looks_like_flattened_table(self, query_lower: str, text: str) -> bool:
+        if not re.search(r"\b(rate|limit|table|row|column|q[1-4]|revenue|loan|term|max)\b", query_lower):
+            return False
+        value_tokens = re.findall(r"\b\d+(?:\.\d+)?%?\b|\bq[1-4]\b|\b\d+\s*yr\b", text.lower())
+        label_tokens = re.findall(r"\b(?:term|interest|rate|limit|revenue|max|min|year|yr)\b", text.lower())
+        return len(value_tokens) >= 3 and len(label_tokens) >= 1 and not re.search(r"[|,\n\t:]", text)
+
+    def _looks_like_flattened_hierarchy(self, query_lower: str, text: str) -> bool:
+        if "section" not in query_lower and "requirement" not in query_lower:
+            return False
+        return len(re.findall(r"(?:^|\s)-\s*", text)) >= 2 and not re.search(
+            r"\bsection\s+[a-z0-9]\b", text, re.IGNORECASE
+        )
+
+    def _looks_like_required_metadata_missing(self, run: RAGRun) -> bool:
+        query_lower = run.query.lower()
+        if not re.search(r"\b(which|what)\s+(policy|document|section|source)\b|\bdefines\b", query_lower):
+            return False
+        if run.cited_doc_ids:
+            return False
+        for chunk in run.retrieved_chunks:
+            metadata = getattr(chunk, "metadata", {}) or {}
+            if metadata.get("section") or metadata.get("section_path") or metadata.get("document_title"):
+                return False
+        return True
 
     def _coerce_profile(self, value: Any) -> ParserValidationProfile:
         if isinstance(value, ParserValidationProfile):

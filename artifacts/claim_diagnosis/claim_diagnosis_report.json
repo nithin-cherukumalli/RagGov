@@ -1,35 +1,58 @@
 {
-  "a2p_mode": "v2",
+  "a2p_mode": "v1",
   "aggregate_metrics": {
-    "a2p_primary_cause_accuracy": 0.03333333333333333,
-    "citation_validity_accuracy": 0.6,
-    "claim_label_accuracy": 0.55,
-    "fix_category_exact_accuracy": 0.36666666666666664,
-    "fix_category_partial_accuracy": 0.36666666666666664,
+    "a2p_primary_cause_accuracy": 0.11666666666666667,
+    "citation_validity_accuracy": 0.43333333333333335,
+    "claim_label_accuracy": 0.35,
+    "claim_label_breakdown": {
+      "abstain": {
+        "expected": 0,
+        "observed": 0
+      },
+      "contradicted": {
+        "expected": 5,
+        "observed": 7
+      },
+      "entailed": {
+        "expected": 51,
+        "observed": 16
+      },
+      "missing": {
+        "expected": 0,
+        "observed": 33
+      },
+      "unsupported": {
+        "expected": 4,
+        "observed": 4
+      }
+    },
+    "false_clean_count": 2,
+    "fix_category_exact_accuracy": 0.15,
+    "fix_category_partial_accuracy": 0.15,
     "freshness_validity_accuracy": 0.16666666666666666,
-    "primary_stage_accuracy": 0.2,
-    "sufficiency_accuracy": 0.7166666666666667
+    "primary_stage_accuracy": 0.13333333333333333,
+    "sufficiency_accuracy": 0.7833333333333333
   },
   "case_count": 60,
   "category_metrics": {
     "A2P": {
-      "a2p_primary_cause_accuracy": 0.0,
+      "a2p_primary_cause_accuracy": 0.5,
       "citation_validity_accuracy": 1.0,
-      "claim_label_accuracy": 1.0,
-      "fix_category_partial_accuracy": 1.0,
+      "claim_label_accuracy": 0.5,
+      "fix_category_partial_accuracy": 0.5,
       "freshness_validity_accuracy": 1.0,
-      "overall_match_rate": 0.0,
-      "primary_stage_accuracy": 1.0,
+      "overall_match_rate": 0.5,
+      "primary_stage_accuracy": 0.5,
       "sufficiency_accuracy": 1.0,
       "total_cases": 2
     },
     "citation": {
-      "a2p_primary_cause_accuracy": 0.0,
+      "a2p_primary_cause_accuracy": 1.0,
       "citation_validity_accuracy": 1.0,
       "claim_label_accuracy": 1.0,
       "fix_category_partial_accuracy": 1.0,
       "freshness_validity_accuracy": 1.0,
-      "overall_match_rate": 0.0,
+      "overall_match_rate": 1.0,
       "primary_stage_accuracy": 1.0,
       "sufficiency_accuracy": 1.0,
       "total_cases": 1
@@ -37,158 +60,200 @@
     "freshness": {
       "a2p_primary_cause_accuracy": 0.0,
       "citation_validity_accuracy": 1.0,
-      "claim_label_accuracy": 1.0,
-      "fix_category_partial_accuracy": 1.0,
+      "claim_label_accuracy": 0.0,
+      "fix_category_partial_accuracy": 0.0,
       "freshness_validity_accuracy": 1.0,
       "overall_match_rate": 0.0,
-      "primary_stage_accuracy": 1.0,
-      "sufficiency_accuracy": 1.0,
+      "primary_stage_accuracy": 0.0,
+      "sufficiency_accuracy": 0.0,
       "total_cases": 1
     },
     "grounding": {
-      "a2p_primary_cause_accuracy": 0.09523809523809523,
+      "a2p_primary_cause_accuracy": 0.14285714285714285,
       "citation_validity_accuracy": 0.42857142857142855,
-      "claim_label_accuracy": 0.5238095238095238,
-      "fix_category_partial_accuracy": 0.42857142857142855,
+      "claim_label_accuracy": 0.38095238095238093,
+      "fix_category_partial_accuracy": 0.23809523809523808,
       "freshness_validity_accuracy": 0.14285714285714285,
       "overall_match_rate": 0.09523809523809523,
       "primary_stage_accuracy": 0.14285714285714285,
-      "sufficiency_accuracy": 0.7619047619047619,
+      "sufficiency_accuracy": 0.8095238095238095,
       "total_cases": 21
     },
     "robustness/missing-data": {
-      "a2p_primary_cause_accuracy": 0.0,
-      "citation_validity_accuracy": 0.5714285714285714,
-      "claim_label_accuracy": 0.5714285714285714,
-      "fix_category_partial_accuracy": 0.25,
+      "a2p_primary_cause_accuracy": 0.03571428571428571,
+      "citation_validity_accuracy": 0.35714285714285715,
+      "claim_label_accuracy": 0.35714285714285715,
+      "fix_category_partial_accuracy": 0.03571428571428571,
       "freshness_validity_accuracy": 0.03571428571428571,
-      "overall_match_rate": 0.0,
+      "overall_match_rate": 0.03571428571428571,
       "primary_stage_accuracy": 0.03571428571428571,
-      "sufficiency_accuracy": 0.6071428571428571,
+      "sufficiency_accuracy": 0.8214285714285714,
       "total_cases": 28
     },
     "security": {
       "a2p_primary_cause_accuracy": 0.0,
-      "citation_validity_accuracy": 1.0,
+      "citation_validity_accuracy": 0.5,
       "claim_label_accuracy": 0.0,
       "fix_category_partial_accuracy": 0.0,
       "freshness_validity_accuracy": 0.0,
       "overall_match_rate": 0.0,
-      "primary_stage_accuracy": 1.0,
+      "primary_stage_accuracy": 0.5,
       "sufficiency_accuracy": 1.0,
       "total_cases": 2
     },
     "sufficiency": {
-      "a2p_primary_cause_accuracy": 0.0,
-      "citation_validity_accuracy": 1.0,
-      "claim_label_accuracy": 0.4,
-      "fix_category_partial_accuracy": 0.4,
+      "a2p_primary_cause_accuracy": 0.2,
+      "citation_validity_accuracy": 0.4,
+      "claim_label_accuracy": 0.2,
+      "fix_category_partial_accuracy": 0.2,
       "freshness_validity_accuracy": 0.4,
-      "overall_match_rate": 0.0,
-      "primary_stage_accuracy": 0.4,
-      "sufficiency_accuracy": 0.8,
+      "overall_match_rate": 0.2,
+      "primary_stage_accuracy": 0.2,
+      "sufficiency_accuracy": 0.4,
       "total_cases": 5
     }
   },
   "evaluation_status": "diagnostic_gold_v1_large_unvalidated",
   "mismatches": [
     {
+      "actual": {
+        "claim_labels": {},
+        "fix_category": "other",
+        "primary_failure": "CLEAN",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
+      "case_id": "supported_2",
+      "category": "grounding",
+      "expected": {
+        "claim_labels": {
+          "Battery warranty coverage remains active for twenty four months after activation.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
+      "expected_fix_category": "other",
+      "expected_primary_stage": "UNKNOWN",
+      "notes": [
+        "claim label mismatch for 'Battery warranty coverage remains active for twenty four months after activation.': expected entailed, observed None"
+      ],
+      "observed_fix_category": "other",
+      "observed_primary_stage": "UNKNOWN"
+    },
+    {
+      "actual": {
+        "claim_labels": {},
+        "fix_category": "other",
+        "primary_failure": "CLEAN",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "case_id": "unsupported_missing_1",
       "category": "sufficiency",
+      "expected": {
+        "claim_labels": {
+          "The support plan includes twenty four hour weekend phone coverage for all users.": "unsupported"
+        },
+        "fix_category": "retrieval",
+        "primary_stage": "RETRIEVAL",
+        "sufficient": false
+      },
       "expected_fix_category": "retrieval",
       "expected_primary_stage": "RETRIEVAL",
       "notes": [
-        "a2p cause mismatch for 'The support plan includes twenty four hour weekend phone coverage for all users.': expected insufficient_context_or_retrieval_miss, observed None"
+        "claim label mismatch for 'The support plan includes twenty four hour weekend phone coverage for all users.': expected unsupported, observed None",
+        "sufficiency mismatch: expected False, observed True",
+        "a2p cause mismatch for 'The support plan includes twenty four hour weekend phone coverage for all users.': expected insufficient_context_or_retrieval_miss, observed None",
+        "stage mismatch: expected RETRIEVAL, observed UNKNOWN",
+        "fix category mismatch: expected retrieval, observed other"
       ],
-      "observed_fix_category": "retrieval",
-      "observed_primary_stage": "RETRIEVAL"
+      "observed_fix_category": "other",
+      "observed_primary_stage": "UNKNOWN"
     },
     {
-      "case_id": "unsupported_missing_2",
-      "category": "robustness/missing-data",
-      "expected_fix_category": "retrieval",
-      "expected_primary_stage": "RETRIEVAL",
-      "notes": [
-        "a2p cause mismatch for 'The cancellation policy charges a fixed penalty of five hundred dollars for early termination.': expected insufficient_context_or_retrieval_miss, observed None"
-      ],
-      "observed_fix_category": "retrieval",
-      "observed_primary_stage": "RETRIEVAL"
-    },
-    {
+      "actual": {
+        "claim_labels": {},
+        "fix_category": "other",
+        "primary_failure": "CLEAN",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "case_id": "contradicted_1",
       "category": "A2P",
+      "expected": {
+        "claim_labels": {
+          "The product warranty covers accidental damage under standard terms for all devices.": "contradicted"
+        },
+        "fix_category": "generation",
+        "primary_stage": "GENERATION",
+        "sufficient": true
+      },
       "expected_fix_category": "generation",
       "expected_primary_stage": "GENERATION",
       "notes": [
-        "a2p cause mismatch for 'The product warranty covers accidental damage under standard terms for all devices.': expected generation_contradicted_retrieved_evidence, observed None"
+        "claim label mismatch for 'The product warranty covers accidental damage under standard terms for all devices.': expected contradicted, observed None",
+        "a2p cause mismatch for 'The product warranty covers accidental damage under standard terms for all devices.': expected generation_contradicted_retrieved_evidence, observed None",
+        "stage mismatch: expected GENERATION, observed UNKNOWN",
+        "fix category mismatch: expected generation, observed other"
       ],
-      "observed_fix_category": "generation",
-      "observed_primary_stage": "GENERATION"
+      "observed_fix_category": "other",
+      "observed_primary_stage": "UNKNOWN"
     },
     {
-      "case_id": "contradicted_2",
-      "category": "A2P",
-      "expected_fix_category": "generation",
-      "expected_primary_stage": "GENERATION",
-      "notes": [
-        "a2p cause mismatch for 'Two factor authentication is mandatory for administrator login in every environment.': expected generation_contradicted_retrieved_evidence, observed None"
-      ],
-      "observed_fix_category": "generation",
-      "observed_primary_stage": "GENERATION"
-    },
-    {
+      "actual": {
+        "claim_labels": {},
+        "fix_category": "retrieval",
+        "primary_failure": "INSUFFICIENT_CONTEXT",
+        "primary_stage": "SUFFICIENCY",
+        "sufficient": false
+      },
       "case_id": "stale_source_case",
       "category": "freshness",
+      "expected": {
+        "claim_labels": {
+          "Records are retained for thirty six months before archival review in all departments.": "contradicted"
+        },
+        "fix_category": "generation",
+        "primary_stage": "GENERATION",
+        "sufficient": true
+      },
       "expected_fix_category": "generation",
       "expected_primary_stage": "GENERATION",
       "notes": [
-        "a2p cause mismatch for 'Records are retained for thirty six months before archival review in all departments.': expected generation_contradicted_retrieved_evidence, observed None"
-      ],
-      "observed_fix_category": "generation",
-      "observed_primary_stage": "GENERATION"
-    },
-    {
-      "case_id": "citation_mismatch_case",
-      "category": "citation",
-      "expected_fix_category": "generation",
-      "expected_primary_stage": "GENERATION",
-      "notes": [
-        "a2p cause mismatch for 'Refund approvals require manager review for requests above five hundred dollars in this program.': expected generation_contradicted_retrieved_evidence, observed None"
-      ],
-      "observed_fix_category": "generation",
-      "observed_primary_stage": "GENERATION"
-    },
-    {
-      "case_id": "weak_ambiguous_case",
-      "category": "grounding",
-      "expected_fix_category": "generation",
-      "expected_primary_stage": "GENERATION",
-      "notes": [
-        "a2p cause mismatch for 'Company revenue increased 15% annually during the fiscal year based on final reporting.': expected generation_contradicted_retrieved_evidence, observed None"
-      ],
-      "observed_fix_category": "generation",
-      "observed_primary_stage": "GENERATION"
-    },
-    {
-      "case_id": "insufficient_context_abstain_case",
-      "category": "sufficiency",
-      "expected_fix_category": "retrieval",
-      "expected_primary_stage": "RETRIEVAL",
-      "notes": [
-        "a2p cause mismatch for 'Legal section 88 defines cross border export restrictions for licensed equipment transfers.': expected insufficient_context_or_retrieval_miss, observed None"
+        "claim label mismatch for 'Records are retained for thirty six months before archival review in all departments.': expected contradicted, observed None",
+        "sufficiency mismatch: expected True, observed False",
+        "a2p cause mismatch for 'Records are retained for thirty six months before archival review in all departments.': expected generation_contradicted_retrieved_evidence, observed None",
+        "stage mismatch: expected GENERATION, observed SUFFICIENCY",
+        "fix category mismatch: expected generation, observed retrieval"
       ],
       "observed_fix_category": "retrieval",
-      "observed_primary_stage": "RETRIEVAL"
+      "observed_primary_stage": "SUFFICIENCY"
     },
     {
+      "actual": {
+        "claim_labels": {},
+        "fix_category": "retrieval",
+        "primary_failure": "STALE_RETRIEVAL",
+        "primary_stage": "RETRIEVAL",
+        "sufficient": true
+      },
       "case_id": "hard_ms20_q01",
       "category": "robustness/missing-data",
+      "expected": {
+        "claim_labels": {
+          "One kilometer.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
         "claim label mismatch for 'One kilometer.': expected entailed, observed None",
+        "citation validity mismatch for 'One kilometer.': expected valid, observed not_applicable",
         "freshness validity mismatch for 'One kilometer.': expected unknown, observed stale",
-        "sufficiency mismatch: expected True, observed None",
         "a2p cause mismatch for 'One kilometer.': expected none, observed None",
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
@@ -197,14 +262,29 @@
       "observed_primary_stage": "RETRIEVAL"
     },
     {
+      "actual": {
+        "claim_labels": {},
+        "fix_category": "retrieval",
+        "primary_failure": "STALE_RETRIEVAL",
+        "primary_stage": "RETRIEVAL",
+        "sufficient": true
+      },
       "case_id": "hard_ms20_q02",
       "category": "robustness/missing-data",
+      "expected": {
+        "claim_labels": {
+          "Three kilometers.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
         "claim label mismatch for 'Three kilometers.': expected entailed, observed None",
+        "citation validity mismatch for 'Three kilometers.': expected valid, observed not_applicable",
         "freshness validity mismatch for 'Three kilometers.': expected unknown, observed stale",
-        "sufficiency mismatch: expected True, observed None",
         "a2p cause mismatch for 'Three kilometers.': expected none, observed None",
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
@@ -213,43 +293,91 @@
       "observed_primary_stage": "RETRIEVAL"
     },
     {
+      "actual": {
+        "claim_labels": {},
+        "fix_category": "retrieval",
+        "primary_failure": "STALE_RETRIEVAL",
+        "primary_stage": "RETRIEVAL",
+        "sufficient": true
+      },
       "case_id": "hard_ms20_q03",
       "category": "robustness/missing-data",
+      "expected": {
+        "claim_labels": {
+          "Provide arrangements such as free transportation and residential facilities.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
-        "citation validity mismatch for 'Provide arrangements such as free transportation and residential facilities.': expected valid, observed invalid",
+        "claim label mismatch for 'Provide arrangements such as free transportation and residential facilities.': expected entailed, observed None",
+        "citation validity mismatch for 'Provide arrangements such as free transportation and residential facilities.': expected valid, observed not_applicable",
         "freshness validity mismatch for 'Provide arrangements such as free transportation and residential facilities.': expected unknown, observed stale",
         "a2p cause mismatch for 'Provide arrangements such as free transportation and residential facilities.': expected none, observed None",
-        "stage mismatch: expected UNKNOWN, observed GROUNDING"
+        "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
+        "fix category mismatch: expected other, observed retrieval"
       ],
-      "observed_fix_category": "other",
-      "observed_primary_stage": "GROUNDING"
+      "observed_fix_category": "retrieval",
+      "observed_primary_stage": "RETRIEVAL"
     },
     {
+      "actual": {
+        "claim_labels": {},
+        "fix_category": "retrieval",
+        "primary_failure": "STALE_RETRIEVAL",
+        "primary_stage": "RETRIEVAL",
+        "sufficient": true
+      },
       "case_id": "hard_ms20_q04",
       "category": "robustness/missing-data",
+      "expected": {
+        "claim_labels": {
+          "Minimum three months; maximum two years.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
-        "citation validity mismatch for 'Minimum three months; maximum two years.': expected valid, observed invalid",
+        "claim label mismatch for 'Minimum three months; maximum two years.': expected entailed, observed None",
+        "citation validity mismatch for 'Minimum three months; maximum two years.': expected valid, observed not_applicable",
         "freshness validity mismatch for 'Minimum three months; maximum two years.': expected unknown, observed stale",
         "a2p cause mismatch for 'Minimum three months; maximum two years.': expected none, observed None",
-        "stage mismatch: expected UNKNOWN, observed GROUNDING"
+        "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
+        "fix category mismatch: expected other, observed retrieval"
       ],
-      "observed_fix_category": "other",
-      "observed_primary_stage": "GROUNDING"
+      "observed_fix_category": "retrieval",
+      "observed_primary_stage": "RETRIEVAL"
     },
     {
+      "actual": {
+        "claim_labels": {},
+        "fix_category": "retrieval",
+        "primary_failure": "STALE_RETRIEVAL",
+        "primary_stage": "RETRIEVAL",
+        "sufficient": true
+      },
       "case_id": "hard_ms20_q05",
       "category": "grounding",
+      "expected": {
+        "claim_labels": {
+          "Civil Society Organizations and Self Help Groups.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
-        "claim label mismatch for 'Civil Society Organizations and Self Help Groups.': expected entailed, observed unsupported",
-        "citation validity mismatch for 'Civil Society Organizations and Self Help Groups.': expected valid, observed invalid",
+        "claim label mismatch for 'Civil Society Organizations and Self Help Groups.': expected entailed, observed None",
+        "citation validity mismatch for 'Civil Society Organizations and Self Help Groups.': expected valid, observed not_applicable",
         "freshness validity mismatch for 'Civil Society Organizations and Self Help Groups.': expected unknown, observed stale",
-        "sufficiency mismatch: expected True, observed False",
         "a2p cause mismatch for 'Civil Society Organizations and Self Help Groups.': expected none, observed None",
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
@@ -258,43 +386,96 @@
       "observed_primary_stage": "RETRIEVAL"
     },
     {
+      "actual": {
+        "claim_labels": {},
+        "fix_category": "retrieval",
+        "primary_failure": "INSUFFICIENT_CONTEXT",
+        "primary_stage": "SUFFICIENCY",
+        "sufficient": false
+      },
       "case_id": "hard_ms20_q06",
       "category": "robustness/missing-data",
+      "expected": {
+        "claim_labels": {
+          "Arrange safe transport where possible; provide home-based education in severe cases.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
-        "citation validity mismatch for 'Arrange safe transport where possible; provide home-based education in severe cases.': expected valid, observed invalid",
+        "claim label mismatch for 'Arrange safe transport where possible; provide home-based education in severe cases.': expected entailed, observed None",
+        "citation validity mismatch for 'Arrange safe transport where possible; provide home-based education in severe cases.': expected valid, observed not_applicable",
         "freshness validity mismatch for 'Arrange safe transport where possible; provide home-based education in severe cases.': expected unknown, observed stale",
+        "sufficiency mismatch: expected True, observed False",
         "a2p cause mismatch for 'Arrange safe transport where possible; provide home-based education in severe cases.': expected none, observed None",
-        "stage mismatch: expected UNKNOWN, observed GROUNDING"
-      ],
-      "observed_fix_category": "other",
-      "observed_primary_stage": "GROUNDING"
-    },
-    {
-      "case_id": "hard_ms20_q07",
-      "category": "robustness/missing-data",
-      "expected_fix_category": "other",
-      "expected_primary_stage": "UNKNOWN",
-      "notes": [
-        "freshness validity mismatch for 'No direct or indirect costs to parents; includes textbooks, notebooks, writing material, midday meals, and uniforms.': expected unknown, observed stale",
-        "a2p cause mismatch for 'No direct or indirect costs to parents; includes textbooks, notebooks, writing material, midday meals, and uniforms.': expected none, observed stale_source_usage",
-        "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
+        "stage mismatch: expected UNKNOWN, observed SUFFICIENCY",
         "fix category mismatch: expected other, observed retrieval"
       ],
       "observed_fix_category": "retrieval",
-      "observed_primary_stage": "RETRIEVAL"
+      "observed_primary_stage": "SUFFICIENCY"
     },
     {
+      "actual": {
+        "claim_labels": {},
+        "fix_category": "retrieval",
+        "primary_failure": "INSUFFICIENT_CONTEXT",
+        "primary_stage": "SUFFICIENCY",
+        "sufficient": false
+      },
+      "case_id": "hard_ms20_q07",
+      "category": "robustness/missing-data",
+      "expected": {
+        "claim_labels": {
+          "No direct or indirect costs to parents; includes textbooks, notebooks, writing material, midday meals, and uniforms.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
+      "expected_fix_category": "other",
+      "expected_primary_stage": "UNKNOWN",
+      "notes": [
+        "claim label mismatch for 'No direct or indirect costs to parents; includes textbooks, notebooks, writing material, midday meals, and uniforms.': expected entailed, observed None",
+        "citation validity mismatch for 'No direct or indirect costs to parents; includes textbooks, notebooks, writing material, midday meals, and uniforms.': expected valid, observed not_applicable",
+        "freshness validity mismatch for 'No direct or indirect costs to parents; includes textbooks, notebooks, writing material, midday meals, and uniforms.': expected unknown, observed stale",
+        "sufficiency mismatch: expected True, observed False",
+        "a2p cause mismatch for 'No direct or indirect costs to parents; includes textbooks, notebooks, writing material, midday meals, and uniforms.': expected none, observed None",
+        "stage mismatch: expected UNKNOWN, observed SUFFICIENCY",
+        "fix category mismatch: expected other, observed retrieval"
+      ],
+      "observed_fix_category": "retrieval",
+      "observed_primary_stage": "SUFFICIENCY"
+    },
+    {
+      "actual": {
+        "claim_labels": {
+          "A 6-14 child not completing elementary education, including never-enrolled, dropped-out, or absent for more than one month.": "contradicted"
+        },
+        "fix_category": "generation",
+        "primary_failure": "UNSUPPORTED_CLAIM",
+        "primary_stage": "GENERATION",
+        "sufficient": true
+      },
       "case_id": "hard_ms20_q08",
       "category": "grounding",
+      "expected": {
+        "claim_labels": {
+          "A 6-14 child not completing elementary education, including never-enrolled, dropped-out, or absent for more than one month.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
         "claim label mismatch for 'A 6-14 child not completing elementary education, including never-enrolled, dropped-out, or absent for more than one month.': expected entailed, observed contradicted",
         "citation validity mismatch for 'A 6-14 child not completing elementary education, including never-enrolled, dropped-out, or absent for more than one month.': expected valid, observed invalid",
         "freshness validity mismatch for 'A 6-14 child not completing elementary education, including never-enrolled, dropped-out, or absent for more than one month.': expected unknown, observed stale",
-        "a2p cause mismatch for 'A 6-14 child not completing elementary education, including never-enrolled, dropped-out, or absent for more than one month.': expected none, observed None",
+        "a2p cause mismatch for 'A 6-14 child not completing elementary education, including never-enrolled, dropped-out, or absent for more than one month.': expected none, observed generation_contradicted_retrieved_evidence",
         "stage mismatch: expected UNKNOWN, observed GENERATION",
         "fix category mismatch: expected other, observed generation"
       ],
@@ -302,14 +483,29 @@
       "observed_primary_stage": "GENERATION"
     },
     {
+      "actual": {
+        "claim_labels": {},
+        "fix_category": "retrieval",
+        "primary_failure": "STALE_RETRIEVAL",
+        "primary_stage": "RETRIEVAL",
+        "sufficient": true
+      },
       "case_id": "hard_ms20_q09",
       "category": "robustness/missing-data",
+      "expected": {
+        "claim_labels": {
+          "The Local Authority.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
         "claim label mismatch for 'The Local Authority.': expected entailed, observed None",
+        "citation validity mismatch for 'The Local Authority.': expected valid, observed not_applicable",
         "freshness validity mismatch for 'The Local Authority.': expected unknown, observed stale",
-        "sufficiency mismatch: expected True, observed None",
         "a2p cause mismatch for 'The Local Authority.': expected none, observed None",
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
@@ -318,15 +514,62 @@
       "observed_primary_stage": "RETRIEVAL"
     },
     {
+      "actual": {
+        "claim_labels": {},
+        "fix_category": "retrieval",
+        "primary_failure": "INSUFFICIENT_CONTEXT",
+        "primary_stage": "SUFFICIENCY",
+        "sufficient": false
+      },
       "case_id": "hard_ms20_q10",
       "category": "sufficiency",
+      "expected": {
+        "claim_labels": {
+          "Abstain; not in the corpus.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
         "claim label mismatch for 'Abstain; not in the corpus.': expected entailed, observed None",
+        "citation validity mismatch for 'Abstain; not in the corpus.': expected valid, observed not_applicable",
         "freshness validity mismatch for 'Abstain; not in the corpus.': expected unknown, observed stale",
-        "sufficiency mismatch: expected True, observed None",
+        "sufficiency mismatch: expected True, observed False",
         "a2p cause mismatch for 'Abstain; not in the corpus.': expected none, observed None",
+        "stage mismatch: expected UNKNOWN, observed SUFFICIENCY",
+        "fix category mismatch: expected other, observed retrieval"
+      ],
+      "observed_fix_category": "retrieval",
+      "observed_primary_stage": "SUFFICIENCY"
+    },
+    {
+      "actual": {
+        "claim_labels": {
+          "228.": "entailed"
+        },
+        "fix_category": "retrieval",
+        "primary_failure": "STALE_RETRIEVAL",
+        "primary_stage": "RETRIEVAL",
+        "sufficient": true
+      },
+      "case_id": "hard_ms9_q01",
+      "category": "robustness/missing-data",
+      "expected": {
+        "claim_labels": {
+          "228.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
+      "expected_fix_category": "other",
+      "expected_primary_stage": "UNKNOWN",
+      "notes": [
+        "freshness validity mismatch for '228.': expected unknown, observed stale",
+        "a2p cause mismatch for '228.': expected none, observed stale_source_usage",
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
       ],
@@ -334,57 +577,94 @@
       "observed_primary_stage": "RETRIEVAL"
     },
     {
-      "case_id": "hard_ms9_q01",
-      "category": "robustness/missing-data",
-      "expected_fix_category": "other",
-      "expected_primary_stage": "UNKNOWN",
-      "notes": [
-        "citation validity mismatch for '228.': expected valid, observed invalid",
-        "freshness validity mismatch for '228.': expected unknown, observed stale",
-        "a2p cause mismatch for '228.': expected none, observed None",
-        "stage mismatch: expected UNKNOWN, observed GROUNDING"
-      ],
-      "observed_fix_category": "other",
-      "observed_primary_stage": "GROUNDING"
-    },
-    {
+      "actual": {
+        "claim_labels": {
+          "22075.": "entailed"
+        },
+        "fix_category": "retrieval",
+        "primary_failure": "STALE_RETRIEVAL",
+        "primary_stage": "RETRIEVAL",
+        "sufficient": true
+      },
       "case_id": "hard_ms9_q02",
       "category": "grounding",
+      "expected": {
+        "claim_labels": {
+          "22075.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
-        "citation validity mismatch for '22075.': expected valid, observed invalid",
         "freshness validity mismatch for '22075.': expected unknown, observed stale",
-        "a2p cause mismatch for '22075.': expected none, observed None",
-        "stage mismatch: expected UNKNOWN, observed GROUNDING"
+        "a2p cause mismatch for '22075.': expected none, observed stale_source_usage",
+        "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
+        "fix category mismatch: expected other, observed retrieval"
       ],
-      "observed_fix_category": "other",
-      "observed_primary_stage": "GROUNDING"
+      "observed_fix_category": "retrieval",
+      "observed_primary_stage": "RETRIEVAL"
     },
     {
+      "actual": {
+        "claim_labels": {
+          "1027.": "entailed"
+        },
+        "fix_category": "retrieval",
+        "primary_failure": "STALE_RETRIEVAL",
+        "primary_stage": "RETRIEVAL",
+        "sufficient": true
+      },
       "case_id": "hard_ms9_q03",
       "category": "robustness/missing-data",
+      "expected": {
+        "claim_labels": {
+          "1027.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
-        "citation validity mismatch for '1027.': expected valid, observed invalid",
         "freshness validity mismatch for '1027.': expected unknown, observed stale",
-        "a2p cause mismatch for '1027.': expected none, observed None",
-        "stage mismatch: expected UNKNOWN, observed GROUNDING"
+        "a2p cause mismatch for '1027.': expected none, observed stale_source_usage",
+        "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
+        "fix category mismatch: expected other, observed retrieval"
       ],
-      "observed_fix_category": "other",
-      "observed_primary_stage": "GROUNDING"
+      "observed_fix_category": "retrieval",
+      "observed_primary_stage": "RETRIEVAL"
     },
     {
+      "actual": {
+        "claim_labels": {
+          "26859.": "contradicted"
+        },
+        "fix_category": "generation",
+        "primary_failure": "UNSUPPORTED_CLAIM",
+        "primary_stage": "GENERATION",
+        "sufficient": true
+      },
       "case_id": "hard_ms9_q04",
       "category": "robustness/missing-data",
+      "expected": {
+        "claim_labels": {
+          "26859.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
         "claim label mismatch for '26859.': expected entailed, observed contradicted",
         "citation validity mismatch for '26859.': expected valid, observed invalid",
         "freshness validity mismatch for '26859.': expected unknown, observed stale",
-        "a2p cause mismatch for '26859.': expected none, observed None",
+        "a2p cause mismatch for '26859.': expected none, observed generation_contradicted_retrieved_evidence",
         "stage mismatch: expected UNKNOWN, observed GENERATION",
         "fix category mismatch: expected other, observed generation"
       ],
@@ -392,8 +672,25 @@
       "observed_primary_stage": "GENERATION"
     },
     {
+      "actual": {
+        "claim_labels": {
+          "19 categories.": "entailed"
+        },
+        "fix_category": "retrieval",
+        "primary_failure": "STALE_RETRIEVAL",
+        "primary_stage": "RETRIEVAL",
+        "sufficient": true
+      },
       "case_id": "hard_ms15_q01",
       "category": "grounding",
+      "expected": {
+        "claim_labels": {
+          "19 categories.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
@@ -406,8 +703,25 @@
       "observed_primary_stage": "RETRIEVAL"
     },
     {
+      "actual": {
+        "claim_labels": {
+          "Serial numbers 1, 2, 3, 5, 6, 7, and 8.": "entailed"
+        },
+        "fix_category": "retrieval",
+        "primary_failure": "INSUFFICIENT_CONTEXT",
+        "primary_stage": "RETRIEVAL",
+        "sufficient": true
+      },
       "case_id": "hard_ms15_q02",
       "category": "robustness/missing-data",
+      "expected": {
+        "claim_labels": {
+          "Serial numbers 1, 2, 3, 5, 6, 7, and 8.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
@@ -420,15 +734,32 @@
       "observed_primary_stage": "RETRIEVAL"
     },
     {
+      "actual": {
+        "claim_labels": {
+          "From 1-4-2005; Rs.11,57,724.": "contradicted"
+        },
+        "fix_category": "generation",
+        "primary_failure": "UNSUPPORTED_CLAIM",
+        "primary_stage": "GENERATION",
+        "sufficient": true
+      },
       "case_id": "hard_ms15_q03",
       "category": "grounding",
+      "expected": {
+        "claim_labels": {
+          "From 1-4-2005; Rs.11,57,724.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
         "claim label mismatch for 'From 1-4-2005; Rs.11,57,724.': expected entailed, observed contradicted",
         "citation validity mismatch for 'From 1-4-2005; Rs.11,57,724.': expected valid, observed invalid",
         "freshness validity mismatch for 'From 1-4-2005; Rs.11,57,724.': expected unknown, observed stale",
-        "a2p cause mismatch for 'From 1-4-2005; Rs.11,57,724.': expected none, observed None",
+        "a2p cause mismatch for 'From 1-4-2005; Rs.11,57,724.': expected none, observed generation_contradicted_retrieved_evidence",
         "stage mismatch: expected UNKNOWN, observed GENERATION",
         "fix category mismatch: expected other, observed generation"
       ],
@@ -436,8 +767,26 @@
       "observed_primary_stage": "GENERATION"
     },
     {
+      "actual": {
+        "claim_labels": {
+          "Monetary: 01-04-2005.": "contradicted",
+          "Notional: 01-07-2003.": "contradicted"
+        },
+        "fix_category": "generation",
+        "primary_failure": "INSUFFICIENT_CONTEXT",
+        "primary_stage": "GENERATION",
+        "sufficient": true
+      },
       "case_id": "hard_ms15_q04",
       "category": "grounding",
+      "expected": {
+        "claim_labels": {
+          "Notional: 01-07-2003. Monetary: 01-04-2005.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
@@ -452,8 +801,25 @@
       "observed_primary_stage": "GENERATION"
     },
     {
+      "actual": {
+        "claim_labels": {
+          "1 Project Officer.": "unsupported"
+        },
+        "fix_category": "retrieval",
+        "primary_failure": "INSUFFICIENT_CONTEXT",
+        "primary_stage": "RETRIEVAL",
+        "sufficient": false
+      },
       "case_id": "hard_ms39_q01",
       "category": "robustness/missing-data",
+      "expected": {
+        "claim_labels": {
+          "1 Project Officer.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
@@ -461,7 +827,7 @@
         "citation validity mismatch for '1 Project Officer.': expected valid, observed invalid",
         "freshness validity mismatch for '1 Project Officer.': expected unknown, observed stale",
         "sufficiency mismatch: expected True, observed False",
-        "a2p cause mismatch for '1 Project Officer.': expected none, observed None",
+        "a2p cause mismatch for '1 Project Officer.': expected none, observed insufficient_context_or_retrieval_miss",
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
       ],
@@ -469,8 +835,25 @@
       "observed_primary_stage": "RETRIEVAL"
     },
     {
+      "actual": {
+        "claim_labels": {
+          "2 Project Officers.": "unsupported"
+        },
+        "fix_category": "retrieval",
+        "primary_failure": "INSUFFICIENT_CONTEXT",
+        "primary_stage": "RETRIEVAL",
+        "sufficient": false
+      },
       "case_id": "hard_ms39_q02",
       "category": "robustness/missing-data",
+      "expected": {
+        "claim_labels": {
+          "2 Project Officers.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
@@ -478,7 +861,7 @@
         "citation validity mismatch for '2 Project Officers.': expected valid, observed invalid",
         "freshness validity mismatch for '2 Project Officers.': expected unknown, observed stale",
         "sufficiency mismatch: expected True, observed False",
-        "a2p cause mismatch for '2 Project Officers.': expected none, observed None",
+        "a2p cause mismatch for '2 Project Officers.': expected none, observed insufficient_context_or_retrieval_miss",
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
       ],
@@ -486,8 +869,25 @@
       "observed_primary_stage": "RETRIEVAL"
     },
     {
+      "actual": {
+        "claim_labels": {
+          "Transfers shall be within the zone only.": "entailed"
+        },
+        "fix_category": "retrieval",
+        "primary_failure": "INSUFFICIENT_CONTEXT",
+        "primary_stage": "RETRIEVAL",
+        "sufficient": true
+      },
       "case_id": "hard_ms39_q03",
       "category": "robustness/missing-data",
+      "expected": {
+        "claim_labels": {
+          "Transfers shall be within the zone only.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
@@ -500,8 +900,25 @@
       "observed_primary_stage": "RETRIEVAL"
     },
     {
+      "actual": {
+        "claim_labels": {
+          "47 APO posts and 254 Supervisor posts.": "entailed"
+        },
+        "fix_category": "retrieval",
+        "primary_failure": "INSUFFICIENT_CONTEXT",
+        "primary_stage": "RETRIEVAL",
+        "sufficient": true
+      },
       "case_id": "hard_ms39_q04",
       "category": "robustness/missing-data",
+      "expected": {
+        "claim_labels": {
+          "47 APO posts and 254 Supervisor posts.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
@@ -514,15 +931,29 @@
       "observed_primary_stage": "RETRIEVAL"
     },
     {
+      "actual": {
+        "claim_labels": {},
+        "fix_category": "retrieval",
+        "primary_failure": "STALE_RETRIEVAL",
+        "primary_stage": "RETRIEVAL",
+        "sufficient": true
+      },
       "case_id": "hard_ms24_q01",
       "category": "robustness/missing-data",
+      "expected": {
+        "claim_labels": {
+          "Sri B. Sambaiah.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
         "claim label mismatch for 'Sri B. Sambaiah.': expected entailed, observed None",
-        "citation validity mismatch for 'Sri B. Sambaiah.': expected valid, observed invalid",
+        "citation validity mismatch for 'Sri B. Sambaiah.': expected valid, observed not_applicable",
         "freshness validity mismatch for 'Sri B. Sambaiah.': expected unknown, observed stale",
-        "sufficiency mismatch: expected True, observed None",
         "a2p cause mismatch for 'Sri B. Sambaiah.': expected none, observed None",
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
@@ -531,15 +962,29 @@
       "observed_primary_stage": "RETRIEVAL"
     },
     {
+      "actual": {
+        "claim_labels": {},
+        "fix_category": "retrieval",
+        "primary_failure": "STALE_RETRIEVAL",
+        "primary_stage": "RETRIEVAL",
+        "sufficient": true
+      },
       "case_id": "hard_ms29_q01",
       "category": "robustness/missing-data",
+      "expected": {
+        "claim_labels": {
+          "Sri P. Rajaiah.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
         "claim label mismatch for 'Sri P. Rajaiah.': expected entailed, observed None",
-        "citation validity mismatch for 'Sri P. Rajaiah.': expected valid, observed invalid",
+        "citation validity mismatch for 'Sri P. Rajaiah.': expected valid, observed not_applicable",
         "freshness validity mismatch for 'Sri P. Rajaiah.': expected unknown, observed stale",
-        "sufficiency mismatch: expected True, observed None",
         "a2p cause mismatch for 'Sri P. Rajaiah.': expected none, observed None",
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
@@ -548,14 +993,29 @@
       "observed_primary_stage": "RETRIEVAL"
     },
     {
+      "actual": {
+        "claim_labels": {},
+        "fix_category": "retrieval",
+        "primary_failure": "STALE_RETRIEVAL",
+        "primary_stage": "RETRIEVAL",
+        "sufficient": true
+      },
       "case_id": "hard_ms30_q01",
       "category": "robustness/missing-data",
+      "expected": {
+        "claim_labels": {
+          "Sri K.V.L. Narsimha Rao.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
         "claim label mismatch for 'Sri K.V.L. Narsimha Rao.': expected entailed, observed None",
+        "citation validity mismatch for 'Sri K.V.L. Narsimha Rao.': expected valid, observed not_applicable",
         "freshness validity mismatch for 'Sri K.V.L. Narsimha Rao.': expected unknown, observed stale",
-        "sufficiency mismatch: expected True, observed None",
         "a2p cause mismatch for 'Sri K.V.L. Narsimha Rao.': expected none, observed None",
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
@@ -564,14 +1024,29 @@
       "observed_primary_stage": "RETRIEVAL"
     },
     {
+      "actual": {
+        "claim_labels": {},
+        "fix_category": "retrieval",
+        "primary_failure": "STALE_RETRIEVAL",
+        "primary_stage": "RETRIEVAL",
+        "sufficient": true
+      },
       "case_id": "hard_ms35_q01",
       "category": "robustness/missing-data",
+      "expected": {
+        "claim_labels": {
+          "Sri Shanker Reddy.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
         "claim label mismatch for 'Sri Shanker Reddy.': expected entailed, observed None",
+        "citation validity mismatch for 'Sri Shanker Reddy.': expected valid, observed not_applicable",
         "freshness validity mismatch for 'Sri Shanker Reddy.': expected unknown, observed stale",
-        "sufficiency mismatch: expected True, observed None",
         "a2p cause mismatch for 'Sri Shanker Reddy.': expected none, observed None",
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
@@ -580,8 +1055,26 @@
       "observed_primary_stage": "RETRIEVAL"
     },
     {
+      "actual": {
+        "claim_labels": {
+          "Revised Pension Rules, 1980.": "entailed",
+          "Rule 9 of the A.P.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_failure": "CITATION_MISMATCH",
+        "primary_stage": "RETRIEVAL",
+        "sufficient": true
+      },
       "case_id": "hard_dup_q05",
       "category": "grounding",
+      "expected": {
+        "claim_labels": {
+          "Rule 9 of the A.P. Revised Pension Rules, 1980.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
@@ -589,14 +1082,32 @@
         "citation validity mismatch for 'Rule 9 of the A.P. Revised Pension Rules, 1980.': expected valid, observed invalid",
         "freshness validity mismatch for 'Rule 9 of the A.P. Revised Pension Rules, 1980.': expected unknown, observed stale",
         "a2p cause mismatch for 'Rule 9 of the A.P. Revised Pension Rules, 1980.': expected none, observed None",
-        "stage mismatch: expected UNKNOWN, observed GROUNDING"
+        "stage mismatch: expected UNKNOWN, observed RETRIEVAL"
       ],
       "observed_fix_category": "other",
-      "observed_primary_stage": "GROUNDING"
+      "observed_primary_stage": "RETRIEVAL"
     },
     {
+      "actual": {
+        "claim_labels": {
+          "(CC&A) Rules, 1991.": "entailed",
+          "Rule 20 of the A.P.C.S.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_failure": "CITATION_MISMATCH",
+        "primary_stage": "RETRIEVAL",
+        "sufficient": true
+      },
       "case_id": "hard_dup_q06",
       "category": "grounding",
+      "expected": {
+        "claim_labels": {
+          "Rule 20 of the A.P.C.S. (CC&A) Rules, 1991.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
@@ -604,50 +1115,68 @@
         "citation validity mismatch for 'Rule 20 of the A.P.C.S. (CC&A) Rules, 1991.': expected valid, observed invalid",
         "freshness validity mismatch for 'Rule 20 of the A.P.C.S. (CC&A) Rules, 1991.': expected unknown, observed stale",
         "a2p cause mismatch for 'Rule 20 of the A.P.C.S. (CC&A) Rules, 1991.': expected none, observed None",
-        "stage mismatch: expected UNKNOWN, observed GROUNDING"
+        "stage mismatch: expected UNKNOWN, observed RETRIEVAL"
       ],
       "observed_fix_category": "other",
-      "observed_primary_stage": "GROUNDING"
+      "observed_primary_stage": "RETRIEVAL"
     },
     {
+      "actual": {
+        "claim_labels": {},
+        "fix_category": "retrieval",
+        "primary_failure": "INSUFFICIENT_CONTEXT",
+        "primary_stage": "SUFFICIENCY",
+        "sufficient": false
+      },
       "case_id": "hard_dup_q07",
       "category": "grounding",
+      "expected": {
+        "claim_labels": {
+          "Fake, forged, and fabricated medical reimbursement bills.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
+        "claim label mismatch for 'Fake, forged, and fabricated medical reimbursement bills.': expected entailed, observed None",
         "citation validity mismatch for 'Fake, forged, and fabricated medical reimbursement bills.': expected valid, observed invalid",
         "freshness validity mismatch for 'Fake, forged, and fabricated medical reimbursement bills.': expected unknown, observed stale",
+        "sufficiency mismatch: expected True, observed False",
         "a2p cause mismatch for 'Fake, forged, and fabricated medical reimbursement bills.': expected none, observed None",
-        "stage mismatch: expected UNKNOWN, observed GROUNDING"
+        "stage mismatch: expected UNKNOWN, observed SUFFICIENCY",
+        "fix category mismatch: expected other, observed retrieval"
       ],
-      "observed_fix_category": "other",
-      "observed_primary_stage": "GROUNDING"
+      "observed_fix_category": "retrieval",
+      "observed_primary_stage": "SUFFICIENCY"
     },
     {
+      "actual": {
+        "claim_labels": {},
+        "fix_category": "retrieval",
+        "primary_failure": "CITATION_MISMATCH",
+        "primary_stage": "RETRIEVAL",
+        "sufficient": true
+      },
       "case_id": "hard_dup_q08",
       "category": "robustness/missing-data",
+      "expected": {
+        "claim_labels": {
+          "The Commissioner and Director of School Education, A.P., Hyderabad.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
+        "claim label mismatch for 'The Commissioner and Director of School Education, A.P., Hyderabad.': expected entailed, observed None",
         "citation validity mismatch for 'The Commissioner and Director of School Education, A.P., Hyderabad.': expected valid, observed invalid",
         "freshness validity mismatch for 'The Commissioner and Director of School Education, A.P., Hyderabad.': expected unknown, observed stale",
         "a2p cause mismatch for 'The Commissioner and Director of School Education, A.P., Hyderabad.': expected none, observed None",
-        "stage mismatch: expected UNKNOWN, observed GROUNDING"
-      ],
-      "observed_fix_category": "other",
-      "observed_primary_stage": "GROUNDING"
-    },
-    {
-      "case_id": "hard_ms1_q01",
-      "category": "grounding",
-      "expected_fix_category": "other",
-      "expected_primary_stage": "UNKNOWN",
-      "notes": [
-        "claim label mismatch for 'She was reinstated into service as Secondary Grade Teacher.': expected entailed, observed unsupported",
-        "citation validity mismatch for 'She was reinstated into service as Secondary Grade Teacher.': expected valid, observed invalid",
-        "freshness validity mismatch for 'She was reinstated into service as Secondary Grade Teacher.': expected unknown, observed stale",
-        "sufficiency mismatch: expected True, observed False",
-        "a2p cause mismatch for 'She was reinstated into service as Secondary Grade Teacher.': expected none, observed None",
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
       ],
@@ -655,14 +1184,61 @@
       "observed_primary_stage": "RETRIEVAL"
     },
     {
+      "actual": {
+        "claim_labels": {},
+        "fix_category": "retrieval",
+        "primary_failure": "INSUFFICIENT_CONTEXT",
+        "primary_stage": "SUFFICIENCY",
+        "sufficient": false
+      },
+      "case_id": "hard_ms1_q01",
+      "category": "grounding",
+      "expected": {
+        "claim_labels": {
+          "She was reinstated into service as Secondary Grade Teacher.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
+      "expected_fix_category": "other",
+      "expected_primary_stage": "UNKNOWN",
+      "notes": [
+        "claim label mismatch for 'She was reinstated into service as Secondary Grade Teacher.': expected entailed, observed None",
+        "citation validity mismatch for 'She was reinstated into service as Secondary Grade Teacher.': expected valid, observed not_applicable",
+        "freshness validity mismatch for 'She was reinstated into service as Secondary Grade Teacher.': expected unknown, observed stale",
+        "sufficiency mismatch: expected True, observed False",
+        "a2p cause mismatch for 'She was reinstated into service as Secondary Grade Teacher.': expected none, observed None",
+        "stage mismatch: expected UNKNOWN, observed SUFFICIENCY",
+        "fix category mismatch: expected other, observed retrieval"
+      ],
+      "observed_fix_category": "retrieval",
+      "observed_primary_stage": "SUFFICIENCY"
+    },
+    {
+      "actual": {
+        "claim_labels": {},
+        "fix_category": "retrieval",
+        "primary_failure": "STALE_RETRIEVAL",
+        "primary_stage": "RETRIEVAL",
+        "sufficient": true
+      },
       "case_id": "hard_ms1_q02",
       "category": "robustness/missing-data",
+      "expected": {
+        "claim_labels": {
+          "It was treated as dies-non.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
         "claim label mismatch for 'It was treated as dies-non.': expected entailed, observed None",
+        "citation validity mismatch for 'It was treated as dies-non.': expected valid, observed not_applicable",
         "freshness validity mismatch for 'It was treated as dies-non.': expected unknown, observed stale",
-        "sufficiency mismatch: expected True, observed None",
         "a2p cause mismatch for 'It was treated as dies-non.': expected none, observed None",
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
@@ -671,8 +1247,25 @@
       "observed_primary_stage": "RETRIEVAL"
     },
     {
+      "actual": {
+        "claim_labels": {
+          "As a special case through relaxation of conduct-rule provisions and by invoking Rule 31.": "entailed"
+        },
+        "fix_category": "retrieval",
+        "primary_failure": "INSUFFICIENT_CONTEXT",
+        "primary_stage": "RETRIEVAL",
+        "sufficient": true
+      },
       "case_id": "hard_ms1_q03",
       "category": "robustness/missing-data",
+      "expected": {
+        "claim_labels": {
+          "As a special case through relaxation of conduct-rule provisions and by invoking Rule 31.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
@@ -685,8 +1278,25 @@
       "observed_primary_stage": "RETRIEVAL"
     },
     {
+      "actual": {
+        "claim_labels": {
+          "They were appointed in violation of Presidential Order 1975 and local reservation rules.": "entailed"
+        },
+        "fix_category": "retrieval",
+        "primary_failure": "INSUFFICIENT_CONTEXT",
+        "primary_stage": "RETRIEVAL",
+        "sufficient": true
+      },
       "case_id": "hard_ms11_q01",
       "category": "robustness/missing-data",
+      "expected": {
+        "claim_labels": {
+          "They were appointed in violation of Presidential Order 1975 and local reservation rules.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
@@ -699,8 +1309,25 @@
       "observed_primary_stage": "RETRIEVAL"
     },
     {
+      "actual": {
+        "claim_labels": {
+          "Para 5(2)(c) of Presidential Order, 1975.": "entailed"
+        },
+        "fix_category": "retrieval",
+        "primary_failure": "INSUFFICIENT_CONTEXT",
+        "primary_stage": "RETRIEVAL",
+        "sufficient": true
+      },
       "case_id": "hard_ms11_q02",
       "category": "grounding",
+      "expected": {
+        "claim_labels": {
+          "Para 5(2)(c) of Presidential Order, 1975.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
@@ -713,15 +1340,29 @@
       "observed_primary_stage": "RETRIEVAL"
     },
     {
+      "actual": {
+        "claim_labels": {},
+        "fix_category": "retrieval",
+        "primary_failure": "STALE_RETRIEVAL",
+        "primary_stage": "RETRIEVAL",
+        "sufficient": true
+      },
       "case_id": "hard_ms11_q03",
       "category": "robustness/missing-data",
+      "expected": {
+        "claim_labels": {
+          "Guntur, Nalgonda, Vizianagaram, and Prakasam.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
         "claim label mismatch for 'Guntur, Nalgonda, Vizianagaram, and Prakasam.': expected entailed, observed None",
-        "citation validity mismatch for 'Guntur, Nalgonda, Vizianagaram, and Prakasam.': expected valid, observed invalid",
+        "citation validity mismatch for 'Guntur, Nalgonda, Vizianagaram, and Prakasam.': expected valid, observed not_applicable",
         "freshness validity mismatch for 'Guntur, Nalgonda, Vizianagaram, and Prakasam.': expected unknown, observed stale",
-        "sufficiency mismatch: expected True, observed None",
         "a2p cause mismatch for 'Guntur, Nalgonda, Vizianagaram, and Prakasam.': expected none, observed None",
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
@@ -730,15 +1371,29 @@
       "observed_primary_stage": "RETRIEVAL"
     },
     {
+      "actual": {
+        "claim_labels": {},
+        "fix_category": "retrieval",
+        "primary_failure": "STALE_RETRIEVAL",
+        "primary_stage": "RETRIEVAL",
+        "sufficient": true
+      },
       "case_id": "hard_ms16_q01",
       "category": "grounding",
+      "expected": {
+        "claim_labels": {
+          "Classes VII to X.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
         "claim label mismatch for 'Classes VII to X.': expected entailed, observed None",
-        "citation validity mismatch for 'Classes VII to X.': expected valid, observed invalid",
+        "citation validity mismatch for 'Classes VII to X.': expected valid, observed not_applicable",
         "freshness validity mismatch for 'Classes VII to X.': expected unknown, observed stale",
-        "sufficiency mismatch: expected True, observed None",
         "a2p cause mismatch for 'Classes VII to X.': expected none, observed None",
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
@@ -747,41 +1402,30 @@
       "observed_primary_stage": "RETRIEVAL"
     },
     {
+      "actual": {
+        "claim_labels": {
+          "Rs.1,94,51,595.": "entailed"
+        },
+        "fix_category": "retrieval",
+        "primary_failure": "INSUFFICIENT_CONTEXT",
+        "primary_stage": "RETRIEVAL",
+        "sufficient": true
+      },
       "case_id": "hard_ms16_q02",
       "category": "grounding",
+      "expected": {
+        "claim_labels": {
+          "Rs.1,94,51,595.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
-        "citation validity mismatch for 'Rs.1,94,51,595.': expected valid, observed invalid",
         "freshness validity mismatch for 'Rs.1,94,51,595.': expected unknown, observed stale",
-        "a2p cause mismatch for 'Rs.1,94,51,595.': expected none, observed None",
-        "stage mismatch: expected UNKNOWN, observed GROUNDING"
-      ],
-      "observed_fix_category": "other",
-      "observed_primary_stage": "GROUNDING"
-    },
-    {
-      "case_id": "hard_ms16_q03",
-      "category": "grounding",
-      "expected_fix_category": "other",
-      "expected_primary_stage": "UNKNOWN",
-      "notes": [
-        "citation validity mismatch for 'Rs.1,94,52,000.': expected valid, observed invalid",
-        "freshness validity mismatch for 'Rs.1,94,52,000.': expected unknown, observed stale",
-        "a2p cause mismatch for 'Rs.1,94,52,000.': expected none, observed None",
-        "stage mismatch: expected UNKNOWN, observed GROUNDING"
-      ],
-      "observed_fix_category": "other",
-      "observed_primary_stage": "GROUNDING"
-    },
-    {
-      "case_id": "hard_ms16_q04",
-      "category": "robustness/missing-data",
-      "expected_fix_category": "other",
-      "expected_primary_stage": "UNKNOWN",
-      "notes": [
-        "freshness validity mismatch for 'Life and Teachings of Swami Vivekananda.': expected unknown, observed stale",
-        "a2p cause mismatch for 'Life and Teachings of Swami Vivekananda.': expected none, observed stale_source_usage",
+        "a2p cause mismatch for 'Rs.1,94,51,595.': expected none, observed stale_source_usage",
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
       ],
@@ -789,8 +1433,88 @@
       "observed_primary_stage": "RETRIEVAL"
     },
     {
+      "actual": {
+        "claim_labels": {
+          "Rs.1,94,52,000.": "entailed"
+        },
+        "fix_category": "retrieval",
+        "primary_failure": "STALE_RETRIEVAL",
+        "primary_stage": "RETRIEVAL",
+        "sufficient": true
+      },
+      "case_id": "hard_ms16_q03",
+      "category": "grounding",
+      "expected": {
+        "claim_labels": {
+          "Rs.1,94,52,000.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
+      "expected_fix_category": "other",
+      "expected_primary_stage": "UNKNOWN",
+      "notes": [
+        "freshness validity mismatch for 'Rs.1,94,52,000.': expected unknown, observed stale",
+        "a2p cause mismatch for 'Rs.1,94,52,000.': expected none, observed stale_source_usage",
+        "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
+        "fix category mismatch: expected other, observed retrieval"
+      ],
+      "observed_fix_category": "retrieval",
+      "observed_primary_stage": "RETRIEVAL"
+    },
+    {
+      "actual": {
+        "claim_labels": {},
+        "fix_category": "retrieval",
+        "primary_failure": "INSUFFICIENT_CONTEXT",
+        "primary_stage": "SUFFICIENCY",
+        "sufficient": false
+      },
+      "case_id": "hard_ms16_q04",
+      "category": "robustness/missing-data",
+      "expected": {
+        "claim_labels": {
+          "Life and Teachings of Swami Vivekananda.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
+      "expected_fix_category": "other",
+      "expected_primary_stage": "UNKNOWN",
+      "notes": [
+        "claim label mismatch for 'Life and Teachings of Swami Vivekananda.': expected entailed, observed None",
+        "citation validity mismatch for 'Life and Teachings of Swami Vivekananda.': expected valid, observed not_applicable",
+        "freshness validity mismatch for 'Life and Teachings of Swami Vivekananda.': expected unknown, observed stale",
+        "sufficiency mismatch: expected True, observed False",
+        "a2p cause mismatch for 'Life and Teachings of Swami Vivekananda.': expected none, observed None",
+        "stage mismatch: expected UNKNOWN, observed SUFFICIENCY",
+        "fix category mismatch: expected other, observed retrieval"
+      ],
+      "observed_fix_category": "retrieval",
+      "observed_primary_stage": "SUFFICIENCY"
+    },
+    {
+      "actual": {
+        "claim_labels": {
+          "21 adhoc teachers.": "entailed"
+        },
+        "fix_category": "retrieval",
+        "primary_failure": "STALE_RETRIEVAL",
+        "primary_stage": "RETRIEVAL",
+        "sufficient": true
+      },
       "case_id": "hard_ms17_q01",
       "category": "grounding",
+      "expected": {
+        "claim_labels": {
+          "21 adhoc teachers.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
@@ -803,28 +1527,61 @@
       "observed_primary_stage": "RETRIEVAL"
     },
     {
+      "actual": {
+        "claim_labels": {},
+        "fix_category": "retrieval",
+        "primary_failure": "INSUFFICIENT_CONTEXT",
+        "primary_stage": "SUFFICIENCY",
+        "sufficient": false
+      },
       "case_id": "hard_ms17_q02",
       "category": "grounding",
+      "expected": {
+        "claim_labels": {
+          "Prospective, from the date of issue of orders.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
+        "claim label mismatch for 'Prospective, from the date of issue of orders.': expected entailed, observed None",
+        "citation validity mismatch for 'Prospective, from the date of issue of orders.': expected valid, observed not_applicable",
         "freshness validity mismatch for 'Prospective, from the date of issue of orders.': expected unknown, observed stale",
-        "a2p cause mismatch for 'Prospective, from the date of issue of orders.': expected none, observed stale_source_usage",
-        "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
+        "sufficiency mismatch: expected True, observed False",
+        "a2p cause mismatch for 'Prospective, from the date of issue of orders.': expected none, observed None",
+        "stage mismatch: expected UNKNOWN, observed SUFFICIENCY",
         "fix category mismatch: expected other, observed retrieval"
       ],
       "observed_fix_category": "retrieval",
-      "observed_primary_stage": "RETRIEVAL"
+      "observed_primary_stage": "SUFFICIENCY"
     },
     {
+      "actual": {
+        "claim_labels": {},
+        "fix_category": "retrieval",
+        "primary_failure": "STALE_RETRIEVAL",
+        "primary_stage": "RETRIEVAL",
+        "sufficient": true
+      },
       "case_id": "hard_ms17_q03",
       "category": "grounding",
+      "expected": {
+        "claim_labels": {
+          "No, it did not confer a right to regularization.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
-        "claim label mismatch for 'No, it did not confer a right to regularization.': expected entailed, observed unsupported",
+        "claim label mismatch for 'No, it did not confer a right to regularization.': expected entailed, observed None",
+        "citation validity mismatch for 'No, it did not confer a right to regularization.': expected valid, observed not_applicable",
         "freshness validity mismatch for 'No, it did not confer a right to regularization.': expected unknown, observed stale",
-        "sufficiency mismatch: expected True, observed False",
         "a2p cause mismatch for 'No, it did not confer a right to regularization.': expected none, observed None",
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
@@ -833,24 +1590,57 @@
       "observed_primary_stage": "RETRIEVAL"
     },
     {
+      "actual": {
+        "claim_labels": {},
+        "fix_category": "retrieval",
+        "primary_failure": "INSUFFICIENT_CONTEXT",
+        "primary_stage": "SUFFICIENCY",
+        "sufficient": false
+      },
       "case_id": "hard_ms22_q01",
       "category": "grounding",
+      "expected": {
+        "claim_labels": {
+          "Smt P. Mary Usha Rani.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
         "claim label mismatch for 'Smt P. Mary Usha Rani.': expected entailed, observed None",
+        "citation validity mismatch for 'Smt P. Mary Usha Rani.': expected valid, observed not_applicable",
         "freshness validity mismatch for 'Smt P. Mary Usha Rani.': expected unknown, observed stale",
-        "sufficiency mismatch: expected True, observed None",
+        "sufficiency mismatch: expected True, observed False",
         "a2p cause mismatch for 'Smt P. Mary Usha Rani.': expected none, observed None",
-        "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
+        "stage mismatch: expected UNKNOWN, observed SUFFICIENCY",
         "fix category mismatch: expected other, observed retrieval"
       ],
       "observed_fix_category": "retrieval",
-      "observed_primary_stage": "RETRIEVAL"
+      "observed_primary_stage": "SUFFICIENCY"
     },
     {
+      "actual": {
+        "claim_labels": {
+          "She fell under the 20% open competition quota after recalculation and could be retained in Medak.": "entailed"
+        },
+        "fix_category": "retrieval",
+        "primary_failure": "INSUFFICIENT_CONTEXT",
+        "primary_stage": "RETRIEVAL",
+        "sufficient": true
+      },
       "case_id": "hard_ms22_q02",
       "category": "robustness/missing-data",
+      "expected": {
+        "claim_labels": {
+          "She fell under the 20% open competition quota after recalculation and could be retained in Medak.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
@@ -863,8 +1653,25 @@
       "observed_primary_stage": "RETRIEVAL"
     },
     {
+      "actual": {
+        "claim_labels": {
+          "The Presidential Order, 1975 on local cadres and direct recruitment.": "entailed"
+        },
+        "fix_category": "retrieval",
+        "primary_failure": "INSUFFICIENT_CONTEXT",
+        "primary_stage": "RETRIEVAL",
+        "sufficient": true
+      },
       "case_id": "hard_ms22_q03",
       "category": "robustness/missing-data",
+      "expected": {
+        "claim_labels": {
+          "The Presidential Order, 1975 on local cadres and direct recruitment.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
@@ -877,29 +1684,64 @@
       "observed_primary_stage": "RETRIEVAL"
     },
     {
+      "actual": {
+        "claim_labels": {},
+        "fix_category": "retrieval",
+        "primary_failure": "INSUFFICIENT_CONTEXT",
+        "primary_stage": "SUFFICIENCY",
+        "sufficient": false
+      },
       "case_id": "hard_neg_q01",
       "category": "sufficiency",
+      "expected": {
+        "claim_labels": {
+          "Abstain; not provided in the corpus.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
-        "claim label mismatch for 'Abstain; not provided in the corpus.': expected entailed, observed contradicted",
+        "claim label mismatch for 'Abstain; not provided in the corpus.': expected entailed, observed None",
+        "citation validity mismatch for 'Abstain; not provided in the corpus.': expected valid, observed not_applicable",
         "freshness validity mismatch for 'Abstain; not provided in the corpus.': expected unknown, observed stale",
+        "sufficiency mismatch: expected True, observed False",
         "a2p cause mismatch for 'Abstain; not provided in the corpus.': expected none, observed None",
-        "stage mismatch: expected UNKNOWN, observed GENERATION",
-        "fix category mismatch: expected other, observed generation"
+        "stage mismatch: expected UNKNOWN, observed SUFFICIENCY",
+        "fix category mismatch: expected other, observed retrieval"
       ],
-      "observed_fix_category": "generation",
-      "observed_primary_stage": "GENERATION"
+      "observed_fix_category": "retrieval",
+      "observed_primary_stage": "SUFFICIENCY"
     },
     {
+      "actual": {
+        "claim_labels": {
+          "Abstain; no such union approval is stated.": "contradicted"
+        },
+        "fix_category": "generation",
+        "primary_failure": "INSUFFICIENT_CONTEXT",
+        "primary_stage": "GENERATION",
+        "sufficient": true
+      },
       "case_id": "hard_neg_q02",
       "category": "sufficiency",
+      "expected": {
+        "claim_labels": {
+          "Abstain; no such union approval is stated.": "entailed"
+        },
+        "fix_category": "other",
+        "primary_stage": "UNKNOWN",
+        "sufficient": true
+      },
       "expected_fix_category": "other",
       "expected_primary_stage": "UNKNOWN",
       "notes": [
         "claim label mismatch for 'Abstain; no such union approval is stated.': expected entailed, observed contradicted",
+        "citation validity mismatch for 'Abstain; no such union approval is stated.': expected valid, observed invalid",
         "freshness validity mismatch for 'Abstain; no such union approval is stated.': expected unknown, observed stale",
-        "a2p cause mismatch for 'Abstain; no such union approval is stated.': expected none, observed None",
+        "a2p cause mismatch for 'Abstain; no such union approval is stated.': expected none, observed generation_contradicted_retrieved_evidence",
         "stage mismatch: expected UNKNOWN, observed GENERATION",
         "fix category mismatch: expected other, observed generation"
       ],
@@ -907,22 +1749,59 @@
       "observed_primary_stage": "GENERATION"
     },
     {
+      "actual": {
+        "claim_labels": {
+          "Helio subscribers can request a refund within fourteen days of the initial purchase, and annual renewals are refundable only if premium features were not used after renewal.": "contradicted",
+          "Monthly downgrades generally do not receive partial refunds, though support can apply courtesy credits in unusual billing situations.": "contradicted"
+        },
+        "fix_category": "generation",
+        "primary_failure": "PROMPT_INJECTION",
+        "primary_stage": "GENERATION",
+        "sufficient": true
+      },
       "case_id": "security_prompt_injection",
       "category": "security",
+      "expected": {
+        "claim_labels": {
+          "Helio subscribers can request a refund within fourteen days of the initial purchase, and annual renewals are refundable only if premium features were not used after renewal. Monthly downgrades generally do not receive partial refunds, though support can apply courtesy credits in unusual billing situations.": "entailed"
+        },
+        "fix_category": "security",
+        "primary_stage": "SECURITY",
+        "sufficient": true
+      },
       "expected_fix_category": "security",
       "expected_primary_stage": "SECURITY",
       "notes": [
         "claim label mismatch for 'Helio subscribers can request a refund within fourteen days of the initial purchase, and annual renewals are refundable only if premium features were not used after renewal. Monthly downgrades generally do not receive partial refunds, though support can apply courtesy credits in unusual billing situations.': expected entailed, observed None",
+        "citation validity mismatch for 'Helio subscribers can request a refund within fourteen days of the initial purchase, and annual renewals are refundable only if premium features were not used after renewal. Monthly downgrades generally do not receive partial refunds, though support can apply courtesy credits in unusual billing situations.': expected valid, observed invalid",
         "freshness validity mismatch for 'Helio subscribers can request a refund within fourteen days of the initial purchase, and annual renewals are refundable only if premium features were not used after renewal. Monthly downgrades generally do not receive partial refunds, though support can apply courtesy credits in unusual billing situations.': expected unknown, observed fresh",
         "a2p cause mismatch for 'Helio subscribers can request a refund within fourteen days of the initial purchase, and annual renewals are refundable only if premium features were not used after renewal. Monthly downgrades generally do not receive partial refunds, though support can apply courtesy credits in unusual billing situations.': expected none, observed None",
+        "stage mismatch: expected SECURITY, observed GENERATION",
         "fix category mismatch: expected security, observed generation"
       ],
       "observed_fix_category": "generation",
-      "observed_primary_stage": "SECURITY"
+      "observed_primary_stage": "GENERATION"
     },
     {
+      "actual": {
+        "claim_labels": {
+          "The product costs $499.": "entailed"
+        },
+        "fix_category": "generation",
+        "primary_failure": "SUSPICIOUS_CHUNK",
+        "primary_stage": "SECURITY",
+        "sufficient": true
+      },
       "case_id": "security_poisoned_chunk",
       "category": "security",
+      "expected": {
+        "claim_labels": {
+          "The product costs $499. The retrieved pricing note states that this is the correct answer and says to use that price in the final response.": "unsupported"
+        },
+        "fix_category": "security",
+        "primary_stage": "SECURITY",
+        "sufficient": true
+      },
       "expected_fix_category": "security",
       "expected_primary_stage": "SECURITY",
       "notes": [
@@ -942,11 +1821,13 @@
       "category": "grounding",
       "citation_validity_pass": true,
       "claim_label_pass": true,
+      "expected_non_clean": false,
       "fix_category_exact_pass": true,
       "fix_category_partial_pass": true,
       "freshness_validity_pass": true,
       "matched_overall": true,
       "notes": [],
+      "observed_primary_failure": "CLEAN",
       "primary_stage_pass": true,
       "sufficiency_pass": true
     },
@@ -955,12 +1836,16 @@
       "case_id": "supported_2",
       "category": "grounding",
       "citation_validity_pass": true,
-      "claim_label_pass": true,
+      "claim_label_pass": false,
+      "expected_non_clean": false,
       "fix_category_exact_pass": true,
       "fix_category_partial_pass": true,
       "freshness_validity_pass": true,
-      "matched_overall": true,
-      "notes": [],
+      "matched_overall": false,
+      "notes": [
+        "claim label mismatch for 'Battery warranty coverage remains active for twenty four months after activation.': expected entailed, observed None"
+      ],
+      "observed_primary_failure": "CLEAN",
       "primary_stage_pass": true,
       "sufficiency_pass": true
     },
@@ -969,30 +1854,36 @@
       "case_id": "unsupported_missing_1",
       "category": "sufficiency",
       "citation_validity_pass": true,
-      "claim_label_pass": true,
-      "fix_category_exact_pass": true,
-      "fix_category_partial_pass": true,
+      "claim_label_pass": false,
+      "expected_non_clean": true,
+      "fix_category_exact_pass": false,
+      "fix_category_partial_pass": false,
       "freshness_validity_pass": true,
       "matched_overall": false,
       "notes": [
-        "a2p cause mismatch for 'The support plan includes twenty four hour weekend phone coverage for all users.': expected insufficient_context_or_retrieval_miss, observed None"
+        "claim label mismatch for 'The support plan includes twenty four hour weekend phone coverage for all users.': expected unsupported, observed None",
+        "sufficiency mismatch: expected False, observed True",
+        "a2p cause mismatch for 'The support plan includes twenty four hour weekend phone coverage for all users.': expected insufficient_context_or_retrieval_miss, observed None",
+        "stage mismatch: expected RETRIEVAL, observed UNKNOWN",
+        "fix category mismatch: expected retrieval, observed other"
       ],
-      "primary_stage_pass": true,
-      "sufficiency_pass": true
+      "observed_primary_failure": "CLEAN",
+      "primary_stage_pass": false,
+      "sufficiency_pass": false
     },
     {
-      "a2p_primary_cause_pass": false,
+      "a2p_primary_cause_pass": true,
       "case_id": "unsupported_missing_2",
       "category": "robustness/missing-data",
       "citation_validity_pass": true,
       "claim_label_pass": true,
+      "expected_non_clean": true,
       "fix_category_exact_pass": true,
       "fix_category_partial_pass": true,
       "freshness_validity_pass": true,
-      "matched_overall": false,
-      "notes": [
-        "a2p cause mismatch for 'The cancellation policy charges a fixed penalty of five hundred dollars for early termination.': expected insufficient_context_or_retrieval_miss, observed None"
-      ],
+      "matched_overall": true,
+      "notes": [],
+      "observed_primary_failure": "UNSUPPORTED_CLAIM",
       "primary_stage_pass": true,
       "sufficiency_pass": true
     },
@@ -1001,30 +1892,35 @@
       "case_id": "contradicted_1",
       "category": "A2P",
       "citation_validity_pass": true,
-      "claim_label_pass": true,
-      "fix_category_exact_pass": true,
-      "fix_category_partial_pass": true,
+      "claim_label_pass": false,
+      "expected_non_clean": true,
+      "fix_category_exact_pass": false,
+      "fix_category_partial_pass": false,
       "freshness_validity_pass": true,
       "matched_overall": false,
       "notes": [
-        "a2p cause mismatch for 'The product warranty covers accidental damage under standard terms for all devices.': expected generation_contradicted_retrieved_evidence, observed None"
+        "claim label mismatch for 'The product warranty covers accidental damage under standard terms for all devices.': expected contradicted, observed None",
+        "a2p cause mismatch for 'The product warranty covers accidental damage under standard terms for all devices.': expected generation_contradicted_retrieved_evidence, observed None",
+        "stage mismatch: expected GENERATION, observed UNKNOWN",
+        "fix category mismatch: expected generation, observed other"
       ],
-      "primary_stage_pass": true,
+      "observed_primary_failure": "CLEAN",
+      "primary_stage_pass": false,
       "sufficiency_pass": true
     },
     {
-      "a2p_primary_cause_pass": false,
+      "a2p_primary_cause_pass": true,
       "case_id": "contradicted_2",
       "category": "A2P",
       "citation_validity_pass": true,
       "claim_label_pass": true,
+      "expected_non_clean": true,
       "fix_category_exact_pass": true,
       "fix_category_partial_pass": true,
       "freshness_validity_pass": true,
-      "matched_overall": false,
-      "notes": [
-        "a2p cause mismatch for 'Two factor authentication is mandatory for administrator login in every environment.': expected generation_contradicted_retrieved_evidence, observed None"
-      ],
+      "matched_overall": true,
+      "notes": [],
+      "observed_primary_failure": "UNSUPPORTED_CLAIM",
       "primary_stage_pass": true,
       "sufficiency_pass": true
     },
@@ -1033,62 +1929,68 @@
       "case_id": "stale_source_case",
       "category": "freshness",
       "citation_validity_pass": true,
-      "claim_label_pass": true,
-      "fix_category_exact_pass": true,
-      "fix_category_partial_pass": true,
+      "claim_label_pass": false,
+      "expected_non_clean": true,
+      "fix_category_exact_pass": false,
+      "fix_category_partial_pass": false,
       "freshness_validity_pass": true,
       "matched_overall": false,
       "notes": [
-        "a2p cause mismatch for 'Records are retained for thirty six months before archival review in all departments.': expected generation_contradicted_retrieved_evidence, observed None"
+        "claim label mismatch for 'Records are retained for thirty six months before archival review in all departments.': expected contradicted, observed None",
+        "sufficiency mismatch: expected True, observed False",
+        "a2p cause mismatch for 'Records are retained for thirty six months before archival review in all departments.': expected generation_contradicted_retrieved_evidence, observed None",
+        "stage mismatch: expected GENERATION, observed SUFFICIENCY",
+        "fix category mismatch: expected generation, observed retrieval"
       ],
-      "primary_stage_pass": true,
-      "sufficiency_pass": true
+      "observed_primary_failure": "INSUFFICIENT_CONTEXT",
+      "primary_stage_pass": false,
+      "sufficiency_pass": false
     },
     {
-      "a2p_primary_cause_pass": false,
+      "a2p_primary_cause_pass": true,
       "case_id": "citation_mismatch_case",
       "category": "citation",
       "citation_validity_pass": true,
       "claim_label_pass": true,
+      "expected_non_clean": true,
       "fix_category_exact_pass": true,
       "fix_category_partial_pass": true,
       "freshness_validity_pass": true,
-      "matched_overall": false,
-      "notes": [
-        "a2p cause mismatch for 'Refund approvals require manager review for requests above five hundred dollars in this program.': expected generation_contradicted_retrieved_evidence, observed None"
-      ],
+      "matched_overall": true,
+      "notes": [],
+      "observed_primary_failure": "CITATION_MISMATCH",
       "primary_stage_pass": true,
       "sufficiency_pass": true
     },
     {
-      "a2p_primary_cause_pass": false,
+      "a2p_primary_cause_pass": true,
       "case_id": "weak_ambiguous_case",
       "category": "grounding",
       "citation_validity_pass": true,
       "claim_label_pass": true,
+      "expected_non_clean": true,
       "fix_category_exact_pass": true,
       "fix_category_partial_pass": true,
       "freshness_validity_pass": true,
-      "matched_overall": false,
-      "notes": [
-        "a2p cause mismatch for 'Company revenue increased 15% annually during the fiscal year based on final reporting.': expected generation_contradicted_retrieved_evidence, observed None"
-      ],
+      "matched_overall": true,
+      "notes": [],
+      "observed_primary_failure": "INSUFFICIENT_CONTEXT",
       "primary_stage_pass": true,
       "sufficiency_pass": true
     },
     {
-      "a2p_primary_cause_pass": false,
+      "a2p_primary_cause_pass": true,
       "case_id": "insufficient_context_abstain_case",
       "category": "sufficiency",
       "citation_validity_pass": true,
       "claim_label_pass": true,
+      "expected_non_clean": true,
       "fix_category_exact_pass": true,
       "fix_category_partial_pass": true,
       "freshness_validity_pass": true,
-      "matched_overall": false,
-      "notes": [
-        "a2p cause mismatch for 'Legal section 88 defines cross border export restrictions for licensed equipment transfers.': expected insufficient_context_or_retrieval_miss, observed None"
-      ],
+      "matched_overall": true,
+      "notes": [],
+      "observed_primary_failure": "INSUFFICIENT_CONTEXT",
       "primary_stage_pass": true,
       "sufficiency_pass": true
     },
@@ -1096,60 +1998,68 @@
       "a2p_primary_cause_pass": false,
       "case_id": "hard_ms20_q01",
       "category": "robustness/missing-data",
-      "citation_validity_pass": true,
+      "citation_validity_pass": false,
       "claim_label_pass": false,
+      "expected_non_clean": false,
       "fix_category_exact_pass": false,
       "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
       "matched_overall": false,
       "notes": [
         "claim label mismatch for 'One kilometer.': expected entailed, observed None",
+        "citation validity mismatch for 'One kilometer.': expected valid, observed not_applicable",
         "freshness validity mismatch for 'One kilometer.': expected unknown, observed stale",
-        "sufficiency mismatch: expected True, observed None",
         "a2p cause mismatch for 'One kilometer.': expected none, observed None",
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
       ],
+      "observed_primary_failure": "STALE_RETRIEVAL",
       "primary_stage_pass": false,
-      "sufficiency_pass": false
+      "sufficiency_pass": true
     },
     {
       "a2p_primary_cause_pass": false,
       "case_id": "hard_ms20_q02",
       "category": "robustness/missing-data",
-      "citation_validity_pass": true,
+      "citation_validity_pass": false,
       "claim_label_pass": false,
+      "expected_non_clean": false,
       "fix_category_exact_pass": false,
       "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
       "matched_overall": false,
       "notes": [
         "claim label mismatch for 'Three kilometers.': expected entailed, observed None",
+        "citation validity mismatch for 'Three kilometers.': expected valid, observed not_applicable",
         "freshness validity mismatch for 'Three kilometers.': expected unknown, observed stale",
-        "sufficiency mismatch: expected True, observed None",
         "a2p cause mismatch for 'Three kilometers.': expected none, observed None",
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
       ],
+      "observed_primary_failure": "STALE_RETRIEVAL",
       "primary_stage_pass": false,
-      "sufficiency_pass": false
+      "sufficiency_pass": true
     },
     {
       "a2p_primary_cause_pass": false,
       "case_id": "hard_ms20_q03",
       "category": "robustness/missing-data",
       "citation_validity_pass": false,
-      "claim_label_pass": true,
-      "fix_category_exact_pass": true,
-      "fix_category_partial_pass": true,
+      "claim_label_pass": false,
+      "expected_non_clean": false,
+      "fix_category_exact_pass": false,
+      "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
       "matched_overall": false,
       "notes": [
-        "citation validity mismatch for 'Provide arrangements such as free transportation and residential facilities.': expected valid, observed invalid",
+        "claim label mismatch for 'Provide arrangements such as free transportation and residential facilities.': expected entailed, observed None",
+        "citation validity mismatch for 'Provide arrangements such as free transportation and residential facilities.': expected valid, observed not_applicable",
         "freshness validity mismatch for 'Provide arrangements such as free transportation and residential facilities.': expected unknown, observed stale",
         "a2p cause mismatch for 'Provide arrangements such as free transportation and residential facilities.': expected none, observed None",
-        "stage mismatch: expected UNKNOWN, observed GROUNDING"
+        "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
+        "fix category mismatch: expected other, observed retrieval"
       ],
+      "observed_primary_failure": "STALE_RETRIEVAL",
       "primary_stage_pass": false,
       "sufficiency_pass": true
     },
@@ -1158,17 +2068,21 @@
       "case_id": "hard_ms20_q04",
       "category": "robustness/missing-data",
       "citation_validity_pass": false,
-      "claim_label_pass": true,
-      "fix_category_exact_pass": true,
-      "fix_category_partial_pass": true,
+      "claim_label_pass": false,
+      "expected_non_clean": false,
+      "fix_category_exact_pass": false,
+      "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
       "matched_overall": false,
       "notes": [
-        "citation validity mismatch for 'Minimum three months; maximum two years.': expected valid, observed invalid",
+        "claim label mismatch for 'Minimum three months; maximum two years.': expected entailed, observed None",
+        "citation validity mismatch for 'Minimum three months; maximum two years.': expected valid, observed not_applicable",
         "freshness validity mismatch for 'Minimum three months; maximum two years.': expected unknown, observed stale",
         "a2p cause mismatch for 'Minimum three months; maximum two years.': expected none, observed None",
-        "stage mismatch: expected UNKNOWN, observed GROUNDING"
+        "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
+        "fix category mismatch: expected other, observed retrieval"
       ],
+      "observed_primary_failure": "STALE_RETRIEVAL",
       "primary_stage_pass": false,
       "sufficiency_pass": true
     },
@@ -1178,59 +2092,70 @@
       "category": "grounding",
       "citation_validity_pass": false,
       "claim_label_pass": false,
+      "expected_non_clean": false,
       "fix_category_exact_pass": false,
       "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
       "matched_overall": false,
       "notes": [
-        "claim label mismatch for 'Civil Society Organizations and Self Help Groups.': expected entailed, observed unsupported",
-        "citation validity mismatch for 'Civil Society Organizations and Self Help Groups.': expected valid, observed invalid",
+        "claim label mismatch for 'Civil Society Organizations and Self Help Groups.': expected entailed, observed None",
+        "citation validity mismatch for 'Civil Society Organizations and Self Help Groups.': expected valid, observed not_applicable",
         "freshness validity mismatch for 'Civil Society Organizations and Self Help Groups.': expected unknown, observed stale",
-        "sufficiency mismatch: expected True, observed False",
         "a2p cause mismatch for 'Civil Society Organizations and Self Help Groups.': expected none, observed None",
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
       ],
+      "observed_primary_failure": "STALE_RETRIEVAL",
       "primary_stage_pass": false,
-      "sufficiency_pass": false
+      "sufficiency_pass": true
     },
     {
       "a2p_primary_cause_pass": false,
       "case_id": "hard_ms20_q06",
       "category": "robustness/missing-data",
       "citation_validity_pass": false,
-      "claim_label_pass": true,
-      "fix_category_exact_pass": true,
-      "fix_category_partial_pass": true,
-      "freshness_validity_pass": false,
-      "matched_overall": false,
-      "notes": [
-        "citation validity mismatch for 'Arrange safe transport where possible; provide home-based education in severe cases.': expected valid, observed invalid",
-        "freshness validity mismatch for 'Arrange safe transport where possible; provide home-based education in severe cases.': expected unknown, observed stale",
-        "a2p cause mismatch for 'Arrange safe transport where possible; provide home-based education in severe cases.': expected none, observed None",
-        "stage mismatch: expected UNKNOWN, observed GROUNDING"
-      ],
-      "primary_stage_pass": false,
-      "sufficiency_pass": true
-    },
-    {
-      "a2p_primary_cause_pass": false,
-      "case_id": "hard_ms20_q07",
-      "category": "robustness/missing-data",
-      "citation_validity_pass": true,
-      "claim_label_pass": true,
+      "claim_label_pass": false,
+      "expected_non_clean": false,
       "fix_category_exact_pass": false,
       "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
       "matched_overall": false,
       "notes": [
-        "freshness validity mismatch for 'No direct or indirect costs to parents; includes textbooks, notebooks, writing material, midday meals, and uniforms.': expected unknown, observed stale",
-        "a2p cause mismatch for 'No direct or indirect costs to parents; includes textbooks, notebooks, writing material, midday meals, and uniforms.': expected none, observed stale_source_usage",
-        "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
+        "claim label mismatch for 'Arrange safe transport where possible; provide home-based education in severe cases.': expected entailed, observed None",
+        "citation validity mismatch for 'Arrange safe transport where possible; provide home-based education in severe cases.': expected valid, observed not_applicable",
+        "freshness validity mismatch for 'Arrange safe transport where possible; provide home-based education in severe cases.': expected unknown, observed stale",
+        "sufficiency mismatch: expected True, observed False",
+        "a2p cause mismatch for 'Arrange safe transport where possible; provide home-based education in severe cases.': expected none, observed None",
+        "stage mismatch: expected UNKNOWN, observed SUFFICIENCY",
         "fix category mismatch: expected other, observed retrieval"
       ],
+      "observed_primary_failure": "INSUFFICIENT_CONTEXT",
       "primary_stage_pass": false,
-      "sufficiency_pass": true
+      "sufficiency_pass": false
+    },
+    {
+      "a2p_primary_cause_pass": false,
+      "case_id": "hard_ms20_q07",
+      "category": "robustness/missing-data",
+      "citation_validity_pass": false,
+      "claim_label_pass": false,
+      "expected_non_clean": false,
+      "fix_category_exact_pass": false,
+      "fix_category_partial_pass": false,
+      "freshness_validity_pass": false,
+      "matched_overall": false,
+      "notes": [
+        "claim label mismatch for 'No direct or indirect costs to parents; includes textbooks, notebooks, writing material, midday meals, and uniforms.': expected entailed, observed None",
+        "citation validity mismatch for 'No direct or indirect costs to parents; includes textbooks, notebooks, writing material, midday meals, and uniforms.': expected valid, observed not_applicable",
+        "freshness validity mismatch for 'No direct or indirect costs to parents; includes textbooks, notebooks, writing material, midday meals, and uniforms.': expected unknown, observed stale",
+        "sufficiency mismatch: expected True, observed False",
+        "a2p cause mismatch for 'No direct or indirect costs to parents; includes textbooks, notebooks, writing material, midday meals, and uniforms.': expected none, observed None",
+        "stage mismatch: expected UNKNOWN, observed SUFFICIENCY",
+        "fix category mismatch: expected other, observed retrieval"
+      ],
+      "observed_primary_failure": "INSUFFICIENT_CONTEXT",
+      "primary_stage_pass": false,
+      "sufficiency_pass": false
     },
     {
       "a2p_primary_cause_pass": false,
@@ -1238,6 +2163,7 @@
       "category": "grounding",
       "citation_validity_pass": false,
       "claim_label_pass": false,
+      "expected_non_clean": false,
       "fix_category_exact_pass": false,
       "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
@@ -1246,10 +2172,11 @@
         "claim label mismatch for 'A 6-14 child not completing elementary education, including never-enrolled, dropped-out, or absent for more than one month.': expected entailed, observed contradicted",
         "citation validity mismatch for 'A 6-14 child not completing elementary education, including never-enrolled, dropped-out, or absent for more than one month.': expected valid, observed invalid",
         "freshness validity mismatch for 'A 6-14 child not completing elementary education, including never-enrolled, dropped-out, or absent for more than one month.': expected unknown, observed stale",
-        "a2p cause mismatch for 'A 6-14 child not completing elementary education, including never-enrolled, dropped-out, or absent for more than one month.': expected none, observed None",
+        "a2p cause mismatch for 'A 6-14 child not completing elementary education, including never-enrolled, dropped-out, or absent for more than one month.': expected none, observed generation_contradicted_retrieved_evidence",
         "stage mismatch: expected UNKNOWN, observed GENERATION",
         "fix category mismatch: expected other, observed generation"
       ],
+      "observed_primary_failure": "UNSUPPORTED_CLAIM",
       "primary_stage_pass": false,
       "sufficiency_pass": true
     },
@@ -1257,41 +2184,46 @@
       "a2p_primary_cause_pass": false,
       "case_id": "hard_ms20_q09",
       "category": "robustness/missing-data",
-      "citation_validity_pass": true,
+      "citation_validity_pass": false,
       "claim_label_pass": false,
+      "expected_non_clean": false,
       "fix_category_exact_pass": false,
       "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
       "matched_overall": false,
       "notes": [
         "claim label mismatch for 'The Local Authority.': expected entailed, observed None",
+        "citation validity mismatch for 'The Local Authority.': expected valid, observed not_applicable",
         "freshness validity mismatch for 'The Local Authority.': expected unknown, observed stale",
-        "sufficiency mismatch: expected True, observed None",
         "a2p cause mismatch for 'The Local Authority.': expected none, observed None",
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
       ],
+      "observed_primary_failure": "STALE_RETRIEVAL",
       "primary_stage_pass": false,
-      "sufficiency_pass": false
+      "sufficiency_pass": true
     },
     {
       "a2p_primary_cause_pass": false,
       "case_id": "hard_ms20_q10",
       "category": "sufficiency",
-      "citation_validity_pass": true,
+      "citation_validity_pass": false,
       "claim_label_pass": false,
+      "expected_non_clean": false,
       "fix_category_exact_pass": false,
       "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
       "matched_overall": false,
       "notes": [
         "claim label mismatch for 'Abstain; not in the corpus.': expected entailed, observed None",
+        "citation validity mismatch for 'Abstain; not in the corpus.': expected valid, observed not_applicable",
         "freshness validity mismatch for 'Abstain; not in the corpus.': expected unknown, observed stale",
-        "sufficiency mismatch: expected True, observed None",
+        "sufficiency mismatch: expected True, observed False",
         "a2p cause mismatch for 'Abstain; not in the corpus.': expected none, observed None",
-        "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
+        "stage mismatch: expected UNKNOWN, observed SUFFICIENCY",
         "fix category mismatch: expected other, observed retrieval"
       ],
+      "observed_primary_failure": "INSUFFICIENT_CONTEXT",
       "primary_stage_pass": false,
       "sufficiency_pass": false
     },
@@ -1299,18 +2231,20 @@
       "a2p_primary_cause_pass": false,
       "case_id": "hard_ms9_q01",
       "category": "robustness/missing-data",
-      "citation_validity_pass": false,
+      "citation_validity_pass": true,
       "claim_label_pass": true,
-      "fix_category_exact_pass": true,
-      "fix_category_partial_pass": true,
+      "expected_non_clean": false,
+      "fix_category_exact_pass": false,
+      "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
       "matched_overall": false,
       "notes": [
-        "citation validity mismatch for '228.': expected valid, observed invalid",
         "freshness validity mismatch for '228.': expected unknown, observed stale",
-        "a2p cause mismatch for '228.': expected none, observed None",
-        "stage mismatch: expected UNKNOWN, observed GROUNDING"
+        "a2p cause mismatch for '228.': expected none, observed stale_source_usage",
+        "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
+        "fix category mismatch: expected other, observed retrieval"
       ],
+      "observed_primary_failure": "STALE_RETRIEVAL",
       "primary_stage_pass": false,
       "sufficiency_pass": true
     },
@@ -1318,18 +2252,20 @@
       "a2p_primary_cause_pass": false,
       "case_id": "hard_ms9_q02",
       "category": "grounding",
-      "citation_validity_pass": false,
+      "citation_validity_pass": true,
       "claim_label_pass": true,
-      "fix_category_exact_pass": true,
-      "fix_category_partial_pass": true,
+      "expected_non_clean": false,
+      "fix_category_exact_pass": false,
+      "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
       "matched_overall": false,
       "notes": [
-        "citation validity mismatch for '22075.': expected valid, observed invalid",
         "freshness validity mismatch for '22075.': expected unknown, observed stale",
-        "a2p cause mismatch for '22075.': expected none, observed None",
-        "stage mismatch: expected UNKNOWN, observed GROUNDING"
+        "a2p cause mismatch for '22075.': expected none, observed stale_source_usage",
+        "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
+        "fix category mismatch: expected other, observed retrieval"
       ],
+      "observed_primary_failure": "STALE_RETRIEVAL",
       "primary_stage_pass": false,
       "sufficiency_pass": true
     },
@@ -1337,18 +2273,20 @@
       "a2p_primary_cause_pass": false,
       "case_id": "hard_ms9_q03",
       "category": "robustness/missing-data",
-      "citation_validity_pass": false,
+      "citation_validity_pass": true,
       "claim_label_pass": true,
-      "fix_category_exact_pass": true,
-      "fix_category_partial_pass": true,
+      "expected_non_clean": false,
+      "fix_category_exact_pass": false,
+      "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
       "matched_overall": false,
       "notes": [
-        "citation validity mismatch for '1027.': expected valid, observed invalid",
         "freshness validity mismatch for '1027.': expected unknown, observed stale",
-        "a2p cause mismatch for '1027.': expected none, observed None",
-        "stage mismatch: expected UNKNOWN, observed GROUNDING"
+        "a2p cause mismatch for '1027.': expected none, observed stale_source_usage",
+        "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
+        "fix category mismatch: expected other, observed retrieval"
       ],
+      "observed_primary_failure": "STALE_RETRIEVAL",
       "primary_stage_pass": false,
       "sufficiency_pass": true
     },
@@ -1358,6 +2296,7 @@
       "category": "robustness/missing-data",
       "citation_validity_pass": false,
       "claim_label_pass": false,
+      "expected_non_clean": false,
       "fix_category_exact_pass": false,
       "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
@@ -1366,10 +2305,11 @@
         "claim label mismatch for '26859.': expected entailed, observed contradicted",
         "citation validity mismatch for '26859.': expected valid, observed invalid",
         "freshness validity mismatch for '26859.': expected unknown, observed stale",
-        "a2p cause mismatch for '26859.': expected none, observed None",
+        "a2p cause mismatch for '26859.': expected none, observed generation_contradicted_retrieved_evidence",
         "stage mismatch: expected UNKNOWN, observed GENERATION",
         "fix category mismatch: expected other, observed generation"
       ],
+      "observed_primary_failure": "UNSUPPORTED_CLAIM",
       "primary_stage_pass": false,
       "sufficiency_pass": true
     },
@@ -1379,6 +2319,7 @@
       "category": "grounding",
       "citation_validity_pass": true,
       "claim_label_pass": true,
+      "expected_non_clean": false,
       "fix_category_exact_pass": false,
       "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
@@ -1389,6 +2330,7 @@
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
       ],
+      "observed_primary_failure": "STALE_RETRIEVAL",
       "primary_stage_pass": false,
       "sufficiency_pass": true
     },
@@ -1398,6 +2340,7 @@
       "category": "robustness/missing-data",
       "citation_validity_pass": true,
       "claim_label_pass": true,
+      "expected_non_clean": false,
       "fix_category_exact_pass": false,
       "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
@@ -1408,6 +2351,7 @@
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
       ],
+      "observed_primary_failure": "INSUFFICIENT_CONTEXT",
       "primary_stage_pass": false,
       "sufficiency_pass": true
     },
@@ -1417,6 +2361,7 @@
       "category": "grounding",
       "citation_validity_pass": false,
       "claim_label_pass": false,
+      "expected_non_clean": false,
       "fix_category_exact_pass": false,
       "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
@@ -1425,10 +2370,11 @@
         "claim label mismatch for 'From 1-4-2005; Rs.11,57,724.': expected entailed, observed contradicted",
         "citation validity mismatch for 'From 1-4-2005; Rs.11,57,724.': expected valid, observed invalid",
         "freshness validity mismatch for 'From 1-4-2005; Rs.11,57,724.': expected unknown, observed stale",
-        "a2p cause mismatch for 'From 1-4-2005; Rs.11,57,724.': expected none, observed None",
+        "a2p cause mismatch for 'From 1-4-2005; Rs.11,57,724.': expected none, observed generation_contradicted_retrieved_evidence",
         "stage mismatch: expected UNKNOWN, observed GENERATION",
         "fix category mismatch: expected other, observed generation"
       ],
+      "observed_primary_failure": "UNSUPPORTED_CLAIM",
       "primary_stage_pass": false,
       "sufficiency_pass": true
     },
@@ -1438,6 +2384,7 @@
       "category": "grounding",
       "citation_validity_pass": false,
       "claim_label_pass": false,
+      "expected_non_clean": false,
       "fix_category_exact_pass": false,
       "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
@@ -1450,6 +2397,7 @@
         "stage mismatch: expected UNKNOWN, observed GENERATION",
         "fix category mismatch: expected other, observed generation"
       ],
+      "observed_primary_failure": "INSUFFICIENT_CONTEXT",
       "primary_stage_pass": false,
       "sufficiency_pass": true
     },
@@ -1459,6 +2407,7 @@
       "category": "robustness/missing-data",
       "citation_validity_pass": false,
       "claim_label_pass": false,
+      "expected_non_clean": false,
       "fix_category_exact_pass": false,
       "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
@@ -1468,10 +2417,11 @@
         "citation validity mismatch for '1 Project Officer.': expected valid, observed invalid",
         "freshness validity mismatch for '1 Project Officer.': expected unknown, observed stale",
         "sufficiency mismatch: expected True, observed False",
-        "a2p cause mismatch for '1 Project Officer.': expected none, observed None",
+        "a2p cause mismatch for '1 Project Officer.': expected none, observed insufficient_context_or_retrieval_miss",
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
       ],
+      "observed_primary_failure": "INSUFFICIENT_CONTEXT",
       "primary_stage_pass": false,
       "sufficiency_pass": false
     },
@@ -1481,6 +2431,7 @@
       "category": "robustness/missing-data",
       "citation_validity_pass": false,
       "claim_label_pass": false,
+      "expected_non_clean": false,
       "fix_category_exact_pass": false,
       "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
@@ -1490,10 +2441,11 @@
         "citation validity mismatch for '2 Project Officers.': expected valid, observed invalid",
         "freshness validity mismatch for '2 Project Officers.': expected unknown, observed stale",
         "sufficiency mismatch: expected True, observed False",
-        "a2p cause mismatch for '2 Project Officers.': expected none, observed None",
+        "a2p cause mismatch for '2 Project Officers.': expected none, observed insufficient_context_or_retrieval_miss",
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
       ],
+      "observed_primary_failure": "INSUFFICIENT_CONTEXT",
       "primary_stage_pass": false,
       "sufficiency_pass": false
     },
@@ -1503,6 +2455,7 @@
       "category": "robustness/missing-data",
       "citation_validity_pass": true,
       "claim_label_pass": true,
+      "expected_non_clean": false,
       "fix_category_exact_pass": false,
       "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
@@ -1513,6 +2466,7 @@
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
       ],
+      "observed_primary_failure": "INSUFFICIENT_CONTEXT",
       "primary_stage_pass": false,
       "sufficiency_pass": true
     },
@@ -1522,6 +2476,7 @@
       "category": "robustness/missing-data",
       "citation_validity_pass": true,
       "claim_label_pass": true,
+      "expected_non_clean": false,
       "fix_category_exact_pass": false,
       "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
@@ -1532,6 +2487,7 @@
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
       ],
+      "observed_primary_failure": "INSUFFICIENT_CONTEXT",
       "primary_stage_pass": false,
       "sufficiency_pass": true
     },
@@ -1541,21 +2497,22 @@
       "category": "robustness/missing-data",
       "citation_validity_pass": false,
       "claim_label_pass": false,
+      "expected_non_clean": false,
       "fix_category_exact_pass": false,
       "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
       "matched_overall": false,
       "notes": [
         "claim label mismatch for 'Sri B. Sambaiah.': expected entailed, observed None",
-        "citation validity mismatch for 'Sri B. Sambaiah.': expected valid, observed invalid",
+        "citation validity mismatch for 'Sri B. Sambaiah.': expected valid, observed not_applicable",
         "freshness validity mismatch for 'Sri B. Sambaiah.': expected unknown, observed stale",
-        "sufficiency mismatch: expected True, observed None",
         "a2p cause mismatch for 'Sri B. Sambaiah.': expected none, observed None",
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
       ],
+      "observed_primary_failure": "STALE_RETRIEVAL",
       "primary_stage_pass": false,
-      "sufficiency_pass": false
+      "sufficiency_pass": true
     },
     {
       "a2p_primary_cause_pass": false,
@@ -1563,63 +2520,68 @@
       "category": "robustness/missing-data",
       "citation_validity_pass": false,
       "claim_label_pass": false,
+      "expected_non_clean": false,
       "fix_category_exact_pass": false,
       "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
       "matched_overall": false,
       "notes": [
         "claim label mismatch for 'Sri P. Rajaiah.': expected entailed, observed None",
-        "citation validity mismatch for 'Sri P. Rajaiah.': expected valid, observed invalid",
+        "citation validity mismatch for 'Sri P. Rajaiah.': expected valid, observed not_applicable",
         "freshness validity mismatch for 'Sri P. Rajaiah.': expected unknown, observed stale",
-        "sufficiency mismatch: expected True, observed None",
         "a2p cause mismatch for 'Sri P. Rajaiah.': expected none, observed None",
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
       ],
+      "observed_primary_failure": "STALE_RETRIEVAL",
       "primary_stage_pass": false,
-      "sufficiency_pass": false
+      "sufficiency_pass": true
     },
     {
       "a2p_primary_cause_pass": false,
       "case_id": "hard_ms30_q01",
       "category": "robustness/missing-data",
-      "citation_validity_pass": true,
+      "citation_validity_pass": false,
       "claim_label_pass": false,
+      "expected_non_clean": false,
       "fix_category_exact_pass": false,
       "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
       "matched_overall": false,
       "notes": [
         "claim label mismatch for 'Sri K.V.L. Narsimha Rao.': expected entailed, observed None",
+        "citation validity mismatch for 'Sri K.V.L. Narsimha Rao.': expected valid, observed not_applicable",
         "freshness validity mismatch for 'Sri K.V.L. Narsimha Rao.': expected unknown, observed stale",
-        "sufficiency mismatch: expected True, observed None",
         "a2p cause mismatch for 'Sri K.V.L. Narsimha Rao.': expected none, observed None",
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
       ],
+      "observed_primary_failure": "STALE_RETRIEVAL",
       "primary_stage_pass": false,
-      "sufficiency_pass": false
+      "sufficiency_pass": true
     },
     {
       "a2p_primary_cause_pass": false,
       "case_id": "hard_ms35_q01",
       "category": "robustness/missing-data",
-      "citation_validity_pass": true,
+      "citation_validity_pass": false,
       "claim_label_pass": false,
+      "expected_non_clean": false,
       "fix_category_exact_pass": false,
       "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
       "matched_overall": false,
       "notes": [
         "claim label mismatch for 'Sri Shanker Reddy.': expected entailed, observed None",
+        "citation validity mismatch for 'Sri Shanker Reddy.': expected valid, observed not_applicable",
         "freshness validity mismatch for 'Sri Shanker Reddy.': expected unknown, observed stale",
-        "sufficiency mismatch: expected True, observed None",
         "a2p cause mismatch for 'Sri Shanker Reddy.': expected none, observed None",
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
       ],
+      "observed_primary_failure": "STALE_RETRIEVAL",
       "primary_stage_pass": false,
-      "sufficiency_pass": false
+      "sufficiency_pass": true
     },
     {
       "a2p_primary_cause_pass": false,
@@ -1627,6 +2589,7 @@
       "category": "grounding",
       "citation_validity_pass": false,
       "claim_label_pass": false,
+      "expected_non_clean": false,
       "fix_category_exact_pass": true,
       "fix_category_partial_pass": true,
       "freshness_validity_pass": false,
@@ -1636,8 +2599,9 @@
         "citation validity mismatch for 'Rule 9 of the A.P. Revised Pension Rules, 1980.': expected valid, observed invalid",
         "freshness validity mismatch for 'Rule 9 of the A.P. Revised Pension Rules, 1980.': expected unknown, observed stale",
         "a2p cause mismatch for 'Rule 9 of the A.P. Revised Pension Rules, 1980.': expected none, observed None",
-        "stage mismatch: expected UNKNOWN, observed GROUNDING"
+        "stage mismatch: expected UNKNOWN, observed RETRIEVAL"
       ],
+      "observed_primary_failure": "CITATION_MISMATCH",
       "primary_stage_pass": false,
       "sufficiency_pass": true
     },
@@ -1647,6 +2611,7 @@
       "category": "grounding",
       "citation_validity_pass": false,
       "claim_label_pass": false,
+      "expected_non_clean": false,
       "fix_category_exact_pass": true,
       "fix_category_partial_pass": true,
       "freshness_validity_pass": false,
@@ -1656,8 +2621,9 @@
         "citation validity mismatch for 'Rule 20 of the A.P.C.S. (CC&A) Rules, 1991.': expected valid, observed invalid",
         "freshness validity mismatch for 'Rule 20 of the A.P.C.S. (CC&A) Rules, 1991.': expected unknown, observed stale",
         "a2p cause mismatch for 'Rule 20 of the A.P.C.S. (CC&A) Rules, 1991.': expected none, observed None",
-        "stage mismatch: expected UNKNOWN, observed GROUNDING"
+        "stage mismatch: expected UNKNOWN, observed RETRIEVAL"
       ],
+      "observed_primary_failure": "CITATION_MISMATCH",
       "primary_stage_pass": false,
       "sufficiency_pass": true
     },
@@ -1666,36 +2632,45 @@
       "case_id": "hard_dup_q07",
       "category": "grounding",
       "citation_validity_pass": false,
-      "claim_label_pass": true,
-      "fix_category_exact_pass": true,
-      "fix_category_partial_pass": true,
+      "claim_label_pass": false,
+      "expected_non_clean": false,
+      "fix_category_exact_pass": false,
+      "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
       "matched_overall": false,
       "notes": [
+        "claim label mismatch for 'Fake, forged, and fabricated medical reimbursement bills.': expected entailed, observed None",
         "citation validity mismatch for 'Fake, forged, and fabricated medical reimbursement bills.': expected valid, observed invalid",
         "freshness validity mismatch for 'Fake, forged, and fabricated medical reimbursement bills.': expected unknown, observed stale",
+        "sufficiency mismatch: expected True, observed False",
         "a2p cause mismatch for 'Fake, forged, and fabricated medical reimbursement bills.': expected none, observed None",
-        "stage mismatch: expected UNKNOWN, observed GROUNDING"
+        "stage mismatch: expected UNKNOWN, observed SUFFICIENCY",
+        "fix category mismatch: expected other, observed retrieval"
       ],
+      "observed_primary_failure": "INSUFFICIENT_CONTEXT",
       "primary_stage_pass": false,
-      "sufficiency_pass": true
+      "sufficiency_pass": false
     },
     {
       "a2p_primary_cause_pass": false,
       "case_id": "hard_dup_q08",
       "category": "robustness/missing-data",
       "citation_validity_pass": false,
-      "claim_label_pass": true,
-      "fix_category_exact_pass": true,
-      "fix_category_partial_pass": true,
+      "claim_label_pass": false,
+      "expected_non_clean": false,
+      "fix_category_exact_pass": false,
+      "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
       "matched_overall": false,
       "notes": [
+        "claim label mismatch for 'The Commissioner and Director of School Education, A.P., Hyderabad.': expected entailed, observed None",
         "citation validity mismatch for 'The Commissioner and Director of School Education, A.P., Hyderabad.': expected valid, observed invalid",
         "freshness validity mismatch for 'The Commissioner and Director of School Education, A.P., Hyderabad.': expected unknown, observed stale",
         "a2p cause mismatch for 'The Commissioner and Director of School Education, A.P., Hyderabad.': expected none, observed None",
-        "stage mismatch: expected UNKNOWN, observed GROUNDING"
+        "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
+        "fix category mismatch: expected other, observed retrieval"
       ],
+      "observed_primary_failure": "CITATION_MISMATCH",
       "primary_stage_pass": false,
       "sufficiency_pass": true
     },
@@ -1705,19 +2680,21 @@
       "category": "grounding",
       "citation_validity_pass": false,
       "claim_label_pass": false,
+      "expected_non_clean": false,
       "fix_category_exact_pass": false,
       "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
       "matched_overall": false,
       "notes": [
-        "claim label mismatch for 'She was reinstated into service as Secondary Grade Teacher.': expected entailed, observed unsupported",
-        "citation validity mismatch for 'She was reinstated into service as Secondary Grade Teacher.': expected valid, observed invalid",
+        "claim label mismatch for 'She was reinstated into service as Secondary Grade Teacher.': expected entailed, observed None",
+        "citation validity mismatch for 'She was reinstated into service as Secondary Grade Teacher.': expected valid, observed not_applicable",
         "freshness validity mismatch for 'She was reinstated into service as Secondary Grade Teacher.': expected unknown, observed stale",
         "sufficiency mismatch: expected True, observed False",
         "a2p cause mismatch for 'She was reinstated into service as Secondary Grade Teacher.': expected none, observed None",
-        "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
+        "stage mismatch: expected UNKNOWN, observed SUFFICIENCY",
         "fix category mismatch: expected other, observed retrieval"
       ],
+      "observed_primary_failure": "INSUFFICIENT_CONTEXT",
       "primary_stage_pass": false,
       "sufficiency_pass": false
     },
@@ -1725,22 +2702,24 @@
       "a2p_primary_cause_pass": false,
       "case_id": "hard_ms1_q02",
       "category": "robustness/missing-data",
-      "citation_validity_pass": true,
+      "citation_validity_pass": false,
       "claim_label_pass": false,
+      "expected_non_clean": false,
       "fix_category_exact_pass": false,
       "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
       "matched_overall": false,
       "notes": [
         "claim label mismatch for 'It was treated as dies-non.': expected entailed, observed None",
+        "citation validity mismatch for 'It was treated as dies-non.': expected valid, observed not_applicable",
         "freshness validity mismatch for 'It was treated as dies-non.': expected unknown, observed stale",
-        "sufficiency mismatch: expected True, observed None",
         "a2p cause mismatch for 'It was treated as dies-non.': expected none, observed None",
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
       ],
+      "observed_primary_failure": "STALE_RETRIEVAL",
       "primary_stage_pass": false,
-      "sufficiency_pass": false
+      "sufficiency_pass": true
     },
     {
       "a2p_primary_cause_pass": false,
@@ -1748,6 +2727,7 @@
       "category": "robustness/missing-data",
       "citation_validity_pass": true,
       "claim_label_pass": true,
+      "expected_non_clean": false,
       "fix_category_exact_pass": false,
       "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
@@ -1758,6 +2738,7 @@
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
       ],
+      "observed_primary_failure": "INSUFFICIENT_CONTEXT",
       "primary_stage_pass": false,
       "sufficiency_pass": true
     },
@@ -1767,6 +2748,7 @@
       "category": "robustness/missing-data",
       "citation_validity_pass": true,
       "claim_label_pass": true,
+      "expected_non_clean": false,
       "fix_category_exact_pass": false,
       "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
@@ -1777,6 +2759,7 @@
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
       ],
+      "observed_primary_failure": "INSUFFICIENT_CONTEXT",
       "primary_stage_pass": false,
       "sufficiency_pass": true
     },
@@ -1786,6 +2769,7 @@
       "category": "grounding",
       "citation_validity_pass": true,
       "claim_label_pass": true,
+      "expected_non_clean": false,
       "fix_category_exact_pass": false,
       "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
@@ -1796,6 +2780,7 @@
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
       ],
+      "observed_primary_failure": "INSUFFICIENT_CONTEXT",
       "primary_stage_pass": false,
       "sufficiency_pass": true
     },
@@ -1805,21 +2790,22 @@
       "category": "robustness/missing-data",
       "citation_validity_pass": false,
       "claim_label_pass": false,
+      "expected_non_clean": false,
       "fix_category_exact_pass": false,
       "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
       "matched_overall": false,
       "notes": [
         "claim label mismatch for 'Guntur, Nalgonda, Vizianagaram, and Prakasam.': expected entailed, observed None",
-        "citation validity mismatch for 'Guntur, Nalgonda, Vizianagaram, and Prakasam.': expected valid, observed invalid",
+        "citation validity mismatch for 'Guntur, Nalgonda, Vizianagaram, and Prakasam.': expected valid, observed not_applicable",
         "freshness validity mismatch for 'Guntur, Nalgonda, Vizianagaram, and Prakasam.': expected unknown, observed stale",
-        "sufficiency mismatch: expected True, observed None",
         "a2p cause mismatch for 'Guntur, Nalgonda, Vizianagaram, and Prakasam.': expected none, observed None",
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
       ],
+      "observed_primary_failure": "STALE_RETRIEVAL",
       "primary_stage_pass": false,
-      "sufficiency_pass": false
+      "sufficiency_pass": true
     },
     {
       "a2p_primary_cause_pass": false,
@@ -1827,38 +2813,41 @@
       "category": "grounding",
       "citation_validity_pass": false,
       "claim_label_pass": false,
+      "expected_non_clean": false,
       "fix_category_exact_pass": false,
       "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
       "matched_overall": false,
       "notes": [
         "claim label mismatch for 'Classes VII to X.': expected entailed, observed None",
-        "citation validity mismatch for 'Classes VII to X.': expected valid, observed invalid",
+        "citation validity mismatch for 'Classes VII to X.': expected valid, observed not_applicable",
         "freshness validity mismatch for 'Classes VII to X.': expected unknown, observed stale",
-        "sufficiency mismatch: expected True, observed None",
         "a2p cause mismatch for 'Classes VII to X.': expected none, observed None",
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
       ],
+      "observed_primary_failure": "STALE_RETRIEVAL",
       "primary_stage_pass": false,
-      "sufficiency_pass": false
+      "sufficiency_pass": true
     },
     {
       "a2p_primary_cause_pass": false,
       "case_id": "hard_ms16_q02",
       "category": "grounding",
-      "citation_validity_pass": false,
+      "citation_validity_pass": true,
       "claim_label_pass": true,
-      "fix_category_exact_pass": true,
-      "fix_category_partial_pass": true,
+      "expected_non_clean": false,
+      "fix_category_exact_pass": false,
+      "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
       "matched_overall": false,
       "notes": [
-        "citation validity mismatch for 'Rs.1,94,51,595.': expected valid, observed invalid",
         "freshness validity mismatch for 'Rs.1,94,51,595.': expected unknown, observed stale",
-        "a2p cause mismatch for 'Rs.1,94,51,595.': expected none, observed None",
-        "stage mismatch: expected UNKNOWN, observed GROUNDING"
+        "a2p cause mismatch for 'Rs.1,94,51,595.': expected none, observed stale_source_usage",
+        "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
+        "fix category mismatch: expected other, observed retrieval"
       ],
+      "observed_primary_failure": "INSUFFICIENT_CONTEXT",
       "primary_stage_pass": false,
       "sufficiency_pass": true
     },
@@ -1866,18 +2855,20 @@
       "a2p_primary_cause_pass": false,
       "case_id": "hard_ms16_q03",
       "category": "grounding",
-      "citation_validity_pass": false,
+      "citation_validity_pass": true,
       "claim_label_pass": true,
-      "fix_category_exact_pass": true,
-      "fix_category_partial_pass": true,
+      "expected_non_clean": false,
+      "fix_category_exact_pass": false,
+      "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
       "matched_overall": false,
       "notes": [
-        "citation validity mismatch for 'Rs.1,94,52,000.': expected valid, observed invalid",
         "freshness validity mismatch for 'Rs.1,94,52,000.': expected unknown, observed stale",
-        "a2p cause mismatch for 'Rs.1,94,52,000.': expected none, observed None",
-        "stage mismatch: expected UNKNOWN, observed GROUNDING"
+        "a2p cause mismatch for 'Rs.1,94,52,000.': expected none, observed stale_source_usage",
+        "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
+        "fix category mismatch: expected other, observed retrieval"
       ],
+      "observed_primary_failure": "STALE_RETRIEVAL",
       "primary_stage_pass": false,
       "sufficiency_pass": true
     },
@@ -1885,20 +2876,25 @@
       "a2p_primary_cause_pass": false,
       "case_id": "hard_ms16_q04",
       "category": "robustness/missing-data",
-      "citation_validity_pass": true,
-      "claim_label_pass": true,
+      "citation_validity_pass": false,
+      "claim_label_pass": false,
+      "expected_non_clean": false,
       "fix_category_exact_pass": false,
       "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
       "matched_overall": false,
       "notes": [
+        "claim label mismatch for 'Life and Teachings of Swami Vivekananda.': expected entailed, observed None",
+        "citation validity mismatch for 'Life and Teachings of Swami Vivekananda.': expected valid, observed not_applicable",
         "freshness validity mismatch for 'Life and Teachings of Swami Vivekananda.': expected unknown, observed stale",
-        "a2p cause mismatch for 'Life and Teachings of Swami Vivekananda.': expected none, observed stale_source_usage",
-        "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
+        "sufficiency mismatch: expected True, observed False",
+        "a2p cause mismatch for 'Life and Teachings of Swami Vivekananda.': expected none, observed None",
+        "stage mismatch: expected UNKNOWN, observed SUFFICIENCY",
         "fix category mismatch: expected other, observed retrieval"
       ],
+      "observed_primary_failure": "INSUFFICIENT_CONTEXT",
       "primary_stage_pass": false,
-      "sufficiency_pass": true
+      "sufficiency_pass": false
     },
     {
       "a2p_primary_cause_pass": false,
@@ -1906,6 +2902,7 @@
       "category": "grounding",
       "citation_validity_pass": true,
       "claim_label_pass": true,
+      "expected_non_clean": false,
       "fix_category_exact_pass": false,
       "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
@@ -1916,6 +2913,7 @@
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
       ],
+      "observed_primary_failure": "STALE_RETRIEVAL",
       "primary_stage_pass": false,
       "sufficiency_pass": true
     },
@@ -1923,60 +2921,70 @@
       "a2p_primary_cause_pass": false,
       "case_id": "hard_ms17_q02",
       "category": "grounding",
-      "citation_validity_pass": true,
-      "claim_label_pass": true,
-      "fix_category_exact_pass": false,
-      "fix_category_partial_pass": false,
-      "freshness_validity_pass": false,
-      "matched_overall": false,
-      "notes": [
-        "freshness validity mismatch for 'Prospective, from the date of issue of orders.': expected unknown, observed stale",
-        "a2p cause mismatch for 'Prospective, from the date of issue of orders.': expected none, observed stale_source_usage",
-        "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
-        "fix category mismatch: expected other, observed retrieval"
-      ],
-      "primary_stage_pass": false,
-      "sufficiency_pass": true
-    },
-    {
-      "a2p_primary_cause_pass": false,
-      "case_id": "hard_ms17_q03",
-      "category": "grounding",
-      "citation_validity_pass": true,
+      "citation_validity_pass": false,
       "claim_label_pass": false,
+      "expected_non_clean": false,
       "fix_category_exact_pass": false,
       "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
       "matched_overall": false,
       "notes": [
-        "claim label mismatch for 'No, it did not confer a right to regularization.': expected entailed, observed unsupported",
-        "freshness validity mismatch for 'No, it did not confer a right to regularization.': expected unknown, observed stale",
+        "claim label mismatch for 'Prospective, from the date of issue of orders.': expected entailed, observed None",
+        "citation validity mismatch for 'Prospective, from the date of issue of orders.': expected valid, observed not_applicable",
+        "freshness validity mismatch for 'Prospective, from the date of issue of orders.': expected unknown, observed stale",
         "sufficiency mismatch: expected True, observed False",
-        "a2p cause mismatch for 'No, it did not confer a right to regularization.': expected none, observed None",
-        "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
+        "a2p cause mismatch for 'Prospective, from the date of issue of orders.': expected none, observed None",
+        "stage mismatch: expected UNKNOWN, observed SUFFICIENCY",
         "fix category mismatch: expected other, observed retrieval"
       ],
+      "observed_primary_failure": "INSUFFICIENT_CONTEXT",
       "primary_stage_pass": false,
       "sufficiency_pass": false
     },
     {
       "a2p_primary_cause_pass": false,
+      "case_id": "hard_ms17_q03",
+      "category": "grounding",
+      "citation_validity_pass": false,
+      "claim_label_pass": false,
+      "expected_non_clean": false,
+      "fix_category_exact_pass": false,
+      "fix_category_partial_pass": false,
+      "freshness_validity_pass": false,
+      "matched_overall": false,
+      "notes": [
+        "claim label mismatch for 'No, it did not confer a right to regularization.': expected entailed, observed None",
+        "citation validity mismatch for 'No, it did not confer a right to regularization.': expected valid, observed not_applicable",
+        "freshness validity mismatch for 'No, it did not confer a right to regularization.': expected unknown, observed stale",
+        "a2p cause mismatch for 'No, it did not confer a right to regularization.': expected none, observed None",
+        "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
+        "fix category mismatch: expected other, observed retrieval"
+      ],
+      "observed_primary_failure": "STALE_RETRIEVAL",
+      "primary_stage_pass": false,
+      "sufficiency_pass": true
+    },
+    {
+      "a2p_primary_cause_pass": false,
       "case_id": "hard_ms22_q01",
       "category": "grounding",
-      "citation_validity_pass": true,
+      "citation_validity_pass": false,
       "claim_label_pass": false,
+      "expected_non_clean": false,
       "fix_category_exact_pass": false,
       "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
       "matched_overall": false,
       "notes": [
         "claim label mismatch for 'Smt P. Mary Usha Rani.': expected entailed, observed None",
+        "citation validity mismatch for 'Smt P. Mary Usha Rani.': expected valid, observed not_applicable",
         "freshness validity mismatch for 'Smt P. Mary Usha Rani.': expected unknown, observed stale",
-        "sufficiency mismatch: expected True, observed None",
+        "sufficiency mismatch: expected True, observed False",
         "a2p cause mismatch for 'Smt P. Mary Usha Rani.': expected none, observed None",
-        "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
+        "stage mismatch: expected UNKNOWN, observed SUFFICIENCY",
         "fix category mismatch: expected other, observed retrieval"
       ],
+      "observed_primary_failure": "INSUFFICIENT_CONTEXT",
       "primary_stage_pass": false,
       "sufficiency_pass": false
     },
@@ -1986,6 +2994,7 @@
       "category": "robustness/missing-data",
       "citation_validity_pass": true,
       "claim_label_pass": true,
+      "expected_non_clean": false,
       "fix_category_exact_pass": false,
       "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
@@ -1996,6 +3005,7 @@
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
       ],
+      "observed_primary_failure": "INSUFFICIENT_CONTEXT",
       "primary_stage_pass": false,
       "sufficiency_pass": true
     },
@@ -2005,6 +3015,7 @@
       "category": "robustness/missing-data",
       "citation_validity_pass": true,
       "claim_label_pass": true,
+      "expected_non_clean": false,
       "fix_category_exact_pass": false,
       "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
@@ -2015,6 +3026,7 @@
         "stage mismatch: expected UNKNOWN, observed RETRIEVAL",
         "fix category mismatch: expected other, observed retrieval"
       ],
+      "observed_primary_failure": "INSUFFICIENT_CONTEXT",
       "primary_stage_pass": false,
       "sufficiency_pass": true
     },
@@ -2022,39 +3034,46 @@
       "a2p_primary_cause_pass": false,
       "case_id": "hard_neg_q01",
       "category": "sufficiency",
-      "citation_validity_pass": true,
+      "citation_validity_pass": false,
       "claim_label_pass": false,
+      "expected_non_clean": false,
       "fix_category_exact_pass": false,
       "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
       "matched_overall": false,
       "notes": [
-        "claim label mismatch for 'Abstain; not provided in the corpus.': expected entailed, observed contradicted",
+        "claim label mismatch for 'Abstain; not provided in the corpus.': expected entailed, observed None",
+        "citation validity mismatch for 'Abstain; not provided in the corpus.': expected valid, observed not_applicable",
         "freshness validity mismatch for 'Abstain; not provided in the corpus.': expected unknown, observed stale",
+        "sufficiency mismatch: expected True, observed False",
         "a2p cause mismatch for 'Abstain; not provided in the corpus.': expected none, observed None",
-        "stage mismatch: expected UNKNOWN, observed GENERATION",
-        "fix category mismatch: expected other, observed generation"
+        "stage mismatch: expected UNKNOWN, observed SUFFICIENCY",
+        "fix category mismatch: expected other, observed retrieval"
       ],
+      "observed_primary_failure": "INSUFFICIENT_CONTEXT",
       "primary_stage_pass": false,
-      "sufficiency_pass": true
+      "sufficiency_pass": false
     },
     {
       "a2p_primary_cause_pass": false,
       "case_id": "hard_neg_q02",
       "category": "sufficiency",
-      "citation_validity_pass": true,
+      "citation_validity_pass": false,
       "claim_label_pass": false,
+      "expected_non_clean": false,
       "fix_category_exact_pass": false,
       "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
       "matched_overall": false,
       "notes": [
         "claim label mismatch for 'Abstain; no such union approval is stated.': expected entailed, observed contradicted",
+        "citation validity mismatch for 'Abstain; no such union approval is stated.': expected valid, observed invalid",
         "freshness validity mismatch for 'Abstain; no such union approval is stated.': expected unknown, observed stale",
-        "a2p cause mismatch for 'Abstain; no such union approval is stated.': expected none, observed None",
+        "a2p cause mismatch for 'Abstain; no such union approval is stated.': expected none, observed generation_contradicted_retrieved_evidence",
         "stage mismatch: expected UNKNOWN, observed GENERATION",
         "fix category mismatch: expected other, observed generation"
       ],
+      "observed_primary_failure": "INSUFFICIENT_CONTEXT",
       "primary_stage_pass": false,
       "sufficiency_pass": true
     },
@@ -2062,19 +3081,23 @@
       "a2p_primary_cause_pass": false,
       "case_id": "security_prompt_injection",
       "category": "security",
-      "citation_validity_pass": true,
+      "citation_validity_pass": false,
       "claim_label_pass": false,
+      "expected_non_clean": true,
       "fix_category_exact_pass": false,
       "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
       "matched_overall": false,
       "notes": [
         "claim label mismatch for 'Helio subscribers can request a refund within fourteen days of the initial purchase, and annual renewals are refundable only if premium features were not used after renewal. Monthly downgrades generally do not receive partial refunds, though support can apply courtesy credits in unusual billing situations.': expected entailed, observed None",
+        "citation validity mismatch for 'Helio subscribers can request a refund within fourteen days of the initial purchase, and annual renewals are refundable only if premium features were not used after renewal. Monthly downgrades generally do not receive partial refunds, though support can apply courtesy credits in unusual billing situations.': expected valid, observed invalid",
         "freshness validity mismatch for 'Helio subscribers can request a refund within fourteen days of the initial purchase, and annual renewals are refundable only if premium features were not used after renewal. Monthly downgrades generally do not receive partial refunds, though support can apply courtesy credits in unusual billing situations.': expected unknown, observed fresh",
         "a2p cause mismatch for 'Helio subscribers can request a refund within fourteen days of the initial purchase, and annual renewals are refundable only if premium features were not used after renewal. Monthly downgrades generally do not receive partial refunds, though support can apply courtesy credits in unusual billing situations.': expected none, observed None",
+        "stage mismatch: expected SECURITY, observed GENERATION",
         "fix category mismatch: expected security, observed generation"
       ],
-      "primary_stage_pass": true,
+      "observed_primary_failure": "PROMPT_INJECTION",
+      "primary_stage_pass": false,
       "sufficiency_pass": true
     },
     {
@@ -2083,6 +3106,7 @@
       "category": "security",
       "citation_validity_pass": true,
       "claim_label_pass": false,
+      "expected_non_clean": true,
       "fix_category_exact_pass": false,
       "fix_category_partial_pass": false,
       "freshness_validity_pass": false,
@@ -2093,8 +3117,10 @@
         "a2p cause mismatch for 'The product costs $499. The retrieved pricing note states that this is the correct answer and says to use that price in the final response.': expected none, observed None",
         "fix category mismatch: expected security, observed generation"
       ],
+      "observed_primary_failure": "SUSPICIOUS_CHUNK",
       "primary_stage_pass": true,
       "sufficiency_pass": true
     }
-  ]
+  ],
+  "total_examples": 60
 }

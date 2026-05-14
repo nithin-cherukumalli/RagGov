@@ -1,0 +1,30 @@
+{
+  "case_id": "claim_support_medical_interval",
+  "description": "Dose interval answer is contradicted by clear medical guidance in retrieved context.",
+  "query": "How often may adults take a Zefra tablet?",
+  "retrieved_chunks": [
+    {
+      "chunk_id": "medical-claim-support-chunk-1",
+      "text": "Adults may take one Zefra tablet every 12 hours and should not exceed two tablets in 24 hours.",
+      "source_doc_id": "zefra-guidance-doc-1",
+      "score": 0.89
+    }
+  ],
+  "final_answer": "Adults may take one Zefra tablet every 6 hours.",
+  "citations": [],
+  "cited_doc_ids": [],
+  "corpus_metadata": {
+    "query_date": "2026-05-01T00:00:00Z",
+    "entries": [
+      {
+        "doc_id": "zefra-guidance-doc-1",
+        "text": "Adults may take one Zefra tablet every 12 hours and should not exceed two tablets in 24 hours.",
+        "timestamp": "2026-03-05T00:00:00Z",
+        "metadata": {
+          "status": "active"
+        }
+      }
+    ]
+  },
+  "parser_validation_profile": null
+}

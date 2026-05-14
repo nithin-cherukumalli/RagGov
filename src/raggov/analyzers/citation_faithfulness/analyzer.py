@@ -97,6 +97,30 @@ class CitationFaithfulnessAnalyzerV0(BaseAnalyzer):
                 citation_faithfulness_report=report,
             )
 
+        if self._imprecise_doc_level_citation(run):
+            return AnalyzerResult(
+                analyzer_name=self.name(),
+                status="fail",
+                failure_type=FailureType.CITATION_MISMATCH,
+                stage=FailureStage.GROUNDING,
+                evidence=evidence + [
+                    "Doc-level citation spans multiple retrieved chunks; cite claim-level supporting chunks instead."
+                ],
+                remediation=_REMEDIATION,
+                citation_faithfulness_report=report,
+            )
+
+        if report.unsupported_claim_ids and self._answer_has_explicit_citation_marker(run) and self._answer_has_specific_value(run):
+            return AnalyzerResult(
+                analyzer_name=self.name(),
+                status="fail",
+                failure_type=FailureType.CITATION_MISMATCH,
+                stage=FailureStage.GROUNDING,
+                evidence=evidence,
+                remediation=_REMEDIATION,
+                citation_faithfulness_report=report,
+            )
+
         if report.unsupported_claim_ids or report.missing_citation_claim_ids:
             return AnalyzerResult(
                 analyzer_name=self.name(),
@@ -186,9 +210,7 @@ class CitationFaithfulnessAnalyzerV0(BaseAnalyzer):
         cited_doc_ids, cited_chunk_ids, evidence_source = self._citation_sources(
             run, claim
         )
-        supporting_chunk_ids = self._ids_from_record(
-            claim, "supporting_chunk_ids", "candidate_evidence_chunk_ids"
-        )
+        supporting_chunk_ids = self._ids_from_record(claim, "supporting_chunk_ids")
         contradicted_chunk_ids = self._ids_from_record(
             claim, "contradicting_chunk_ids", "contradicted_by_chunk_ids"
         )
@@ -496,6 +518,41 @@ class CitationFaithfulnessAnalyzerV0(BaseAnalyzer):
 
     def _retrieved_doc_ids(self, run: RAGRun) -> set[str]:
         return {chunk.source_doc_id for chunk in run.retrieved_chunks}
+
+    def _answer_has_explicit_citation_marker(self, run: RAGRun) -> bool:
+        return "[" in run.final_answer and "]" in run.final_answer
+
+    def _answer_has_specific_value(self, run: RAGRun) -> bool:
+        import re
+
+        return bool(re.search(r"\b\d{2,4}\b|[$₹€£]\s*\d|\b\d+(?:\.\d+)?\s*%", run.final_answer))
+
+    def _imprecise_doc_level_citation(self, run: RAGRun) -> bool:
+        if len(run.cited_doc_ids) != 1:
+            return False
+        cited_doc_id = run.cited_doc_ids[0]
+        cited_chunks = [
+            chunk for chunk in run.retrieved_chunks if chunk.source_doc_id == cited_doc_id
+        ]
+        if len(cited_chunks) < 2:
+            return False
+        if run.metadata.get("cited_chunk_ids"):
+            return False
+        answer_terms = {
+            token
+            for token in run.final_answer.lower().replace(",", " ").replace(".", " ").split()
+            if len(token) > 3
+        }
+        chunks_with_answer_terms = 0
+        for chunk in cited_chunks:
+            chunk_terms = {
+                token
+                for token in chunk.text.lower().replace(":", " ").replace(".", " ").split()
+                if len(token) > 3
+            }
+            if answer_terms & chunk_terms:
+                chunks_with_answer_terms += 1
+        return chunks_with_answer_terms >= 2
 
     def _is_supported_claim(self, claim: ClaimEvidenceRecord) -> bool:
         return claim.verification_label in {

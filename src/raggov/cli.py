@@ -15,7 +15,9 @@ from rich.table import Table
 from rich.text import Text
 
 from raggov.calibration import ARESCalibrator, ConfidenceInterval
-from raggov.engine import DiagnosisEngine
+from raggov.engine import DEFAULT_EXTERNAL_PROVIDERS, DiagnosisEngine
+from raggov.evaluators.doctor import render_provider_doctor_text
+from raggov.evaluators.registry import create_standard_registry
 from raggov.models.diagnosis import Diagnosis, FailureType, SecurityRisk
 from raggov.models.run import RAGRun
 from raggov.parser_validation.profile_questionnaire import profile_yaml_from_answers
@@ -24,9 +26,12 @@ from stresslab.cases import (
     list_diagnosis_golden_cases,
 )
 from stresslab.runners import (
+    run_launch_readiness,
     run_claim_diagnosis_suite,
     run_diagnosis_suite,
     run_suite,
+    write_launch_readiness_markdown_report,
+    write_launch_readiness_report,
     write_claim_diagnosis_markdown_report,
     write_claim_diagnosis_report,
     write_diagnosis_suite_markdown_report,
@@ -37,7 +42,10 @@ from stresslab.runners import (
 
 
 app = typer.Typer(help="Diagnose retrieval-augmented generation runs.")
+providers_app = typer.Typer(help="Inspect optional external provider readiness.")
 console = Console()
+
+app.add_typer(providers_app, name="providers")
 
 
 @app.command()
@@ -135,6 +143,30 @@ def calibrate(
 def version() -> None:
     """Print the installed raggov version."""
     console.print(f"raggov {_package_version()}")
+
+
+@providers_app.command("doctor")
+def providers_doctor(
+    format: str = typer.Option("text", "--format", help="Output format: text or json."),
+) -> None:
+    """Inspect readiness of optional external providers."""
+    if format not in {"text", "json"}:
+        console.print("[red]Invalid format[/red]: expected 'text' or 'json'")
+        raise typer.Exit(code=1)
+
+    config = {
+        "mode": "external-enhanced",
+        "enabled_external_providers": list(DEFAULT_EXTERNAL_PROVIDERS),
+        "retrieval_relevance_provider": "native",
+    }
+    registry = create_standard_registry(config)
+    report = registry.readiness_report(enabled_providers=list(DEFAULT_EXTERNAL_PROVIDERS))
+
+    if format == "json":
+        console.print_json(report.model_dump_json(indent=2))
+        return
+
+    console.print(render_provider_doctor_text(report))
 
 
 @app.command("parser-profile-init")
@@ -317,6 +349,43 @@ def stresslab_claim_diagnosis(
     console.print(_claim_diagnosis_panel(result))
 
 
+@app.command("launch-readiness")
+def launch_readiness(
+    output_json: Path = typer.Option(
+        Path("reports/launch_readiness_report.json"),
+        help="Where to write the JSON launch-readiness artifact.",
+    ),
+    output_md: Path = typer.Option(
+        Path("reports/launch_readiness_report.md"),
+        help="Where to write the Markdown launch-readiness artifact.",
+    ),
+    benchmark_threshold: float = typer.Option(
+        0.95,
+        min=0.0,
+        max=1.0,
+        help="Minimum required benchmark accuracy.",
+    ),
+    calibration_artifact: Path | None = typer.Option(
+        None,
+        help="Optional calibration artifact path. If absent, calibrated confidence must stay absent.",
+    ),
+) -> None:
+    """Run GovRAG alpha launch-readiness validation."""
+    report = run_launch_readiness(
+        benchmark_accuracy_threshold=benchmark_threshold,
+        calibration_artifact_path=calibration_artifact,
+    )
+    write_launch_readiness_report(report, output_json)
+    write_launch_readiness_markdown_report(report, output_md)
+
+    console.print(_launch_readiness_panel(report))
+    console.print(f"[dim]Wrote JSON report to {output_json}[/dim]")
+    console.print(f"[dim]Wrote Markdown report to {output_md}[/dim]")
+
+    if not report.passed:
+        raise typer.Exit(code=1)
+
+
 def _load_run(run_file: Path) -> RAGRun:
     with run_file.open() as file:
         payload = json.load(file)
@@ -358,6 +427,36 @@ def _calibration_panel(intervals: list[ConfidenceInterval], n_samples: int) -> P
 
 
 def _diagnosis_panel(diagnosis: Diagnosis) -> Panel:
+    if diagnosis.summary_v1:
+        s = diagnosis.summary_v1
+        table = Table.grid(padding=(0, 1))
+        table.add_column(style="bold")
+        table.add_column()
+
+        table.add_row("Primary failure", _failure_text(s.primary_failure))
+        table.add_row("Root cause stage", s.root_cause_stage.value)
+        if s.first_failing_node:
+            table.add_row("First failing node", s.first_failing_node)
+        
+        conf = f"{diagnosis.confidence:.2f}" if diagnosis.confidence is not None else "N/A"
+        table.add_row(diagnosis.confidence_label, f"{conf} ({diagnosis.calibration_status})")
+        table.add_row("Security risk", _security_risk_text(diagnosis.security_risk))
+        
+        degraded = [p for p, st in s.external_provider_state.items() if st == "degraded"]
+        if degraded:
+            table.add_row("Degraded providers", ", ".join(degraded), style="yellow")
+            
+        if s.selected_evidence:
+            evidence = "\n".join(f"• {item}" for item in s.selected_evidence[:3])
+            table.add_row("Top Evidence", evidence)
+            
+        table.add_row("Recommended fix", Text(s.recommended_fix, style="bold"))
+        if s.recommended_next_debug_step:
+            table.add_row("Next Debug Step", Text(s.recommended_next_debug_step, style="cyan"))
+
+        return Panel(table, title=f"Diagnosis: {diagnosis.run_id}", expand=False)
+
+    # Legacy fallback
     table = Table.grid(padding=(0, 1))
     table.add_column(style="bold")
     table.add_column()
@@ -385,7 +484,8 @@ def _diagnosis_panel(diagnosis: Diagnosis) -> Panel:
     )
     table.add_row("Security risk", _security_risk_text(diagnosis.security_risk))
     if diagnosis.confidence is not None:
-        table.add_row("Confidence", f"{diagnosis.confidence:.2f}")
+        table.add_row(diagnosis.confidence_label, f"{diagnosis.confidence:.2f}")
+    table.add_row("Calibration Status", diagnosis.calibration_status)
 
     evidence = "\n".join(f"• {item}" for item in diagnosis.evidence) or "• None"
     table.add_row("Evidence", evidence)
@@ -438,9 +538,35 @@ def _claim_diagnosis_panel(result: Any) -> Panel:
     table.add_row("A2P cause accuracy", f"{result.a2p_primary_cause_accuracy:.0%}")
     table.add_row("Primary stage accuracy", f"{result.primary_stage_accuracy:.0%}")
     table.add_row("Fix partial accuracy", f"{result.fix_category_partial_accuracy:.0%}")
+    table.add_row("False clean count", str(result.false_clean_count))
     table.add_row("Mismatches", str(len(result.mismatches)))
 
     return Panel(table, title="Claim Diagnosis Harness", expand=False)
+
+
+def _launch_readiness_panel(report: Any) -> Panel:
+    table = Table.grid(padding=(0, 1))
+    table.add_column(style="bold")
+    table.add_column()
+
+    table.add_row("Status", report.status)
+    table.add_row("False clean count", str(report.metrics.get("false_clean_count", 0)))
+    table.add_row("False incomplete count", str(report.metrics.get("false_incomplete_count", 0)))
+    table.add_row(
+        "Benchmark accuracy",
+        f"{report.metrics.get('benchmark_accuracy', 0.0):.0%}",
+    )
+    table.add_row(
+        "Benchmark threshold",
+        f"{report.metrics.get('benchmark_accuracy_threshold', 0.0):.0%}",
+    )
+
+    if report.failure_reasons:
+        table.add_row("Failure reasons", "\n".join(f"• {reason}" for reason in report.failure_reasons))
+    else:
+        table.add_row("Failure reasons", "• None")
+
+    return Panel(table, title="Launch Readiness", expand=False)
 
 
 def _checks_table(diagnosis: Diagnosis) -> Table:

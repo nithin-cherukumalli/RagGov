@@ -1,0 +1,44 @@
+{
+  "case_id": "citation_mismatch_release_notes",
+  "description": "Release-note answer is correct, but the cited source is the wrong release artifact.",
+  "query": "Which CloudPort version introduced webhook retries?",
+  "retrieved_chunks": [
+    {
+      "chunk_id": "release-citation-chunk-1",
+      "text": "CloudPort version 3.4 introduced webhook retries with exponential backoff.",
+      "source_doc_id": "cloudport-release-doc-1",
+      "score": 0.88
+    },
+    {
+      "chunk_id": "release-citation-chunk-2",
+      "text": "CloudPort version 3.4 also refreshed the dashboard palette and navigation icons.",
+      "source_doc_id": "cloudport-ui-doc-2",
+      "score": 0.8
+    }
+  ],
+  "final_answer": "CloudPort version 3.4 introduced webhook retries with exponential backoff.",
+  "citations": ["cloudport-ui-doc-2"],
+  "cited_doc_ids": ["cloudport-ui-doc-2"],
+  "corpus_metadata": {
+    "query_date": "2026-05-01T00:00:00Z",
+    "entries": [
+      {
+        "doc_id": "cloudport-release-doc-1",
+        "text": "CloudPort version 3.4 introduced webhook retries with exponential backoff.",
+        "timestamp": "2026-04-01T00:00:00Z",
+        "metadata": {
+          "status": "active"
+        }
+      },
+      {
+        "doc_id": "cloudport-ui-doc-2",
+        "text": "CloudPort version 3.4 also refreshed the dashboard palette and navigation icons.",
+        "timestamp": "2026-04-01T00:00:00Z",
+        "metadata": {
+          "status": "active"
+        }
+      }
+    ]
+  },
+  "parser_validation_profile": null
+}

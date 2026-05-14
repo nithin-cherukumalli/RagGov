@@ -1,0 +1,42 @@
+{
+  "case_id": "retrieval_noise_finance_compliance",
+  "description": "Travel receipt threshold is present, but unrelated finance and internship content dilutes the retrieval set.",
+  "query": "What is the receipt threshold in the Atlas travel policy?",
+  "retrieved_chunks": [
+    {
+      "chunk_id": "atlas-travel-noise-chunk-1",
+      "text": "The Atlas travel policy requires itemized receipts for any expense above $25.",
+      "source_doc_id": "atlas-travel-doc-1",
+      "score": 0.58
+    },
+    {
+      "chunk_id": "atlas-travel-noise-chunk-2",
+      "text": "The quarterly market-risk bulletin summarizes commodity price swings and regional shipping exposure.",
+      "source_doc_id": "market-risk-doc-2",
+      "score": 0.5
+    },
+    {
+      "chunk_id": "atlas-travel-noise-chunk-3",
+      "text": "Intern applicants must provide a portfolio link and two references before the interview stage.",
+      "source_doc_id": "internship-doc-3",
+      "score": 0.47
+    }
+  ],
+  "final_answer": "The Atlas travel policy requires itemized receipts for any expense above $25.",
+  "citations": ["atlas-travel-doc-1"],
+  "cited_doc_ids": ["atlas-travel-doc-1"],
+  "corpus_metadata": {
+    "query_date": "2026-05-01T00:00:00Z",
+    "entries": [
+      {
+        "doc_id": "atlas-travel-doc-1",
+        "text": "The Atlas travel policy requires itemized receipts for any expense above $25.",
+        "timestamp": "2026-01-12T00:00:00Z",
+        "metadata": {
+          "status": "active"
+        }
+      }
+    ]
+  },
+  "parser_validation_profile": null
+}

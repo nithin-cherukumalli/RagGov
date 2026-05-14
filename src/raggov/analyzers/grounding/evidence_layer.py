@@ -33,30 +33,46 @@ from raggov.calibration.claim_calibration import ClaimCalibrationModel, Calibrat
 
 logger = logging.getLogger(__name__)
 
-NEGATION_SIGNALS = {"not", "never", "no", "no longer", "contrary to"}
+NEGATION_SIGNALS = {
+    "not",
+    "never",
+    "no",
+    "no longer",
+    "contrary to",
+    "prohibited",
+    "forbidden",
+    "disallowed",
+    "not permitted",
+}
 
-_GO_PATTERN = re.compile(r"g\.o", re.IGNORECASE)
 _NUMERIC_PATTERN = re.compile(
     r"\d+(?:\.\d+)?%|\bpercent\b|\bamount\b|\bthreshold\b|\bceiling\b|\blimit\b"
     r"|[$₹€£]|\brupees?\b|\brs\.?\b",
     re.IGNORECASE,
 )
+_VERSION_PATTERN = re.compile(r"\bv?\d+(?:\.\d+){1,3}\b|\bversion\s+\d", re.IGNORECASE)
 _DATE_PATTERN = re.compile(
     r"\b(?:january|february|march|april|may|june|july|august|september|"
     r"october|november|december)\b|\bdeadline\b|\beffective\s+date\b",
     re.IGNORECASE,
 )
-_ELIGIBILITY_PATTERN = re.compile(
-    r"\beligib\w*|\bqualif\w*|\bentitl\w*|\bwho\s+can\b|\bwho\s+is\b",
+_REQUIREMENT_PATTERN = re.compile(
+    r"\beligib\w*|\bqualif\w*|\bentitl\w*|\bwho\s+can\b|\bwho\s+is\b"
+    r"|\bmust\b|\bshall\b|\brequir(?:e|es|ed|ement)\b|\bcondition\b|\bconstraint\b",
     re.IGNORECASE,
 )
 _DEFINITION_PATTERN = re.compile(
     r"\bmeans?\b|\brefers?\b|\bis\s+defined\b|\bdenotes?\b",
     re.IGNORECASE,
 )
-_POLICY_PATTERN = re.compile(
-    r"\brule\b|\bpolicy\b|\bshall\b|\bmust\b|\brequired\b|\bmandatory\b"
-    r"|\bprohibit\b|\bpermit\b",
+_PROCEDURAL_PATTERN = re.compile(
+    r"\bprocedure\b|\bsteps?\b|\bsection\b|\bmanual\b|\binstructions?\b|\bhow\s+to\b"
+    r"|\breplace(?:ment)?\b|\binstall(?:ation)?\b|\bconfigure\b",
+    re.IGNORECASE,
+)
+_RELATIONSHIP_PATTERN = re.compile(
+    r"\b(?:supports?|deprecates?|replaces?|supersedes?|withdrawn|deprecated|causes?|"
+    r"improves?|reduces?|increases?|decreases?|compared|baseline|higher|lower)\b",
     re.IGNORECASE,
 )
 _COMPOUND_CONJUNCTIONS = re.compile(
@@ -84,21 +100,23 @@ def detect_claim_type(claim: str) -> str:
     """
     Heuristic v0 claim type detection. Labels are not empirically validated.
 
-    Priority: go_number > numeric > date_or_deadline > definition >
-    eligibility > policy_rule > general_factual
+    Priority: value/date/version > definition > requirement/procedure >
+    relationship/comparison > general factual.
     """
-    if _GO_PATTERN.search(claim):
-        return "go_number"
+    if _PROCEDURAL_PATTERN.search(claim):
+        return "procedural_assertion"
+    if _VERSION_PATTERN.search(claim):
+        return "value_assertion"
     if _NUMERIC_PATTERN.search(claim):
-        return "numeric"
+        return "value_assertion"
     if _DATE_PATTERN.search(claim):
-        return "date_or_deadline"
+        return "date_time_assertion"
     if _DEFINITION_PATTERN.search(claim):
         return "definition"
-    if _ELIGIBILITY_PATTERN.search(claim):
-        return "eligibility"
-    if _POLICY_PATTERN.search(claim):
-        return "policy_rule"
+    if _REQUIREMENT_PATTERN.search(claim):
+        return "requirement_or_condition"
+    if _RELATIONSHIP_PATTERN.search(claim):
+        return "relationship_or_comparison"
     return "general_factual"
 
 
@@ -285,4 +303,3 @@ class ClaimEvidenceBuilder:
             contradicting_chunk_ids=list(set(contradicting_ids)),
             triplet_results=triplet_results,
         )
-

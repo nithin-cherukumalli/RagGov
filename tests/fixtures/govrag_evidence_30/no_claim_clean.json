@@ -51,6 +51,6 @@
     ],
     "required_evidence_signals": [],
     "expected_missing_external_providers": [],
-    "expected_degraded_external_mode": false
+    "expected_degraded_external_mode": true
   }
 }

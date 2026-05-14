@@ -31,11 +31,75 @@ REMEDIATION = (
 
 TERM_COVERAGE_LIMITATIONS = [
     "Cannot detect missing evidence when query terms overlap with chunks",
-    "Cannot identify required evidence types (rule, date, scope, authority)",
+    "Cannot identify all required generic evidence types (entity, value, date/time, scope, exception, procedure)",
     "Cannot distinguish sufficient context from term overlap",
     "Threshold 0.3 is not empirically calibrated",
     "No verification against ground-truth sufficiency labels",
 ]
+
+# --- Structured sufficiency detection constants ---
+
+_CURRENT_QUERY_TERMS = frozenset({
+    "current", "latest", "now", "today", "recent", "newest", "present",
+})
+
+_TEMPORAL_REQUIREMENT_TERMS = frozenset({
+    "current", "latest", "effective", "updated", "version", "versions",
+    "before", "after", "since", "until", "during", "when",
+})
+
+_STALE_CHUNK_PATTERN = re.compile(
+    r"\bas of \d{4}\b|\bsince \d{4}\b|\bdated? \d{4}\b|\b\(\s*\d{4}\s*\)",
+    re.IGNORECASE,
+)
+
+_TEMPORAL_CONTEXT_PATTERN = re.compile(
+    r"\b(?:19|20)\d{2}\b|\b(?:effective|updated|version|rev\.?|revision|release)\b",
+    re.IGNORECASE,
+)
+
+_CRITICAL_QUERY_TERMS = frozenset({
+    "safe", "safety", "dangerous", "danger", "hazard", "hazardous",
+    "toxic", "poison", "poisonous", "risk", "risky",
+})
+
+_UNIVERSAL_QUERY_PATTERN = re.compile(
+    r"\b(?:can|do|does|is|are|must|should)?\s*(all|every|any|everyone)\s+(\w+)\b",
+    re.IGNORECASE,
+)
+
+_SCOPE_QUALIFIER_TERMS = frozenset({
+    "full-time", "fulltime", "full_time", "part-time", "parttime",
+    "contract", "permanent", "temporary", "senior", "junior",
+    "certain", "specific", "only", "eligible", "qualified", "authorized",
+    "washable", "standard", "premium", "legacy", "beta", "experimental",
+})
+
+_US_STATES = frozenset({
+    "alabama", "alaska", "arizona", "arkansas", "california", "colorado",
+    "connecticut", "delaware", "florida", "georgia", "hawaii", "idaho",
+    "illinois", "indiana", "iowa", "kansas", "kentucky", "louisiana",
+    "maine", "maryland", "massachusetts", "michigan", "minnesota",
+    "mississippi", "missouri", "montana", "nebraska", "nevada",
+    "new hampshire", "new jersey", "new mexico", "new york",
+    "north carolina", "north dakota", "ohio", "oklahoma", "oregon",
+    "pennsylvania", "rhode island", "south carolina", "south dakota",
+    "tennessee", "texas", "utah", "vermont", "virginia", "washington",
+    "west virginia", "wisconsin", "wyoming",
+})
+
+_CONDITIONAL_PATTERN = re.compile(
+    r"\bif\s+(?:(?:i|you|we|they)\s+)?(\w+)\b",
+    re.IGNORECASE,
+)
+
+_CONDITIONAL_SKIP_TERMS = frozenset({
+    "need", "want", "can", "could", "have", "had", "get", "do",
+    "would", "should", "must", "might", "may", "will", "shall",
+    "be", "is", "are", "was", "were", "has", "not", "no", "any", "more",
+}) | STOPWORDS
+
+_SCOPE_PREP_PATTERN = re.compile(r"\bin ([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b")
 
 
 class SufficiencyAnalyzer(BaseAnalyzer):
@@ -141,6 +205,28 @@ class SufficiencyAnalyzer(BaseAnalyzer):
         warning_evidence: list[str] | None = None,
         fallback_used: bool = False,
     ) -> AnalyzerResult:
+        # Structured pattern detection takes precedence over term coverage heuristic.
+        # These patterns detect specific sufficiency failure modes that the term coverage
+        # heuristic cannot distinguish from a general retrieval miss.
+        structured = self._detect_structured_sufficiency_type(run)
+        if structured is not None:
+            sufficiency_result = self._build_structured_sufficiency_result(
+                reason=structured["reason"],
+                fix_category=structured["fix_category"],
+                evidence_markers=structured.get("evidence_markers"),
+                missing_requirement_types=structured.get("missing_requirement_types"),
+                missing_evidence=structured.get("missing_evidence"),
+            )
+            return AnalyzerResult(
+                analyzer_name=self.name(),
+                status="fail",
+                failure_type=structured["failure_type"],
+                stage=structured["stage"],
+                evidence=[structured["evidence"]],
+                sufficiency_result=sufficiency_result,
+                remediation=structured["remediation"],
+            )
+
         query_terms = self._terms(run.query)
         if not query_terms:
             return AnalyzerResult(
@@ -162,18 +248,25 @@ class SufficiencyAnalyzer(BaseAnalyzer):
         missing_terms = sorted(query_terms - covered_terms)
         coverage_ratio = len(covered_terms) / len(query_terms)
         coverage_evidence = self._coverage_evidence(coverage_ratio, missing_terms)
+        missing_anchors = self._missing_query_anchors(run)
         claim_sidecar = self._claim_sidecar(run)
         threshold = float(self.config.get("min_coverage_ratio", 0.3))
+        effective_coverage_ratio = 0.0 if missing_anchors else coverage_ratio
         structured_result = self._build_v0_structured_result(
             run=run,
-            coverage_ratio=coverage_ratio,
-            missing_terms=missing_terms,
+            coverage_ratio=effective_coverage_ratio,
+            missing_terms=sorted(set(missing_terms + missing_anchors)),
             claim_sidecar=claim_sidecar,
             threshold=threshold,
             fallback_used=fallback_used,
         )
         self._log_abstention_recommendation(structured_result)
         evidence = [*(warning_evidence or []), coverage_evidence]
+        if missing_anchors:
+            evidence.append(
+                "Critical query anchor missing from retrieved context: "
+                f"{', '.join(missing_anchors)}"
+            )
         if claim_sidecar is not None:
             evidence.append(
                 "Claim-aware sufficiency: "
@@ -182,7 +275,46 @@ class SufficiencyAnalyzer(BaseAnalyzer):
                 f"affected_claims={len(claim_sidecar['affected_claims'])}"
             )
 
-        if coverage_ratio < float(self.config.get("min_coverage_ratio", 0.3)):
+        missing_answer_requirements = self._missing_answer_requirements(run)
+        if missing_answer_requirements and not missing_anchors:
+            evidence.append(
+                "Answer completeness missing retrieved query requirements: "
+                f"{', '.join(missing_answer_requirements)}"
+            )
+            return AnalyzerResult(
+                analyzer_name=self.name(),
+                status="fail",
+                failure_type=FailureType.INSUFFICIENT_CONTEXT,
+                stage=FailureStage.GENERATION,
+                evidence=evidence,
+                sufficiency_result=structured_result,
+                remediation="Regenerate the answer to cover all retrieved requirements requested by the query.",
+            )
+
+        if missing_anchors or coverage_ratio < float(self.config.get("min_coverage_ratio", 0.3)):
+            critical_detection = self._critical_requirement_detection(
+                run=run,
+                coverage_ratio=coverage_ratio,
+                missing_terms=sorted(set(missing_terms + missing_anchors)),
+            )
+            if critical_detection is not None:
+                sufficiency_result = self._build_structured_sufficiency_result(
+                    reason=critical_detection["reason"],
+                    fix_category=critical_detection["fix_category"],
+                    evidence_markers=critical_detection["evidence_markers"],
+                    missing_requirement_types=critical_detection["missing_requirement_types"],
+                    missing_evidence=critical_detection["missing_evidence"],
+                )
+                return AnalyzerResult(
+                    analyzer_name=self.name(),
+                    status="fail",
+                    failure_type=critical_detection["failure_type"],
+                    stage=critical_detection["stage"],
+                    evidence=[critical_detection["evidence"], *evidence],
+                    sufficiency_result=sufficiency_result,
+                    remediation=critical_detection["remediation"],
+                )
+
             return AnalyzerResult(
                 analyzer_name=self.name(),
                 status="fail",
@@ -199,6 +331,37 @@ class SufficiencyAnalyzer(BaseAnalyzer):
             evidence=evidence,
             sufficiency_result=structured_result,
         )
+
+    def _missing_query_anchors(self, run: RAGRun) -> list[str]:
+        context_lower = " ".join(chunk.text for chunk in run.retrieved_chunks).lower()
+        anchors: list[str] = []
+        for match in re.finditer(r"\b(Project|Tool|Product)\s+[A-Z0-9]\b", run.query):
+            anchor = match.group(0).lower()
+            if anchor not in context_lower:
+                anchors.append(anchor)
+        return list(dict.fromkeys(anchors))
+
+    def _missing_answer_requirements(self, run: RAGRun) -> list[str]:
+        query_lower = run.query.lower()
+        if not re.search(r"\b(list|requirements?|include)\b", query_lower):
+            return []
+
+        context_terms = self._terms(" ".join(chunk.text for chunk in run.retrieved_chunks))
+        answer_terms = self._terms(run.final_answer)
+        candidate_terms: set[str] = set()
+
+        colon_tail = query_lower.split(":", 1)[1] if ":" in query_lower else query_lower
+        for token in self._terms(colon_tail):
+            if token in {"list", "requirement", "requirements", "include"}:
+                continue
+            candidate_terms.add(token)
+
+        missing = sorted(
+            term
+            for term in candidate_terms
+            if term in context_terms and term not in answer_terms
+        )
+        return missing
 
     def _analyze_with_llm(self, run: RAGRun) -> AnalyzerResult:
         try:
@@ -296,7 +459,7 @@ class SufficiencyAnalyzer(BaseAnalyzer):
             return []
 
         prompt = f"""
-You are analyzing a query to a government document RAG system.
+You are analyzing a query to a generic RAG system.
 
 Your job: identify what specific pieces of evidence are needed to fully
 and accurately answer this query.
@@ -306,17 +469,15 @@ Query: {query}
 For each required piece of evidence, specify:
 1. description: What specific information is needed? Be precise.
 2. requirement_type: One of:
-   - "definition": Definition of a term or concept
-   - "rule": A rule, regulation, or policy statement
-   - "date": A specific date, effective date, or deadline
-   - "authority": Who issued, who has authority, competent authority
-   - "scope": Who or what the rule applies to (applicability)
-   - "exception": An exception, exemption, or special case
-   - "procedure": Steps, process, or how to do something
-   - "numeric_value": A specific number, amount, percentage, or threshold
-   - "comparison": How something compares (before/after, this vs that)
-   - "supersession": Whether something replaces or is replaced by something else
-   - "citation": Specific GO number, circular number, order reference
+   - "required_entity": A person, product, API, organization, condition group, study, source, or other named entity
+   - "required_value": A number, amount, percentage, currency, measurement, version, identifier, quantity, range, or rank
+   - "required_date_or_time": A date, deadline, effective date, expiry date, duration, timestamp, or time window
+   - "required_condition_or_scope": The population, environment, version, jurisdiction, configuration, scenario, or applicability scope
+   - "required_exception_or_limitation": An exception, contraindication, limitation, exclusion, caveat, or special case
+   - "required_comparison_baseline": The baseline needed for before/after, alternative, control, benchmark, or relative comparison
+   - "required_step_or_procedure": Steps, process, workflow, installation, usage, clinical, operational, or support procedure
+   - "required_causal_support": Evidence for a cause, reason, mechanism, effect, or conclusion
+   - "required_source_or_citation": A source, citation, document, section, table, figure, record, or source identifier
 3. importance:
    - "critical": Cannot answer the query without this
    - "supporting": Helps but answer possible without it
@@ -327,7 +488,7 @@ Return ONLY valid JSON in this exact format:
   "required_evidence": [
     {{
       "description": "...",
-      "type": "rule",
+      "type": "required_condition_or_scope",
       "importance": "critical"
     }}
   ]
@@ -353,7 +514,7 @@ no structural requirements), return an empty list.
                     EvidenceRequirement(
                         requirement_id=f"req_{index:03d}",
                         description=str(item.get("description", "")).strip(),
-                        requirement_type=item.get("type", "scope"),
+                        requirement_type=self._normalize_requirement_type(item.get("type", "required_condition_or_scope")),
                         importance=item.get("importance", "critical"),
                         verifier="llm_judge",
                     )
@@ -362,6 +523,34 @@ no structural requirements), return an empty list.
         except Exception as exc:
             logger.warning("Requirement extraction failed: %s", exc)
             return []
+
+    def _normalize_requirement_type(self, raw_type: Any) -> str:
+        value = str(raw_type or "").strip()
+        legacy_map = {
+            "definition": "required_entity",
+            "rule": "required_condition_or_scope",
+            "date": "required_date_or_time",
+            "authority": "required_source_or_citation",
+            "scope": "required_condition_or_scope",
+            "exception": "required_exception_or_limitation",
+            "procedure": "required_step_or_procedure",
+            "numeric_value": "required_value",
+            "comparison": "required_comparison_baseline",
+            "supersession": "required_source_or_citation",
+            "citation": "required_source_or_citation",
+        }
+        allowed = {
+            "required_entity",
+            "required_value",
+            "required_date_or_time",
+            "required_condition_or_scope",
+            "required_exception_or_limitation",
+            "required_comparison_baseline",
+            "required_step_or_procedure",
+            "required_causal_support",
+            "required_source_or_citation",
+        }
+        return legacy_map.get(value, value if value in allowed else "required_condition_or_scope")
 
     def _check_requirement_coverage_lexical(
         self,
@@ -619,7 +808,7 @@ no structural requirements), return an empty list.
                 EvidenceRequirement(
                     requirement_id="term_coverage_v0",
                     description="Retrieved context should cover meaningful query terms.",
-                    requirement_type="scope",
+                    requirement_type="required_condition_or_scope",
                     importance="critical",
                     query_span=run.query,
                 )
@@ -711,6 +900,280 @@ no structural requirements), return an empty list.
                 "Cannot resolve contradictory evidence",
             ],
         }
+
+    def _detect_structured_sufficiency_type(
+        self,
+        run: RAGRun,
+    ) -> dict[str, Any] | None:
+        """Detect specific structured sufficiency failure patterns.
+
+        Returns a dict with reason, failure_type, stage, evidence, remediation
+        when a pattern is found. Returns None otherwise.
+
+        Patterns detected (in priority order):
+        1. stale_context_mistaken_as_sufficient – query asks for "current" info
+           but chunk has a temporal qualifier like "as of 2020".
+        2. missing_temporal_or_freshness_requirement – query asks for a temporal,
+           effective-date, or version-specific answer but the retrieved context
+           lacks temporal qualifiers entirely.
+        3. partial_requirement_coverage – query has a conditional clause whose
+           condition term is absent from the retrieved context.
+        4. missing_exception – query uses a universal quantifier ("all X") but
+           the context provides a scoped/qualified answer.
+        5. missing_scope_condition – context is scoped to a specific location
+           (US state) but the query has no such scope.
+        """
+        context_text = " ".join(chunk.text for chunk in run.retrieved_chunks)
+        query_lower = run.query.lower()
+        context_lower = context_text.lower()
+
+        # --- Pattern 1: stale context ---
+        query_words = set(re.findall(r"\b\w+\b", query_lower))
+        if query_words & _CURRENT_QUERY_TERMS:
+            stale_matches = _STALE_CHUNK_PATTERN.findall(context_text)
+            if stale_matches:
+                return {
+                    "reason": "stale_context_mistaken_as_sufficient",
+                    "failure_type": FailureType.STALE_RETRIEVAL,
+                    "stage": FailureStage.RETRIEVAL,
+                    "evidence": (
+                        "[sufficiency:stale_context_mistaken_as_sufficient] "
+                        "[sufficiency:missing_temporal_or_freshness_requirement] "
+                        "Query requests current information but retrieved chunk "
+                        f"contains temporal qualifier: {stale_matches[0]!r}"
+                    ),
+                    "remediation": (
+                        "Apply freshness filtering to retrieval; do not use "
+                        "outdated sources for time-sensitive queries."
+                    ),
+                    "fix_category": "FRESHNESS_FILTER",
+                    "evidence_markers": [
+                        "[sufficiency:stale_context_mistaken_as_sufficient]",
+                        "[sufficiency:missing_temporal_or_freshness_requirement]",
+                    ],
+                    "missing_requirement_types": [
+                        "required_condition_or_scope",
+                        "required_date_or_time",
+                    ],
+                    "missing_evidence": [
+                        "Current or fresh source evidence required by the query is missing.",
+                    ],
+                }
+
+        # --- Pattern 2: temporal/freshness requirement missing entirely ---
+        query_words = set(re.findall(r"\b\w+\b", query_lower))
+        query_has_year = bool(re.search(r"\b(?:19|20)\d{2}\b", run.query))
+        query_has_temporal_requirement = bool(query_words & _TEMPORAL_REQUIREMENT_TERMS) or query_has_year
+        context_has_temporal_support = bool(_TEMPORAL_CONTEXT_PATTERN.search(context_text))
+        if query_has_temporal_requirement and not context_has_temporal_support:
+            return {
+                "reason": "missing_temporal_or_freshness_requirement",
+                "failure_type": FailureType.INSUFFICIENT_CONTEXT,
+                "stage": FailureStage.SUFFICIENCY,
+                "evidence": (
+                    "[sufficiency:missing_temporal_or_freshness_requirement] "
+                    "Query requires temporal, effective-date, or version-specific "
+                    "support, but retrieved context provides no temporal qualifier "
+                    "that can validate the requested time scope."
+                ),
+                "remediation": (
+                    "Expand retrieval to include effective dates, version metadata, "
+                    "or current lifecycle state before answering."
+                ),
+                "fix_category": "COVERAGE_EXPANSION",
+                "evidence_markers": [
+                    "[sufficiency:missing_temporal_or_freshness_requirement]",
+                ],
+                "missing_requirement_types": [
+                    "required_condition_or_scope",
+                    "required_date_or_time",
+                ],
+                "missing_evidence": [
+                    "Temporal or freshness support required by the query is missing.",
+                ],
+            }
+
+        # --- Pattern 3: conditional clause not addressed ---
+        cond_match = _CONDITIONAL_PATTERN.search(run.query)
+        if cond_match:
+            cond_term = cond_match.group(1).lower()
+            if (
+                cond_term not in _CONDITIONAL_SKIP_TERMS
+                and len(cond_term) > 3
+                and cond_term not in context_lower
+            ):
+                return {
+                    "reason": "partial_requirement_coverage",
+                    "failure_type": FailureType.INSUFFICIENT_CONTEXT,
+                    "stage": FailureStage.SUFFICIENCY,
+                    "evidence": (
+                        "[sufficiency:partial_requirement_coverage] "
+                        f"Query addresses a conditional case ('{cond_term}') that "
+                        "is absent from the retrieved context. Only the default "
+                        "case is covered."
+                    ),
+                    "remediation": (
+                        "Expand retrieval to cover the conditional scenario; "
+                        "consider abstaining if the case is not documented."
+                    ),
+                    "fix_category": "ABSTENTION_THRESHOLD",
+                    "evidence_markers": [
+                        "[sufficiency:partial_requirement_coverage]",
+                    ],
+                    "missing_requirement_types": [
+                        "required_condition_or_scope",
+                    ],
+                    "missing_evidence": [
+                        f"Conditional scenario '{cond_term}' is not covered in retrieved context.",
+                    ],
+                }
+
+        # --- Pattern 4: universal quantifier with scoped context ---
+        univ_match = _UNIVERSAL_QUERY_PATTERN.search(run.query)
+        if univ_match:
+            subject_noun = univ_match.group(2).lower()
+            if subject_noun in context_lower:
+                context_words = set(re.findall(r"\b[\w-]+\b", context_lower))
+                if context_words & _SCOPE_QUALIFIER_TERMS:
+                    return {
+                        "reason": "missing_exception",
+                        "failure_type": FailureType.INSUFFICIENT_CONTEXT,
+                        "stage": FailureStage.SUFFICIENCY,
+                        "evidence": (
+                            "[sufficiency:missing_exception] "
+                            f"Query asks about '{univ_match.group(0)}' universally "
+                            "but the retrieved context provides a scoped/qualified "
+                            "answer. Non-qualifying cases and exceptions are not covered."
+                        ),
+                        "remediation": (
+                            "Expand retrieval to cover all subcategories or confirm "
+                            "the universal claim; consider abstaining if the universal "
+                            "answer cannot be confirmed."
+                        ),
+                        "fix_category": "COVERAGE_EXPANSION",
+                        "evidence_markers": [
+                            "[sufficiency:missing_exception]",
+                        ],
+                        "missing_requirement_types": [
+                            "required_exception_or_limitation",
+                            "required_condition_or_scope",
+                        ],
+                        "missing_evidence": [
+                            "Exceptions or non-qualifying cases are not covered in retrieved context.",
+                        ],
+                    }
+
+        # --- Pattern 5: scope-specific context for scope-general query ---
+        scope_matches = _SCOPE_PREP_PATTERN.findall(context_text)
+        for location in scope_matches:
+            loc_lower = location.lower()
+            if loc_lower in _US_STATES and loc_lower not in query_lower:
+                return {
+                    "reason": "missing_scope_condition",
+                    "failure_type": FailureType.INSUFFICIENT_CONTEXT,
+                    "stage": FailureStage.SUFFICIENCY,
+                    "evidence": (
+                        "[sufficiency:missing_scope_condition] "
+                        f"Retrieved context is scoped to '{location}' but the query "
+                        "has no explicit scope. The answer is only valid for "
+                        f"'{location}', not universally."
+                    ),
+                    "remediation": (
+                        "Clarify geographic or organizational scope in the answer, "
+                        "or re-query with explicit scope; consider abstaining for "
+                        "universal queries."
+                    ),
+                    "fix_category": "SCOPE_DISAMBIGUATION",
+                    "evidence_markers": [
+                        "[sufficiency:missing_scope_condition]",
+                    ],
+                    "missing_requirement_types": [
+                        "required_condition_or_scope",
+                    ],
+                    "missing_evidence": [
+                        f"Applicability scope for '{location}' does not justify a scope-free answer.",
+                    ],
+                }
+
+        return None
+
+    def _critical_requirement_detection(
+        self,
+        run: RAGRun,
+        coverage_ratio: float,
+        missing_terms: list[str],
+    ) -> dict[str, Any] | None:
+        """Return a structured critical-value sufficiency failure when appropriate."""
+        query_words = set(re.findall(r"\b\w+\b", run.query.lower()))
+        if not (query_words & _CRITICAL_QUERY_TERMS):
+            return None
+
+        return {
+            "reason": "missing_critical_requirement",
+            "failure_type": FailureType.INSUFFICIENT_CONTEXT,
+            "stage": FailureStage.SUFFICIENCY,
+            "evidence": (
+                "[sufficiency:missing_critical_requirement] "
+                "Query requests safety-critical guidance, but retrieved context "
+                "does not provide enough evidence to support a safe answer. "
+                f"Missing support terms: {', '.join(missing_terms) if missing_terms else 'unspecified'}; "
+                f"coverage={coverage_ratio:.0%}."
+            ),
+            "remediation": (
+                "Require explicit critical-value verification before answering; "
+                "expand retrieval or abstain when safety evidence is incomplete."
+            ),
+            "fix_category": "CRITICAL_VALUE_CHECK",
+            "evidence_markers": [
+                "[sufficiency:missing_critical_requirement]",
+            ],
+            "missing_requirement_types": [
+                "required_value",
+                "required_condition_or_scope",
+            ],
+            "missing_evidence": [
+                "Critical safety support required by the query is missing.",
+            ],
+        }
+
+    def _build_structured_sufficiency_result(
+        self,
+        reason: str,
+        fix_category: str,
+        *,
+        evidence_markers: list[str] | None = None,
+        missing_requirement_types: list[str] | None = None,
+        missing_evidence: list[str] | None = None,
+    ) -> SufficiencyResult:
+        """Build a structured SufficiencyResult for explicit root-cause detections."""
+        requirement_types = list(missing_requirement_types or [])
+        return SufficiencyResult(
+            sufficient=False,
+            sufficiency_label="insufficient",
+            required_evidence=[
+                EvidenceRequirement(
+                    requirement_id=f"structured_{index:03d}",
+                    description=reason.replace("_", " "),
+                    requirement_type=requirement_type,
+                    importance="critical",
+                    verifier="heuristic",
+                )
+                for index, requirement_type in enumerate(requirement_types, start=1)
+            ],
+            should_abstain=True,
+            should_expand_retrieval=True,
+            structured_failure_reason=reason,
+            recommended_fix_category=fix_category,
+            evidence_markers=list(evidence_markers or []),
+            missing_requirement_types=requirement_types,
+            missing_evidence=list(missing_evidence or []),
+            method="structured_heuristic_v1",
+            calibration_status="preliminary_calibrated_v1",
+            limitations=[
+                "Structured heuristic detection; not NLI-verified",
+                "Pattern matching only; may produce false positives on edge cases",
+            ],
+        )
 
     def _terms(self, text: str) -> set[str]:
         return {

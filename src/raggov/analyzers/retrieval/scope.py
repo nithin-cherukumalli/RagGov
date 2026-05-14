@@ -81,6 +81,16 @@ class ScopeViolationAnalyzer(BaseAnalyzer):
         if not run.retrieved_chunks:
             return self.skip("no retrieved chunks available")
 
+        missing_query_entity = self._missing_quoted_query_entity(run)
+        if missing_query_entity:
+            return self._fail(
+                FailureType.SCOPE_VIOLATION,
+                FailureStage.RETRIEVAL,
+                [f"quoted query entity missing from retrieved context: {missing_query_entity}"],
+                _REMEDIATION,
+                analysis_source="retrieval_evidence_profile",
+            )
+
         chunk_labels = {cp.chunk_id: cp.query_relevance_label for cp in profile.chunks}
         irrelevant = [
             chunk
@@ -125,12 +135,22 @@ class ScopeViolationAnalyzer(BaseAnalyzer):
 
         threshold = float(self.config.get("min_overlap_ratio", 0.1))
         low_overlap: list[str] = []
+        missing_query_entity = self._missing_quoted_query_entity(run)
 
         for chunk in run.retrieved_chunks:
             chunk_terms = self._terms(chunk.text)
             overlap_ratio = len(query_terms & chunk_terms) / len(query_terms)
             if overlap_ratio < threshold:
                 low_overlap.append(f"{chunk.chunk_id} overlap={overlap_ratio:.2f}")
+
+        if missing_query_entity:
+            return self._fail(
+                FailureType.SCOPE_VIOLATION,
+                FailureStage.RETRIEVAL,
+                [f"quoted query entity missing from retrieved context: {missing_query_entity}"],
+                _REMEDIATION,
+                analysis_source="legacy_heuristic_fallback",
+            )
 
         if len(low_overlap) == len(run.retrieved_chunks):
             return self._fail(
@@ -157,3 +177,11 @@ class ScopeViolationAnalyzer(BaseAnalyzer):
             for token in re.findall(r"[a-z0-9]+", text.lower())
             if token not in STOPWORDS
         }
+
+    def _missing_quoted_query_entity(self, run: RAGRun) -> str | None:
+        context = " ".join(chunk.text for chunk in run.retrieved_chunks).lower()
+        for match in re.finditer(r"['\"]([^'\"]{3,80})['\"]", run.query):
+            entity = match.group(1).strip().lower()
+            if entity and entity not in context:
+                return entity
+        return None

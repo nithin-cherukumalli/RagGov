@@ -1,0 +1,30 @@
+{
+  "case_id": "answer_completeness_missing_deadline",
+  "description": "The retrieved context contains an exact deadline, but the answer omits the required date.",
+  "query": "When does the Orion grant application close?",
+  "retrieved_chunks": [
+    {
+      "chunk_id": "answer-completeness-chunk-1",
+      "text": "The Orion grant application closes on 15 September 2026 at 5:00 PM local time.",
+      "source_doc_id": "orion-grant-doc-1",
+      "score": 0.9
+    }
+  ],
+  "final_answer": "Applications close later in the fall.",
+  "citations": ["orion-grant-doc-1"],
+  "cited_doc_ids": ["orion-grant-doc-1"],
+  "corpus_metadata": {
+    "query_date": "2026-05-01T00:00:00Z",
+    "entries": [
+      {
+        "doc_id": "orion-grant-doc-1",
+        "text": "The Orion grant application closes on 15 September 2026 at 5:00 PM local time.",
+        "timestamp": "2026-02-28T00:00:00Z",
+        "metadata": {
+          "status": "active"
+        }
+      }
+    ]
+  },
+  "parser_validation_profile": null
+}

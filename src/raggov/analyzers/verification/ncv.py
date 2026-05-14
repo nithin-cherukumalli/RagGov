@@ -16,6 +16,7 @@ from typing import Any, Iterable
 from raggov.analyzers.base import BaseAnalyzer
 from raggov.analyzers.retrieval.inconsistency import has_suspicious_negation_pair, terms
 from raggov.analyzers.retrieval.scope import ScopeViolationAnalyzer
+from raggov.analyzers.verification.ncv_priority import select_first_failing_node_v1
 from raggov.models.citation_faithfulness import CitationSupportLabel
 from raggov.models.diagnosis import AnalyzerResult, FailureStage, FailureType, SecurityRisk
 from raggov.models.ncv import (
@@ -74,6 +75,26 @@ NODE_REMEDIATIONS = {
     NCVNode.ANSWER_COMPLETENESS: DEFAULT_REMEDIATIONS[FailureType.GENERATION_IGNORE],
     NCVNode.SECURITY_RISK: DEFAULT_REMEDIATIONS[FailureType.SUSPICIOUS_CHUNK],
 }
+
+_SECURITY_REASON_BY_FAILURE_TYPE: dict[FailureType, str] = {
+    FailureType.PROMPT_INJECTION: "Security analyzer reported prompt injection.",
+    FailureType.SUSPICIOUS_CHUNK: "Security analyzer reported suspicious content.",
+    FailureType.PRIVACY_VIOLATION: "Security analyzer reported privacy risk.",
+}
+
+
+def _security_risk_reason(failure_type: FailureType | None) -> str:
+    """Return a reason string whose keywords match only the actual security failure type.
+
+    The reason must only contain keywords from _SECURITY_FAIL_REASONS in ncv_priority.py
+    when the failure genuinely warrants security_risk priority override. Retrieval anomaly
+    and other non-adversarial triggers must NOT produce a reason containing 'poisoning',
+    'prompt injection', 'suspicious content', or 'privacy' — otherwise _is_explicit_security_failure()
+    returns True for all security_risk warn/fail states regardless of actual failure type.
+    """
+    if failure_type in _SECURITY_REASON_BY_FAILURE_TYPE:
+        return _SECURITY_REASON_BY_FAILURE_TYPE[failure_type]
+    return "Security analyzer detected an anomalous signal."
 
 
 class NCVPipelineVerifier(BaseAnalyzer):
@@ -445,10 +466,9 @@ class NCVPipelineVerifier(BaseAnalyzer):
             evidence_reports_used.append("RetrievalDiagnosisReport")
             primary = diagnosis.primary_failure_type
             if primary == RetrievalFailureType.RETRIEVAL_NOISE:
-                status = NCVNodeStatus.FAIL if len(diagnosis.noisy_chunk_ids) >= max(2, len(run.retrieved_chunks)) else NCVNodeStatus.WARN
                 return self._node(
                     NCVNode.RETRIEVAL_PRECISION,
-                    status,
+                    NCVNodeStatus.FAIL,
                     "Retrieval diagnosis reports retrieval noise.",
                     signals=[self._signal("retrieval_primary_failure", primary.value, "RetrievalDiagnosisReport", diagnosis.noisy_chunk_ids, "Structured retrieval diagnosis found noisy chunks.")],
                     affected_chunk_ids=list(diagnosis.noisy_chunk_ids),
@@ -525,20 +545,6 @@ class NCVPipelineVerifier(BaseAnalyzer):
         fallback_heuristics_used: list[str],
         evidence_reports_used: list[str],
     ) -> NCVNodeResult:
-        profile = self._get_retrieval_evidence_profile(run, prior_results)
-        if profile is not None and profile.contradictory_pairs:
-            evidence_reports_used.append("RetrievalEvidenceProfile")
-            pair_ids = [item for pair in profile.contradictory_pairs for item in pair]
-            return self._node(
-                NCVNode.CONTEXT_ASSEMBLY,
-                NCVNodeStatus.FAIL,
-                "Retrieval evidence profile reports contradictory context pairs.",
-                signals=[self._signal("contradictory_pairs", len(profile.contradictory_pairs), "RetrievalEvidenceProfile", pair_ids, "Structured profile reports context contradictions.")],
-                affected_chunk_ids=self._unique(pair_ids),
-                recommended_fix=DEFAULT_REMEDIATIONS[FailureType.INCONSISTENT_CHUNKS],
-                method_type=NCVMethodType.EVIDENCE_AGGREGATION,
-            )
-
         inconsistency = self._get_result_by_failure_type(prior_results, FailureType.INCONSISTENT_CHUNKS)
         if inconsistency is not None and inconsistency.status in {"fail", "warn"}:
             evidence_reports_used.append(inconsistency.analyzer_name)
@@ -549,6 +555,21 @@ class NCVPipelineVerifier(BaseAnalyzer):
                 signals=[self._signal("inconsistent_chunks_result", inconsistency.status, inconsistency.analyzer_name, [], "Prior analyzer reported inconsistent retrieved chunks.")],
                 recommended_fix=inconsistency.remediation or DEFAULT_REMEDIATIONS[FailureType.INCONSISTENT_CHUNKS],
                 method_type=NCVMethodType.EVIDENCE_AGGREGATION,
+            )
+
+        profile = self._get_retrieval_evidence_profile(run, prior_results)
+        if profile is not None and profile.contradictory_pairs:
+            evidence_reports_used.append("RetrievalEvidenceProfile")
+            pair_ids = [item for pair in profile.contradictory_pairs for item in pair]
+            return self._node(
+                NCVNode.CONTEXT_ASSEMBLY,
+                NCVNodeStatus.WARN,
+                "Retrieval evidence profile reports possible contradictory context pairs.",
+                signals=[self._signal("contradictory_pairs", len(profile.contradictory_pairs), "RetrievalEvidenceProfile", pair_ids, "Structured profile reports context contradictions.")],
+                affected_chunk_ids=self._unique(pair_ids),
+                recommended_fix=DEFAULT_REMEDIATIONS[FailureType.INCONSISTENT_CHUNKS],
+                method_type=NCVMethodType.EVIDENCE_AGGREGATION,
+                limitations=["Contradictory pair detection is heuristic unless corroborated by a dedicated inconsistency analyzer."],
             )
 
         fallback_heuristics_used.append("jaccard_duplicate_or_negation_pair")
@@ -607,12 +628,25 @@ class NCVPipelineVerifier(BaseAnalyzer):
         evidence_reports_used: list[str],
     ) -> NCVNodeResult:
         report = self._get_version_validity_report(run, prior_results)
+        stale_result = self._get_result_by_name(prior_results, "StaleRetrievalAnalyzer")
         if report is None:
+            if stale_result is not None and stale_result.status in {"fail", "warn"}:
+                evidence_reports_used.append(stale_result.analyzer_name)
+                stale_docs = self._doc_ids_from_evidence(stale_result.evidence)
+                return self._node(
+                    NCVNode.VERSION_VALIDITY,
+                    NCVNodeStatus.FAIL if stale_result.status == "fail" else NCVNodeStatus.WARN,
+                    "Stale retrieval analyzer found stale source usage.",
+                    signals=[self._signal("stale_retrieval_result", stale_result.status, stale_result.analyzer_name, stale_docs, "Stale retrieval analyzer prior result was consumed.")],
+                    affected_doc_ids=stale_docs,
+                    recommended_fix=stale_result.remediation or DEFAULT_REMEDIATIONS[FailureType.STALE_RETRIEVAL],
+                    method_type=NCVMethodType.EVIDENCE_AGGREGATION,
+                )
             missing_reports.append("version_validity_report")
             return self._skip(NCVNode.VERSION_VALIDITY, "Version validity report is unavailable.")
 
         evidence_reports_used.append("VersionValidityReport")
-        invalid_cited = self._unique(report.expired_doc_ids + report.superseded_doc_ids + report.withdrawn_doc_ids + report.not_yet_effective_doc_ids + report.deprecated_doc_ids)
+        invalid_cited = self._unique(report.expired_doc_ids + report.superseded_doc_ids + report.withdrawn_doc_ids + report.not_yet_effective_doc_ids + report.deprecated_doc_ids + report.stale_doc_ids)
         invalid_cited = [doc_id for doc_id in invalid_cited if doc_id in set(run.cited_doc_ids or invalid_cited)]
         invalid_retrieved = self._unique(report.expired_doc_ids + report.superseded_doc_ids + report.withdrawn_doc_ids + report.not_yet_effective_doc_ids + report.deprecated_doc_ids)
         warning_docs = self._unique(report.metadata_missing_doc_ids + report.amended_doc_ids + [record.doc_id for record in report.document_records if record.validity_status in {DocumentValidityStatus.APPLICABILITY_UNKNOWN, DocumentValidityStatus.UNKNOWN}])
@@ -625,6 +659,19 @@ class NCVPipelineVerifier(BaseAnalyzer):
                 affected_doc_ids=invalid_cited,
                 affected_claim_ids=list(report.high_risk_claim_ids),
                 recommended_fix=DEFAULT_REMEDIATIONS[FailureType.STALE_RETRIEVAL],
+                method_type=NCVMethodType.EVIDENCE_AGGREGATION,
+                limitations=list(report.limitations),
+            )
+        if stale_result is not None and stale_result.status in {"fail", "warn"}:
+            evidence_reports_used.append(stale_result.analyzer_name)
+            stale_docs = self._unique(self._doc_ids_from_evidence(stale_result.evidence) + list(report.stale_doc_ids))
+            return self._node(
+                NCVNode.VERSION_VALIDITY,
+                NCVNodeStatus.FAIL if stale_result.status == "fail" else NCVNodeStatus.WARN,
+                "Stale retrieval analyzer found stale source usage.",
+                signals=[self._signal("stale_retrieval_result", stale_result.status, stale_result.analyzer_name, stale_docs, "Stale retrieval analyzer prior result was consumed.")],
+                affected_doc_ids=stale_docs,
+                recommended_fix=stale_result.remediation or DEFAULT_REMEDIATIONS[FailureType.STALE_RETRIEVAL],
                 method_type=NCVMethodType.EVIDENCE_AGGREGATION,
                 limitations=list(report.limitations),
             )
@@ -837,6 +884,17 @@ class NCVPipelineVerifier(BaseAnalyzer):
                     method_type=NCVMethodType.EVIDENCE_AGGREGATION,
                     limitations=list(report.limitations),
                 )
+            if probe is not None and probe.status in {"fail", "warn"}:
+                evidence_reports_used.append("CitationFaithfulnessProbe")
+                return self._node(
+                    NCVNode.CITATION_SUPPORT,
+                    NCVNodeStatus.FAIL if probe.status == "fail" else NCVNodeStatus.WARN,
+                    "CitationFaithfulnessProbe found citation support issues not surfaced as blocking in the aggregate report.",
+                    signals=[self._signal("citation_probe_status", probe.status, "CitationFaithfulnessProbe", [], "CitationFaithfulnessProbe prior result was consumed.")],
+                    recommended_fix=probe.remediation or DEFAULT_REMEDIATIONS[FailureType.CITATION_MISMATCH],
+                    method_type=NCVMethodType.EVIDENCE_AGGREGATION,
+                    limitations=list(report.limitations),
+                )
             return self._node(
                 NCVNode.CITATION_SUPPORT,
                 NCVNodeStatus.PASS,
@@ -934,10 +992,11 @@ class NCVPipelineVerifier(BaseAnalyzer):
         if risky:
             status = NCVNodeStatus.FAIL if any(result.status == "fail" for result in risky) else NCVNodeStatus.WARN
             result = risky[0]
+            reason = _security_risk_reason(result.failure_type)
             return self._node(
                 NCVNode.SECURITY_RISK,
                 status,
-                "Security analyzer reported prompt injection, suspicious content, poisoning, retrieval anomaly, or privacy risk.",
+                reason,
                 signals=[self._signal("security_result_status", result.status, result.analyzer_name, [], "Security analyzer status was consumed.")],
                 recommended_fix=result.remediation or DEFAULT_REMEDIATIONS.get(result.failure_type or FailureType.SUSPICIOUS_CHUNK),
                 method_type=NCVMethodType.EVIDENCE_AGGREGATION,
@@ -983,6 +1042,27 @@ class NCVPipelineVerifier(BaseAnalyzer):
                 "Not calibrated for production gating.",
             ],
         )
+
+        # Apply priority policy: select semantically correct first failing node.
+        policy = select_first_failing_node_v1(report)
+        if policy.changed and policy.selected_node is not None:
+            new_node = NCVNode(policy.selected_node)
+            report.original_first_failing_node = first_failing_node
+            report.priority_policy_decision = {
+                "changed": True,
+                "reason": policy.reason,
+                "original_node": policy.original_first_failing_node,
+                "selected_node": policy.selected_node,
+                "evidence_for_selection": policy.evidence_for_selection,
+            }
+            report.first_failing_node = new_node
+            report.downstream_failure_chain = self._downstream_chain(node_results, new_node)
+            policy_node_result = next(r for r in node_results if r.node == new_node)
+            report.bottleneck_description = (
+                f"Pipeline fails at {new_node.value}: {policy_node_result.primary_reason}"
+            )
+            first_failing_node = new_node
+
         evidence = [report.model_dump_json(), report.bottleneck_description]
 
         if first_failing_node is not None:
@@ -1160,16 +1240,20 @@ class NCVPipelineVerifier(BaseAnalyzer):
         security_failure_types = {
             FailureType.PROMPT_INJECTION,
             FailureType.SUSPICIOUS_CHUNK,
-            FailureType.RETRIEVAL_ANOMALY,
             FailureType.PRIVACY_VIOLATION,
         }
         return [
             result
             for result in prior_results
-            if result.stage == FailureStage.SECURITY
-            or result.security_risk not in {None, SecurityRisk.NONE}
-            or result.failure_type in security_failure_types
-            or any(token in result.analyzer_name.lower() for token in ("security", "injection", "poison", "privacy", "anomaly"))
+            if result.failure_type in security_failure_types
+            or (
+                result.stage == FailureStage.SECURITY
+                and result.failure_type in security_failure_types
+            )
+            or (
+                result.security_risk not in {None, SecurityRisk.NONE}
+                and result.failure_type in security_failure_types
+            )
         ]
 
     def _get_claim_verifier_provider(self, grounding: AnalyzerResult) -> str | None:
@@ -1217,6 +1301,17 @@ class NCVPipelineVerifier(BaseAnalyzer):
             chunk_ids.extend(getattr(claim, "candidate_chunk_ids", []) or [])
             chunk_ids.extend(getattr(claim, "contradicting_chunk_ids", []) or [])
         return self._unique(chunk_ids)
+
+    def _doc_ids_from_evidence(self, evidence: Iterable[str]) -> list[str]:
+        doc_ids: list[str] = []
+        for line in evidence:
+            if ": " not in line:
+                continue
+            _, value = line.split(": ", 1)
+            value = value.strip()
+            if value:
+                doc_ids.append(value)
+        return self._unique(doc_ids)
 
     def _parser_evidence_ids(self, finding: Any) -> list[str]:
         evidence = getattr(finding, "evidence", ()) or ()

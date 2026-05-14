@@ -1,0 +1,30 @@
+{
+  "case_id": "claim_support_finance_receipts",
+  "description": "The answer contradicts a finance policy despite sufficient retrieved context.",
+  "query": "Does the Atlas travel policy reimburse alcohol purchases?",
+  "retrieved_chunks": [
+    {
+      "chunk_id": "finance-claim-support-chunk-1",
+      "text": "The Atlas travel policy does not reimburse alcohol, tobacco, or personal entertainment expenses.",
+      "source_doc_id": "atlas-expense-doc-1",
+      "score": 0.9
+    }
+  ],
+  "final_answer": "Yes. The Atlas travel policy reimburses alcohol purchases if they are itemized on the meal receipt.",
+  "citations": [],
+  "cited_doc_ids": [],
+  "corpus_metadata": {
+    "query_date": "2026-05-01T00:00:00Z",
+    "entries": [
+      {
+        "doc_id": "atlas-expense-doc-1",
+        "text": "The Atlas travel policy does not reimburse alcohol, tobacco, or personal entertainment expenses.",
+        "timestamp": "2026-02-14T00:00:00Z",
+        "metadata": {
+          "status": "active"
+        }
+      }
+    ]
+  },
+  "parser_validation_profile": null
+}

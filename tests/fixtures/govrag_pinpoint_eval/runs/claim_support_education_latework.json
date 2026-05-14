@@ -1,0 +1,30 @@
+{
+  "case_id": "claim_support_education_latework",
+  "description": "The answer is both wrong and incomplete relative to the retrieved late-work rule.",
+  "query": "How many late days are allowed for the practicum report and under what condition?",
+  "retrieved_chunks": [
+    {
+      "chunk_id": "education-claim-support-chunk-1",
+      "text": "Students may use two late days for the practicum report only with prior instructor approval.",
+      "source_doc_id": "practicum-policy-doc-1",
+      "score": 0.88
+    }
+  ],
+  "final_answer": "Students can submit the practicum report late whenever needed.",
+  "citations": [],
+  "cited_doc_ids": [],
+  "corpus_metadata": {
+    "query_date": "2026-05-01T00:00:00Z",
+    "entries": [
+      {
+        "doc_id": "practicum-policy-doc-1",
+        "text": "Students may use two late days for the practicum report only with prior instructor approval.",
+        "timestamp": "2026-02-11T00:00:00Z",
+        "metadata": {
+          "status": "active"
+        }
+      }
+    ]
+  },
+  "parser_validation_profile": null
+}

@@ -1,0 +1,42 @@
+{
+  "case_id": "retrieval_noise_api_docs",
+  "description": "One relevant API timeout chunk is mixed with off-topic product and HR material.",
+  "query": "What is the default timeout for the Beacon API upload endpoint?",
+  "retrieved_chunks": [
+    {
+      "chunk_id": "beacon-timeout-chunk-1",
+      "text": "The Beacon API upload endpoint uses a default timeout of 30 seconds for a single file upload request.",
+      "source_doc_id": "beacon-api-doc-1",
+      "score": 0.56
+    },
+    {
+      "chunk_id": "beacon-timeout-chunk-2",
+      "text": "The Q3 roadmap adds a dark theme, a compact activity feed, and revised notification badges to the dashboard.",
+      "source_doc_id": "product-roadmap-doc-2",
+      "score": 0.52
+    },
+    {
+      "chunk_id": "beacon-timeout-chunk-3",
+      "text": "Employees accrue one personal day per month after the probation period and must request leave through the staff portal.",
+      "source_doc_id": "hr-policy-doc-3",
+      "score": 0.49
+    }
+  ],
+  "final_answer": "The Beacon API upload endpoint uses a default timeout of 30 seconds for a single file upload request.",
+  "citations": ["beacon-api-doc-1"],
+  "cited_doc_ids": ["beacon-api-doc-1"],
+  "corpus_metadata": {
+    "query_date": "2026-05-01T00:00:00Z",
+    "entries": [
+      {
+        "doc_id": "beacon-api-doc-1",
+        "text": "The Beacon API upload endpoint uses a default timeout of 30 seconds for a single file upload request.",
+        "timestamp": "2026-03-02T00:00:00Z",
+        "metadata": {
+          "status": "active"
+        }
+      }
+    ]
+  },
+  "parser_validation_profile": null
+}

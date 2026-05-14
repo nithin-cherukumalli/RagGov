@@ -1,0 +1,44 @@
+{
+  "case_id": "context_assembly_conflicting_policy_chunks",
+  "description": "Two retrieved policy chunks conflict directly about whether appeals are allowed after June 1.",
+  "query": "Can families appeal after June 1 in the Harbor rent assistance program?",
+  "retrieved_chunks": [
+    {
+      "chunk_id": "context-assembly-chunk-1",
+      "text": "Families may appeal after June 1 if the denial letter is less than 14 days old.",
+      "source_doc_id": "harbor-appeal-doc-1",
+      "score": 0.83
+    },
+    {
+      "chunk_id": "context-assembly-chunk-2",
+      "text": "Families may not appeal after June 1 under any circumstance.",
+      "source_doc_id": "harbor-appeal-doc-2",
+      "score": 0.82
+    }
+  ],
+  "final_answer": "Families may appeal after June 1 if the denial letter is less than 14 days old.",
+  "citations": [],
+  "cited_doc_ids": [],
+  "corpus_metadata": {
+    "query_date": "2026-05-01T00:00:00Z",
+    "entries": [
+      {
+        "doc_id": "harbor-appeal-doc-1",
+        "text": "Families may appeal after June 1 if the denial letter is less than 14 days old.",
+        "timestamp": "2026-03-09T00:00:00Z",
+        "metadata": {
+          "status": "active"
+        }
+      },
+      {
+        "doc_id": "harbor-appeal-doc-2",
+        "text": "Families may not appeal after June 1 under any circumstance.",
+        "timestamp": "2026-03-10T00:00:00Z",
+        "metadata": {
+          "status": "active"
+        }
+      }
+    ]
+  },
+  "parser_validation_profile": null
+}

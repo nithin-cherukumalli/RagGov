@@ -54,6 +54,25 @@ def run_with_doc(
     )
 
 
+def run_with_multiple_docs(
+    *,
+    query: str,
+    final_answer: str,
+    chunks: list[RetrievedChunk],
+    cited_doc_ids: list[str],
+    corpus_entries: list[CorpusEntry],
+) -> RAGRun:
+    return RAGRun(
+        run_id="run-version-pipeline-multi",
+        query=query,
+        retrieved_chunks=chunks,
+        final_answer=final_answer,
+        cited_doc_ids=cited_doc_ids,
+        corpus_entries=corpus_entries,
+        metadata={"query_date": "2026-05-02T00:00:00+00:00"},
+    )
+
+
 def test_version_validity_analyzer_is_importable() -> None:
     assert TemporalSourceValidityAnalyzerV1.__name__ == "TemporalSourceValidityAnalyzerV1"
     assert VersionValidityAnalyzerV1.__name__ == "VersionValidityAnalyzerV1"
@@ -156,11 +175,186 @@ def test_dependency_visibility_marks_retrieval_and_citation_reports() -> None:
     assert "explanation" in claim
 
 
-def test_version_validity_does_not_block_primary_diagnosis() -> None:
+def test_version_validity_can_select_stale_retrieval_for_invalid_source() -> None:
     diagnosis = diagnose(
         run_with_doc(metadata={"status": "withdrawn", "withdrawn_by_doc_ids": ["doc-2"]})
     )
 
     assert diagnosis.version_validity_report is not None
     assert "doc-1" in diagnosis.version_validity_report.withdrawn_doc_ids
+    assert diagnosis.primary_failure.name == "STALE_RETRIEVAL"
+
+
+def test_expired_cited_source_outranks_unsupported_claim() -> None:
+    diagnosis = diagnose(
+        run_with_multiple_docs(
+            query="What is the current policy?",
+            final_answer="Policy X is the current policy [doc-expired].",
+            chunks=[
+                RetrievedChunk(
+                    chunk_id="chunk-expired",
+                    text="Policy X (Expired 2021)",
+                    source_doc_id="doc-expired",
+                    score=0.9,
+                    metadata={},
+                )
+            ],
+            cited_doc_ids=["doc-expired"],
+            corpus_entries=[
+                CorpusEntry(
+                    doc_id="doc-expired",
+                    text="Policy X (Expired 2021)",
+                    timestamp=datetime(2021, 1, 1, tzinfo=UTC),
+                    metadata={"expiry_date": "2021-12-31"},
+                )
+            ],
+        )
+    )
+
+    assert diagnosis.primary_failure.name == "STALE_RETRIEVAL"
+    assert diagnosis.root_cause_stage.name == "RETRIEVAL"
+
+
+def test_withdrawn_cited_source_outranks_unsupported_claim() -> None:
+    diagnosis = diagnose(
+        run_with_multiple_docs(
+            query="Can I use tool A?",
+            final_answer="Yes, use Tool A [doc-withdrawn].",
+            chunks=[
+                RetrievedChunk(
+                    chunk_id="chunk-withdrawn",
+                    text="Tool A (Withdrawn due to safety)",
+                    source_doc_id="doc-withdrawn",
+                    score=0.9,
+                    metadata={},
+                )
+            ],
+            cited_doc_ids=["doc-withdrawn"],
+            corpus_entries=[
+                CorpusEntry(
+                    doc_id="doc-withdrawn",
+                    text="Tool A (Withdrawn due to safety)",
+                    timestamp=datetime(2025, 1, 1, tzinfo=UTC),
+                    metadata={"status": "withdrawn"},
+                )
+            ],
+        )
+    )
+
+    assert diagnosis.primary_failure.name == "STALE_RETRIEVAL"
+    assert diagnosis.root_cause_stage.name == "RETRIEVAL"
+
+
+def test_stale_retrieved_only_blocks_clean_when_retrieval_quality_affected() -> None:
+    diagnosis = diagnose(
+        run_with_multiple_docs(
+            query="Who is the CEO?",
+            final_answer="The CEO is Alice [doc-new].",
+            chunks=[
+                RetrievedChunk(
+                    chunk_id="chunk-old",
+                    text="Old CEO Bob (2010)",
+                    source_doc_id="doc-old",
+                    score=0.4,
+                    metadata={},
+                ),
+                RetrievedChunk(
+                    chunk_id="chunk-new",
+                    text="New CEO Alice (2024)",
+                    source_doc_id="doc-new",
+                    score=0.9,
+                    metadata={},
+                ),
+            ],
+            cited_doc_ids=["doc-new"],
+            corpus_entries=[
+                CorpusEntry(
+                    doc_id="doc-old",
+                    text="Old CEO Bob (2010)",
+                    timestamp=datetime(2010, 1, 1, tzinfo=UTC),
+                    metadata={},
+                ),
+                CorpusEntry(
+                    doc_id="doc-new",
+                    text="New CEO Alice (2024)",
+                    timestamp=datetime(2024, 1, 1, tzinfo=UTC),
+                    metadata={"status": "active"},
+                ),
+            ],
+        )
+    )
+
+    assert diagnosis.primary_failure.name == "STALE_RETRIEVAL"
+    assert diagnosis.root_cause_stage.name == "RETRIEVAL"
+
+
+def test_stale_irrelevant_source_does_not_primary_fail() -> None:
+    diagnosis = diagnose(
+        run_with_multiple_docs(
+            query="Who is the CEO?",
+            final_answer="The CEO is Alice [doc-ceo].",
+            chunks=[
+                RetrievedChunk(
+                    chunk_id="chunk-lease",
+                    text="Legacy office lease terms (2010)",
+                    source_doc_id="doc-lease",
+                    score=0.2,
+                    metadata={},
+                ),
+                RetrievedChunk(
+                    chunk_id="chunk-ceo",
+                    text="New CEO Alice (2024)",
+                    source_doc_id="doc-ceo",
+                    score=0.9,
+                    metadata={},
+                ),
+            ],
+            cited_doc_ids=["doc-ceo"],
+            corpus_entries=[
+                CorpusEntry(
+                    doc_id="doc-lease",
+                    text="Legacy office lease terms (2010)",
+                    timestamp=datetime(2010, 1, 1, tzinfo=UTC),
+                    metadata={},
+                ),
+                CorpusEntry(
+                    doc_id="doc-ceo",
+                    text="New CEO Alice (2024)",
+                    timestamp=datetime(2024, 1, 1, tzinfo=UTC),
+                    metadata={"status": "active"},
+                ),
+            ],
+        )
+    )
+
     assert diagnosis.primary_failure.name != "STALE_RETRIEVAL"
+
+
+def test_version_validity_decision_trace_explains_downstream_claim_failure() -> None:
+    diagnosis = diagnose(
+        run_with_multiple_docs(
+            query="What is the current policy?",
+            final_answer="Policy X is the current policy [doc-expired].",
+            chunks=[
+                RetrievedChunk(
+                    chunk_id="chunk-expired",
+                    text="Policy X (Expired 2021)",
+                    source_doc_id="doc-expired",
+                    score=0.9,
+                    metadata={},
+                )
+            ],
+            cited_doc_ids=["doc-expired"],
+            corpus_entries=[
+                CorpusEntry(
+                    doc_id="doc-expired",
+                    text="Policy X (Expired 2021)",
+                    timestamp=datetime(2021, 1, 1, tzinfo=UTC),
+                    metadata={"expiry_date": "2021-12-31"},
+                )
+            ],
+        )
+    )
+
+    assert diagnosis.diagnosis_decision_trace is not None
+    assert "downstream of invalid source lifecycle evidence" in diagnosis.diagnosis_decision_trace["selection_reason"]

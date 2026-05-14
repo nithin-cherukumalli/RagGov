@@ -12,20 +12,28 @@ from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
-# Matches dotted abbreviation chains like "G.O.Rt.No." that must not be sentence-split.
+# Matches dotted abbreviation chains like "v1.2." or "A.B.C." that must not be sentence-split.
 _ABBREV_CHAIN_RE = re.compile(r"^[A-Z](?:\.[A-Z0-9]\w*)+\.$")
 
 _SUBSTANTIVE_RE = re.compile(
-    r"\d"  # any digit: numbers, dates, amounts, percentages, GO numbers
+    r"\d"  # any digit: numbers, dates, amounts, percentages, versions, identifiers
     r"|\$|€|£|₹|%"  # currency/percentage symbols
-    r"|G\.O\b"  # Government Order prefix
-    r"|\b(?:must|shall|require(?:s|d)?|mandated?|prohibit(?:ed)?|exempt|approv(?:al|ed)|"
-    r"authoriz(?:ed)?|comply|compliance|permit(?:ted)?|regulations?|rules?|act|polic(?:y|ies)|"
-    r"circular|notification|order|deadline|threshold|applicable|effective|enforce(?:d)?|"
-    r"mandatory|optional|waive(?:r)?|gazette|refund(?:s|able)?|renewal(?:s)?|"
-    r"downgrade(?:s)?|credit(?:s)?|billing|subscriber(?:s)?)\b",
+    r"|\b(?:must|shall|should|can|may|require(?:s|d)?|mandated?|prohibit(?:ed)?|exempt|approv(?:al|ed)|"
+    r"authoriz(?:ed)?|allow(?:ed|s)?|eligib(?:le|ility)|current|won|started|provided|done|"
+    r"apply|applies|support(?:s|ed)?|deprecat(?:e|es|ed)?|carpet|blue|capital|benefits?|"
+    r"found(?:ed|er)?|headquarter(?:ed|s)?|manager|strategy|pillar|innovation|sustainability|"
+    r"customer|focus|visa|income|health|insurance|project|complete|finish|ahead|schedule|"
+    r"profit|revenue|expenses|grant|citizens?|salary|interest|account|"
+    r"smoking|race|team|cfo|ceo|comply|compliance|permit(?:ted)?|regulations?|rules?|act|polic(?:y|ies)|"
+    r"deadline|threshold|applicable|effective|enforce(?:d)?|"
+    r"mandatory|optional|waive(?:r)?|refund(?:s|able)?|renewal(?:s)?|"
+    r"downgrade(?:s)?|credit(?:s)?|billing|subscriber(?:s)?|version|sdk|api|guideline|"
+    r"dose|dosage|contraindicat(?:ion|ed)?|disclosure|manual|baseline|exception|"
+    r"procedure|step|caus(?:e|al|es)|compar(?:e|ed|ison)|higher|lower|increase|decrease)\b",
     re.IGNORECASE,
 )
+_SHORT_ENTITY_RE = re.compile(r"^[A-Z][A-Za-z0-9_.-]*(?:\s+[A-Z][A-Za-z0-9_.-]*){0,4}\.?$")
+_SHORT_ENTITY_PLACEHOLDERS = {"Answer", "Response", "Result"}
 
 
 class ExtractedClaim(BaseModel):
@@ -71,7 +79,14 @@ class ClaimExtractor:
 
     @staticmethod
     def _is_substantive(sentence: str) -> bool:
-        return _SUBSTANTIVE_RE.search(sentence) is not None
+        stripped = sentence.strip().rstrip(".")
+        return (
+            _SUBSTANTIVE_RE.search(sentence) is not None
+            or (
+                stripped not in _SHORT_ENTITY_PLACEHOLDERS
+                and _SHORT_ENTITY_RE.match(sentence.strip()) is not None
+            )
+        )
 
     @staticmethod
     def _merge_abbreviation_splits(fragments: list[str]) -> list[str]:
@@ -105,6 +120,12 @@ class ClaimExtractor:
             search_start = end_char
             
             substantive_matches = len(_SUBSTANTIVE_RE.findall(sentence))
+            stripped_sentence = sentence.strip().rstrip(".")
+            if (
+                stripped_sentence not in _SHORT_ENTITY_PLACEHOLDERS
+                and _SHORT_ENTITY_RE.match(sentence.strip())
+            ):
+                substantive_matches = max(substantive_matches, 1)
             conjunctions = len(re.findall(r"\b(?:and|or|but)\b", sentence, re.IGNORECASE))
             
             atomicity: Literal["atomic", "compound", "unclear"] = (
@@ -150,7 +171,7 @@ class ClaimExtractor:
             "- source_sentence (string): The original sentence it was derived from.\n"
             "- atomicity_status (string): Either 'atomic' or 'compound'.\n"
             "- should_verify (boolean): true if it contains facts, false if purely rhetorical.\n"
-            "Ensure you split compound statements, preserve dates/amounts/GO numbers, "
+            "Ensure you split compound statements, preserve dates, amounts, versions, identifiers, "
             "and do not invent facts. "
             f"\n\nAnswer: {answer}"
         )

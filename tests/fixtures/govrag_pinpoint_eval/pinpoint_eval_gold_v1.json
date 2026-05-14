@@ -1,0 +1,157 @@
+{
+  "evaluation_status": "pinpoint_eval_gold_v1_small_unvalidated",
+  "cases": [
+    {
+      "case_id": "clean_pass",
+      "description": "Supported answer should remain clean and have no pinpoint node.",
+      "run_fixture": "fixtures/clean_pass.json",
+      "engine_config": {
+        "mode": "native",
+        "enable_ncv": true,
+        "enable_a2p": true,
+        "use_llm": false
+      },
+      "expected": {
+        "primary_failure": "CLEAN",
+        "first_failing_node": null,
+        "root_cause": null,
+        "fix_category": "other",
+        "recommended_for_gating": false,
+        "calibration_status": "uncalibrated"
+      }
+    },
+    {
+      "case_id": "retrieval_miss",
+      "description": "Required evidence was not retrieved.",
+      "run_fixture": "fixtures/insufficient_context.json",
+      "engine_config": {
+        "mode": "native",
+        "enable_ncv": true,
+        "enable_a2p": true,
+        "use_llm": false
+      },
+      "expected": {
+        "primary_failure": "INSUFFICIENT_CONTEXT",
+        "first_failing_node": "retrieval_coverage",
+        "root_cause": "retrieval_coverage_gap",
+        "fix_category": "retrieval_recall",
+        "recommended_for_gating": false,
+        "calibration_status": "uncalibrated"
+      }
+    },
+    {
+      "case_id": "retrieval_noise",
+      "description": "Retrieved context contains irrelevant chunks that dilute useful evidence.",
+      "run_fixture": "tests/fixtures/govrag_evidence_30/retrieval_noise_policy.json",
+      "engine_config": {
+        "mode": "native",
+        "enable_ncv": true,
+        "enable_a2p": true,
+        "use_llm": false
+      },
+      "expected": {
+        "primary_failure": "RETRIEVAL_ANOMALY",
+        "first_failing_node": "retrieval_precision",
+        "root_cause": "retrieval_noise_or_query_context_mismatch",
+        "fix_category": "retrieval_precision",
+        "recommended_for_gating": false,
+        "calibration_status": "uncalibrated"
+      }
+    },
+    {
+      "case_id": "citation_mismatch",
+      "description": "The cited document does not support the answer claim.",
+      "run_fixture": "tests/fixtures/govrag_evidence_30/citation_mismatch_policy.json",
+      "engine_config": {
+        "mode": "native",
+        "enable_ncv": true,
+        "enable_a2p": true,
+        "use_llm": false
+      },
+      "expected": {
+        "primary_failure": "CITATION_MISMATCH",
+        "first_failing_node": "citation_support",
+        "root_cause": "citation_support_failure",
+        "fix_category": "citation_alignment",
+        "recommended_for_gating": false,
+        "calibration_status": "uncalibrated"
+      }
+    },
+    {
+      "case_id": "stale_source",
+      "description": "Answer relies on stale or superseded source material.",
+      "run_fixture": "tests/fixtures/govrag_evidence_30/stale_source_policy.json",
+      "engine_config": {
+        "mode": "native",
+        "enable_ncv": true,
+        "enable_a2p": true,
+        "use_llm": false
+      },
+      "expected": {
+        "primary_failure": "STALE_RETRIEVAL",
+        "first_failing_node": "version_validity",
+        "root_cause": "stale_or_invalid_source_usage",
+        "fix_category": "freshness",
+        "recommended_for_gating": false,
+        "calibration_status": "uncalibrated"
+      }
+    },
+    {
+      "case_id": "security_prompt_injection",
+      "description": "A retrieved chunk contains prompt injection instructions.",
+      "run_fixture": "tests/fixtures/govrag_evidence_30/prompt_injection_context.json",
+      "engine_config": {
+        "mode": "native",
+        "enable_ncv": true,
+        "enable_a2p": true,
+        "use_llm": false
+      },
+      "expected": {
+        "primary_failure": "PROMPT_INJECTION",
+        "first_failing_node": "security_risk",
+        "root_cause": "adversarial_or_unsafe_context",
+        "fix_category": "security",
+        "recommended_for_gating": false,
+        "calibration_status": "uncalibrated"
+      }
+    },
+    {
+      "case_id": "parser_damage",
+      "description": "Severe parser damage should surface as parser_validity.",
+      "run_fixture": "fixtures/parser_table_loss.json",
+      "engine_config": {
+        "mode": "native",
+        "enable_ncv": true,
+        "enable_a2p": true,
+        "use_llm": false
+      },
+      "expected": {
+        "primary_failure": "TABLE_STRUCTURE_LOSS",
+        "first_failing_node": "parser_validity",
+        "root_cause": "parser_or_ingestion_damage",
+        "fix_category": "parsing",
+        "recommended_for_gating": false,
+        "calibration_status": "uncalibrated"
+      }
+    },
+    {
+      "case_id": "unsupported_claim_with_context",
+      "description": "Partial context exists, but the needed evidence for key claims is still missing from retrieval.",
+      "run_fixture": "fixtures/unsupported_claims.json",
+      "engine_config": {
+        "mode": "native",
+        "enable_ncv": true,
+        "enable_a2p": true,
+        "use_llm": false
+      },
+      "expected": {
+        "primary_failure": "UNSUPPORTED_CLAIM",
+        "first_failing_node": "retrieval_coverage",
+        "root_cause": "retrieval_coverage_gap",
+        "fix_category": "retrieval_recall",
+        "recommended_for_gating": false,
+        "calibration_status": "uncalibrated"
+      }
+    }
+  ]
+}

@@ -28,6 +28,10 @@ from raggov.evaluators.base import (
     ExternalSignalRecord,
     ExternalSignalType,
 )
+from raggov.evaluators.readiness import (
+    ProviderReadiness,
+    package_version_or_none,
+)
 from raggov.models.run import RAGRun
 
 logger = logging.getLogger(__name__)
@@ -69,6 +73,7 @@ class CrossEncoderRetrievalRelevanceProvider:
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
         cfg = config or {}
+        self.config = cfg
         self._model_name: str = cfg.get("model_name", _DEFAULT_MODEL_NAME)
         self._top_k: int | None = cfg.get("top_k")
         self._batch_size: int = int(cfg.get("batch_size", _DEFAULT_BATCH_SIZE))
@@ -91,6 +96,97 @@ class CrossEncoderRetrievalRelevanceProvider:
             self._model is not None
             or "sentence_transformers" in sys.modules
             or importlib.util.find_spec("sentence_transformers") is not None
+            or self.config.get("cross_encoder_relevance_metric_results") is not None
+        )
+
+    def check_readiness(self) -> ProviderReadiness:
+        enabled = set(self.config.get("enabled_external_providers", [])) if hasattr(self, "config") else set()
+        if enabled and self.name not in enabled:
+            return ProviderReadiness(
+                provider_name=self.name,
+                available=False,
+                status="disabled",
+                reason_code="disabled",
+                reason="Provider is not enabled in the current configuration.",
+                fallback_provider="lexical_overlap_relevance",
+            )
+
+        # Check for mock results
+        if self.config.get("cross_encoder_relevance_metric_results") is not None:
+            return ProviderReadiness(
+                provider_name=self.name,
+                available=True,
+                status="available",
+                integration_maturity="mock_runner",
+                runtime_execution_available=True,
+                runtime_execution_reason="Using pre-configured metric results (mock mode).",
+                reason="Cross-encoder relevance provider is ready (mock mode)."
+            )
+
+        package_version = package_version_or_none("sentence-transformers")
+        if not self.is_available():
+            return ProviderReadiness(
+                provider_name=self.name,
+                available=False,
+                status="unavailable",
+                reason_code="package_missing",
+                reason="sentence-transformers could not be imported.",
+                install_hint="pip install sentence-transformers",
+                fallback_provider="lexical_overlap_relevance",
+                package_version=package_version,
+            )
+
+        model_name = self._model_name
+        if self._model is not None:
+            return ProviderReadiness(
+                provider_name=self.name,
+                available=True,
+                status="available",
+                requires_model_download=not self._allow_model_downloads,
+                safe_offline=True,
+                fallback_provider="lexical_overlap_relevance",
+                package_version=package_version,
+                reason=f"Cross-encoder model '{model_name}' is already loaded in memory.",
+                integration_maturity="native_library_runtime",
+                runtime_execution_available=True,
+                runtime_execution_reason="Native execution via sentence-transformers.",
+            )
+
+        cache_available = _cross_encoder_model_cached(model_name)
+        if not cache_available and not self._allow_model_downloads:
+            return ProviderReadiness(
+                provider_name=self.name,
+                available=False,
+                status="degraded",
+                reason_code="offline_resource_missing",
+                reason=f"Cross-encoder model '{model_name}' is not cached locally.",
+                config_hint="Pre-download the model or set allow_model_downloads=True for networked environments.",
+                requires_model_download=True,
+                safe_offline=False,
+                fallback_provider="lexical_overlap_relevance",
+                package_version=package_version,
+                integration_maturity="native_library_runtime",
+                runtime_execution_available=True,
+                runtime_execution_reason="Native execution via sentence-transformers.",
+            )
+
+        return ProviderReadiness(
+            provider_name=self.name,
+            available=True,
+            status="available",
+            requires_network=self._allow_model_downloads,
+            requires_model_download=not cache_available,
+            safe_offline=cache_available,
+            fallback_provider="lexical_overlap_relevance",
+            package_version=package_version,
+            reason=(
+                f"Cross-encoder model '{model_name}' is cached locally."
+                if cache_available
+                else f"Cross-encoder model '{model_name}' may require download on first use."
+            ),
+            integration_maturity="native_library_runtime",
+            runtime_execution_available=True,
+            runtime_execution_reason="Native execution via sentence-transformers.",
         )
 
     def evaluate(self, run: RAGRun) -> ExternalEvaluationResult:
@@ -118,6 +214,36 @@ class CrossEncoderRetrievalRelevanceProvider:
                 signals=[],
             )
         try:
+            # Check for mock results first
+            mock_results = self.config.get("cross_encoder_relevance_metric_results")
+            if mock_results is not None:
+                signals = []
+                # If mock_results is a list of scores, match them to chunks
+                if isinstance(mock_results, list):
+                    for i, score in enumerate(mock_results):
+                        if i < len(run.retrieved_chunks):
+                            signals.append(self._make_record(
+                                score, 
+                                run.retrieved_chunks[i].chunk_id, 
+                                run.retrieved_chunks[i].source_doc_id
+                            ))
+                # If it's a dict mapping chunk_id to score
+                elif isinstance(mock_results, dict):
+                    for chunk in run.retrieved_chunks:
+                        if chunk.chunk_id in mock_results:
+                            signals.append(self._make_record(
+                                mock_results[chunk.chunk_id],
+                                chunk.chunk_id,
+                                chunk.source_doc_id
+                            ))
+                
+                return ExternalEvaluationResult(
+                    provider=self.provider,
+                    succeeded=True,
+                    signals=signals,
+                    raw_payload={"mock_mode": True, "chunk_count": len(signals)},
+                )
+
             chunks = (
                 run.retrieved_chunks[: self._top_k]
                 if self._top_k is not None
@@ -295,3 +421,18 @@ class CrossEncoderRetrievalRelevanceProvider:
                 f"model={self._model_name}",
             ],
         )
+
+
+def _cross_encoder_model_cached(model_name: str) -> bool:
+    """Best-effort local cache probe without triggering downloads."""
+
+    try:
+        from huggingface_hub import try_to_load_from_cache
+    except Exception:
+        return False
+    cached = try_to_load_from_cache(
+        repo_id=model_name,
+        filename="config.json",
+        repo_type="model",
+    )
+    return bool(cached)

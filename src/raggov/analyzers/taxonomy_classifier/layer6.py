@@ -294,6 +294,17 @@ class Layer6TaxonomyClassifier(BaseAnalyzer):
                         severity=SEVERITY_MAP.get(result.failure_type, "MEDIUM"),
                     )
                 )
+            elif result.failure_type == FailureType.RETRIEVAL_ANOMALY:
+                failures.append(
+                    self._candidate(
+                        result,
+                        analyzer_weights,
+                        order,
+                        stage="RETRIEVAL",
+                        failure_mode="noisy_or_misranked_results",
+                        severity=SEVERITY_MAP.get(result.failure_type, "HIGH"),
+                    )
+                )
             elif result.failure_type == FailureType.INSUFFICIENT_CONTEXT:
                 if avg_score < 0.65:
                     failures.append(
@@ -497,10 +508,7 @@ class Layer6TaxonomyClassifier(BaseAnalyzer):
                         severity=SEVERITY_MAP.get(result.failure_type, "CRITICAL"),
                     )
                 )
-            elif result.failure_type in (
-                FailureType.SUSPICIOUS_CHUNK,
-                FailureType.RETRIEVAL_ANOMALY,
-            ):
+            elif result.failure_type == FailureType.SUSPICIOUS_CHUNK:
                 failures.append(
                     self._candidate(
                         result,

@@ -190,18 +190,23 @@ def test_calibrate_with_exact_minimum_samples() -> None:
         calibrator.add_sample(_sample(f"run-{i}"))
 
     intervals = calibrator.calibrate()
-    assert len(intervals) == 3
+    assert len(intervals) == 4
     assert all(isinstance(ci, ConfidenceInterval) for ci in intervals)
 
 
-def test_all_three_metrics_calibrated() -> None:
-    """Calibration should produce intervals for all three metrics."""
+def test_all_metrics_include_overall_confidence_interval() -> None:
+    """Calibration should produce metric intervals plus an overall confidence interval."""
     calibrator = _calibrator_with_samples(n_samples=50)
     intervals = calibrator.calibrate()
 
-    assert len(intervals) == 3
+    assert len(intervals) == 4
     metrics = {ci.metric for ci in intervals}
-    assert metrics == {"faithfulness", "retrieval_precision", "answer_correctness"}
+    assert metrics == {
+        "faithfulness",
+        "retrieval_precision",
+        "answer_correctness",
+        "overall_confidence",
+    }
 
 
 def test_confidence_interval_clamped_to_zero_one() -> None:
@@ -341,7 +346,7 @@ def test_cli_calibrate_command(tmp_path: Path) -> None:
 
         # Verify report content
         report = json.loads(Path("calibration_report.json").read_text())
-        assert len(report) == 3
+        assert len(report) == 4
         assert all("metric" in item for item in report)
 
 

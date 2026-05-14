@@ -117,7 +117,7 @@ def test_deterministic_mode_all_claims_supported() -> None:
     assert result.score is not None
     assert result.score == 0.0
     evidence_text = " ".join(result.evidence).lower()
-    assert "claim-label entropy" in evidence_text
+    assert "claim_label_entropy_proxy_v0" in evidence_text
     assert "low uncertainty" in evidence_text
 
 
@@ -155,7 +155,7 @@ def test_deterministic_mode_all_claims_unsupported() -> None:
     assert result.score is not None
     assert result.score == 0.0
     evidence_text = " ".join(result.evidence).lower()
-    assert "claim-label entropy" in evidence_text
+    assert "claim_label_entropy_proxy_v0" in evidence_text
     assert "low uncertainty" in evidence_text
 
 
@@ -205,7 +205,7 @@ def test_deterministic_mode_three_label_split_fails() -> None:
     assert result.score > 1.2
     evidence_text = " ".join(result.evidence).lower()
     assert "high uncertainty" in evidence_text
-    assert "claim-label entropy" in evidence_text
+    assert "claim_label_entropy_proxy_v0" in evidence_text
 
 
 def test_semantic_entropy_consumes_typed_claim_results_first() -> None:
@@ -226,7 +226,7 @@ def test_semantic_entropy_consumes_typed_claim_results_first() -> None:
     assert result.status == "warn"
     assert result.score is not None
     assert math.isclose(result.score, 1.0)
-    assert "claim-label entropy" in " ".join(result.evidence).lower()
+    assert "claim_label_entropy_proxy_v0" in " ".join(result.evidence).lower()
 
 
 def test_semantic_entropy_legacy_json_evidence_fallback_still_supported() -> None:
@@ -472,7 +472,7 @@ def test_no_claim_results_in_deterministic_mode() -> None:
     result = analyzer.analyze(test_run)
 
     assert result.status == "skip"
-    assert "claim-label entropy" in result.evidence[0].lower()
+    assert "claim_label_entropy_proxy_v0" in result.evidence[0].lower()
 
 
 def test_empty_chunks_handled_gracefully() -> None:

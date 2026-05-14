@@ -34,6 +34,10 @@ from raggov.evaluators.base import (
     ExternalSignalRecord,
     ExternalSignalType,
 )
+from raggov.evaluators.readiness import (
+    ProviderReadiness,
+    package_version_or_none,
+)
 from raggov.models.run import RAGRun
 
 
@@ -107,6 +111,139 @@ class RefCheckerClaimSignalProvider:
             return True
         except ImportError:
             return False
+
+    def check_readiness(self) -> ProviderReadiness:
+        enabled = set(self.config.get("enabled_external_providers", []))
+        if enabled and self.name not in enabled:
+            return ProviderReadiness(
+                provider_name=self.name,
+                available=False,
+                status="disabled",
+                reason_code="disabled",
+                reason="Provider is not enabled in the current configuration.",
+                fallback_provider="heuristic_claim_verifier",
+            )
+
+        package_version = package_version_or_none("refchecker")
+        try:
+            module = importlib.import_module("refchecker")
+        except ImportError:
+            return ProviderReadiness(
+                provider_name=self.name,
+                available=False,
+                status="unavailable",
+                reason_code="package_missing",
+                reason="RefChecker package/module could not be imported.",
+                install_hint="pip install refchecker",
+                fallback_provider="heuristic_claim_verifier",
+                package_version=package_version,
+            )
+        except Exception as exc:
+            return ProviderReadiness(
+                provider_name=self.name,
+                available=False,
+                status="unavailable",
+                reason_code="unknown_import_error",
+                reason=f"Unexpected RefChecker import error: {exc}",
+                install_hint='pip install "refchecker[open-extractor,repcex]"',
+                fallback_provider="heuristic_claim_verifier",
+                package_version=package_version,
+            )
+
+        try:
+            importlib.import_module("spacy")
+        except ImportError:
+            return ProviderReadiness(
+                provider_name=self.name,
+                available=False,
+                status="unavailable",
+                reason_code="spacy_missing",
+                reason="spaCy is required by the RefChecker adapter but is not installed.",
+                install_hint="pip install spacy",
+                fallback_provider="heuristic_claim_verifier",
+                package_version=package_version,
+            )
+
+        try:
+            importlib.import_module("en_core_web_sm")
+        except ImportError:
+            return ProviderReadiness(
+                provider_name=self.name,
+                available=False,
+                status="unavailable",
+                reason_code="spacy_model_missing",
+                reason="spaCy model en_core_web_sm is not installed.",
+                install_hint="python -m spacy download en_core_web_sm",
+                fallback_provider="heuristic_claim_verifier",
+                package_version=package_version,
+            )
+
+        required_attr = self.config.get("refchecker_required_attr")
+        if required_attr and not hasattr(module, required_attr):
+            return ProviderReadiness(
+                provider_name=self.name,
+                available=False,
+                status="unavailable",
+                reason_code="adapter_api_mismatch",
+                reason=f"Installed refchecker package does not expose required attribute '{required_attr}'.",
+                config_hint="Verify the installed refchecker package version matches the adapter expectations.",
+                fallback_provider="heuristic_claim_verifier",
+                package_version=package_version,
+            )
+
+        llm_mode = self.config.get("refchecker_mode") == "llm"
+        has_llm = bool(self.config.get("llm_client")) or bool(self.config.get("llm_fn"))
+        if llm_mode and not has_llm:
+            return ProviderReadiness(
+                provider_name=self.name,
+                available=False,
+                status="unavailable",
+                reason_code="llm_config_missing",
+                reason="RefChecker is configured for LLM-backed checking but no llm_client/llm_fn is configured.",
+                config_hint="Provide llm_client or llm_fn, or switch refchecker_mode away from llm.",
+                requires_network=True,
+                safe_offline=False,
+                fallback_provider="heuristic_claim_verifier",
+                package_version=package_version,
+            )
+
+        if self.config.get("refchecker_claim_metric_results") is not None or self.config.get("metric_results") is not None:
+            maturity = "mock_runner"
+            runtime_available = True
+            runtime_reason = "Using mock metric_results."
+        elif self.config.get("refchecker_claim_metric_runner") is not None or self.config.get("metric_runner") is not None or self.config.get("claim_runner") is not None:
+            maturity = "configured_runner"
+            runtime_available = True
+            runtime_reason = "Using user-configured runner."
+        else:
+            maturity = "schema_only"
+            runtime_available = False
+            runtime_reason = "No runner or mock results configured. Native runtime execution not implemented."
+
+        if not runtime_available:
+            return ProviderReadiness(
+                provider_name=self.name,
+                available=False,
+                status="degraded",
+                reason_code="runtime_execution_not_configured",
+                reason=runtime_reason,
+                fallback_provider="heuristic_claim_verifier",
+                package_version=package_version,
+                integration_maturity=maturity,
+                runtime_execution_available=runtime_available,
+                runtime_execution_reason=runtime_reason,
+            )
+
+        return ProviderReadiness(
+            provider_name=self.name,
+            available=True,
+            status="available",
+            fallback_provider="heuristic_claim_verifier",
+            package_version=package_version,
+            integration_maturity=maturity,
+            runtime_execution_available=runtime_available,
+            runtime_execution_reason=runtime_reason,
+        )
 
     def evaluate(self, run: RAGRun) -> ExternalEvaluationResult:
         """Evaluate RefChecker claim signals for the given RAGRun."""
@@ -182,10 +319,10 @@ class RefCheckerClaimSignalProvider:
         return signals
 
     def _metric_payload(self, run: RAGRun) -> dict[str, Any]:
-        runner = self.config.get("metric_runner")
+        runner = self.config.get("refchecker_claim_metric_runner") or self.config.get("metric_runner")
         if runner is not None:
             return dict(runner(run))
-        configured = self.config.get("metric_results")
+        configured = self.config.get("refchecker_claim_metric_results") or self.config.get("metric_results")
         if configured is not None:
             return dict(configured)
         return {}

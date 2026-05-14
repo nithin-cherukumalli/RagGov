@@ -1,0 +1,575 @@
+{
+  "evaluation_status": "pinpoint_eval_gold_v2_30_unvalidated",
+  "cases": [
+    {
+      "case_id": "clean_pass_smoke",
+      "description": "Supported answer remains clean with no pinpoint node.",
+      "run_fixture": "fixtures/clean_pass.json",
+      "engine_config": { "mode": "native", "enable_ncv": true, "enable_a2p": true, "use_llm": false },
+      "expected": {
+        "primary_failure": "CLEAN",
+        "first_failing_node": null,
+        "pinpoint_node": null,
+        "root_cause": null,
+        "fix_category": "other",
+        "secondary_nodes": [],
+        "affected_claim_ids": [],
+        "affected_doc_ids": [],
+        "human_review_required": false,
+        "recommended_for_gating": false,
+        "calibration_status": "uncalibrated"
+      }
+    },
+    {
+      "case_id": "clean_policy_general",
+      "description": "Policy answer is grounded and clean.",
+      "run_fixture": "tests/fixtures/govrag_evidence_30/clean_policy.json",
+      "engine_config": { "mode": "native", "enable_ncv": true, "enable_a2p": true, "use_llm": false },
+      "expected": {
+        "primary_failure": "CLEAN",
+        "first_failing_node": null,
+        "pinpoint_node": null,
+        "root_cause": null,
+        "fix_category": "other",
+        "secondary_nodes": [],
+        "affected_claim_ids": [],
+        "affected_doc_ids": [],
+        "human_review_required": false,
+        "recommended_for_gating": false,
+        "calibration_status": "uncalibrated"
+      }
+    },
+    {
+      "case_id": "clean_explanatory_no_claim",
+      "description": "Explanatory answer with no extractable factual claims should remain clean.",
+      "run_fixture": "tests/fixtures/govrag_evidence_30/no_claim_clean.json",
+      "engine_config": { "mode": "native", "enable_ncv": true, "enable_a2p": true, "use_llm": false },
+      "expected": {
+        "primary_failure": "CLEAN",
+        "first_failing_node": null,
+        "pinpoint_node": null,
+        "root_cause": null,
+        "fix_category": "other",
+        "secondary_nodes": [],
+        "affected_claim_ids": [],
+        "affected_doc_ids": [],
+        "human_review_required": false,
+        "recommended_for_gating": false,
+        "calibration_status": "uncalibrated"
+      }
+    },
+    {
+      "case_id": "parser_damage_table_policy",
+      "description": "Flattened table output should surface parser damage first.",
+      "run_fixture": "tests/fixtures/govrag_evidence_30/parser_damage_table.json",
+      "engine_config": { "mode": "native", "enable_ncv": true, "enable_a2p": true, "use_llm": false },
+      "expected": {
+        "primary_failure": "TABLE_STRUCTURE_LOSS",
+        "first_failing_node": "parser_validity",
+        "pinpoint_node": "parser_validity",
+        "root_cause": "parser_or_ingestion_damage",
+        "fix_category": "parsing",
+        "secondary_nodes": ["retrieval_coverage"],
+        "affected_claim_ids": [],
+        "affected_doc_ids": ["parser-table-doc-1"],
+        "human_review_required": true,
+        "recommended_for_gating": false,
+        "calibration_status": "uncalibrated"
+      }
+    },
+    {
+      "case_id": "parser_table_loss_smoke",
+      "description": "Table-aware chunking promise is violated in a smoke fixture.",
+      "run_fixture": "fixtures/parser_table_loss.json",
+      "engine_config": { "mode": "native", "enable_ncv": true, "enable_a2p": true, "use_llm": false },
+      "expected": {
+        "primary_failure": "TABLE_STRUCTURE_LOSS",
+        "first_failing_node": "parser_validity",
+        "pinpoint_node": "parser_validity",
+        "root_cause": "parser_or_ingestion_damage",
+        "fix_category": "parsing",
+        "secondary_nodes": [],
+        "affected_claim_ids": [],
+        "affected_doc_ids": ["parser-table-doc-1"],
+        "human_review_required": true,
+        "recommended_for_gating": false,
+        "calibration_status": "uncalibrated"
+      }
+    },
+    {
+      "case_id": "parser_hierarchy_loss_smoke",
+      "description": "Section hierarchy is collapsed into a flat chunk.",
+      "run_fixture": "fixtures/parser_hierarchy_loss.json",
+      "engine_config": { "mode": "native", "enable_ncv": true, "enable_a2p": true, "use_llm": false },
+      "expected": {
+        "primary_failure": "HIERARCHY_FLATTENING",
+        "first_failing_node": "parser_validity",
+        "pinpoint_node": "parser_validity",
+        "root_cause": "parser_or_ingestion_damage",
+        "fix_category": "parsing",
+        "secondary_nodes": ["context_assembly"],
+        "affected_claim_ids": [],
+        "affected_doc_ids": ["parser-hierarchy-doc-1"],
+        "human_review_required": true,
+        "recommended_for_gating": false,
+        "calibration_status": "uncalibrated"
+      }
+    },
+    {
+      "case_id": "retrieval_miss_smoke",
+      "description": "Required evidence is absent from retrieval in the smoke fixture.",
+      "run_fixture": "fixtures/insufficient_context.json",
+      "engine_config": { "mode": "native", "enable_ncv": true, "enable_a2p": true, "use_llm": false },
+      "expected": {
+        "primary_failure": "INSUFFICIENT_CONTEXT",
+        "first_failing_node": "retrieval_coverage",
+        "pinpoint_node": "retrieval_coverage",
+        "root_cause": "retrieval_coverage_gap",
+        "fix_category": "retrieval_recall",
+        "secondary_nodes": [],
+        "affected_claim_ids": [],
+        "affected_doc_ids": [],
+        "human_review_required": true,
+        "recommended_for_gating": false,
+        "calibration_status": "uncalibrated"
+      }
+    },
+    {
+      "case_id": "retrieval_miss_policy",
+      "description": "Historical answer needs evidence that was not retrieved.",
+      "run_fixture": "tests/fixtures/govrag_evidence_30/retrieval_miss_policy.json",
+      "engine_config": { "mode": "native", "enable_ncv": true, "enable_a2p": true, "use_llm": false },
+      "expected": {
+        "primary_failure": "INSUFFICIENT_CONTEXT",
+        "first_failing_node": "retrieval_coverage",
+        "pinpoint_node": "retrieval_coverage",
+        "root_cause": "retrieval_coverage_gap",
+        "fix_category": "retrieval_recall",
+        "secondary_nodes": [],
+        "affected_claim_ids": [],
+        "affected_doc_ids": [],
+        "human_review_required": true,
+        "recommended_for_gating": false,
+        "calibration_status": "uncalibrated"
+      }
+    },
+    {
+      "case_id": "retrieval_gap_historical_summary",
+      "description": "Retrieved context is partially relevant, but key strike facts are still missing.",
+      "run_fixture": "fixtures/unsupported_claims.json",
+      "engine_config": { "mode": "native", "enable_ncv": true, "enable_a2p": true, "use_llm": false },
+      "expected": {
+        "primary_failure": "UNSUPPORTED_CLAIM",
+        "first_failing_node": "retrieval_coverage",
+        "pinpoint_node": "retrieval_coverage",
+        "root_cause": "retrieval_coverage_gap",
+        "fix_category": "retrieval_recall",
+        "secondary_nodes": [],
+        "affected_claim_ids": [],
+        "affected_doc_ids": [],
+        "human_review_required": true,
+        "recommended_for_gating": false,
+        "calibration_status": "uncalibrated"
+      }
+    },
+    {
+      "case_id": "retrieval_gap_policy_specifics",
+      "description": "Answer introduces unsupported specifics because retrieval lacks the needed policy details.",
+      "run_fixture": "tests/fixtures/govrag_evidence_30/unsupported_claim_policy.json",
+      "engine_config": { "mode": "native", "enable_ncv": true, "enable_a2p": true, "use_llm": false },
+      "expected": {
+        "primary_failure": "UNSUPPORTED_CLAIM",
+        "first_failing_node": "retrieval_coverage",
+        "pinpoint_node": "retrieval_coverage",
+        "root_cause": "retrieval_coverage_gap",
+        "fix_category": "retrieval_recall",
+        "secondary_nodes": [],
+        "affected_claim_ids": [],
+        "affected_doc_ids": [],
+        "human_review_required": true,
+        "recommended_for_gating": false,
+        "calibration_status": "uncalibrated"
+      }
+    },
+    {
+      "case_id": "retrieval_noise_policy",
+      "description": "Noise dominates a refund-policy retrieval set.",
+      "run_fixture": "tests/fixtures/govrag_evidence_30/retrieval_noise_policy.json",
+      "engine_config": { "mode": "native", "enable_ncv": true, "enable_a2p": true, "use_llm": false },
+      "expected": {
+        "primary_failure": "RETRIEVAL_ANOMALY",
+        "first_failing_node": "retrieval_precision",
+        "pinpoint_node": "retrieval_precision",
+        "root_cause": "retrieval_noise_or_query_context_mismatch",
+        "fix_category": "retrieval_precision",
+        "secondary_nodes": [],
+        "affected_claim_ids": [],
+        "affected_doc_ids": [],
+        "human_review_required": true,
+        "recommended_for_gating": false,
+        "calibration_status": "uncalibrated"
+      }
+    },
+    {
+      "case_id": "retrieval_noise_api_docs",
+      "description": "API answer is supported but surrounded by unrelated dashboard and HR content.",
+      "run_fixture": "tests/fixtures/govrag_pinpoint_eval/runs/retrieval_noise_api_docs.json",
+      "engine_config": { "mode": "native", "enable_ncv": true, "enable_a2p": true, "use_llm": false },
+      "expected": {
+        "primary_failure": "RETRIEVAL_ANOMALY",
+        "first_failing_node": "retrieval_precision",
+        "pinpoint_node": "retrieval_precision",
+        "root_cause": "retrieval_noise_or_query_context_mismatch",
+        "fix_category": "retrieval_precision",
+        "secondary_nodes": [],
+        "affected_claim_ids": [],
+        "affected_doc_ids": [],
+        "human_review_required": true,
+        "recommended_for_gating": false,
+        "calibration_status": "uncalibrated"
+      }
+    },
+    {
+      "case_id": "retrieval_noise_school_policy",
+      "description": "Course refund answer is correct but the retrieval set is noisy.",
+      "run_fixture": "tests/fixtures/govrag_pinpoint_eval/runs/retrieval_noise_school_policy.json",
+      "engine_config": { "mode": "native", "enable_ncv": true, "enable_a2p": true, "use_llm": false },
+      "expected": {
+        "primary_failure": "RETRIEVAL_ANOMALY",
+        "first_failing_node": "retrieval_precision",
+        "pinpoint_node": "retrieval_precision",
+        "root_cause": "retrieval_noise_or_query_context_mismatch",
+        "fix_category": "retrieval_precision",
+        "secondary_nodes": [],
+        "affected_claim_ids": [],
+        "affected_doc_ids": [],
+        "human_review_required": true,
+        "recommended_for_gating": false,
+        "calibration_status": "uncalibrated"
+      }
+    },
+    {
+      "case_id": "retrieval_noise_finance_compliance",
+      "description": "Travel-policy answer is correct but retrieval precision is poor.",
+      "run_fixture": "tests/fixtures/govrag_pinpoint_eval/runs/retrieval_noise_finance_compliance.json",
+      "engine_config": { "mode": "native", "enable_ncv": true, "enable_a2p": true, "use_llm": false },
+      "expected": {
+        "primary_failure": "RETRIEVAL_ANOMALY",
+        "first_failing_node": "retrieval_precision",
+        "pinpoint_node": "retrieval_precision",
+        "root_cause": "retrieval_noise_or_query_context_mismatch",
+        "fix_category": "retrieval_precision",
+        "secondary_nodes": [],
+        "affected_claim_ids": [],
+        "affected_doc_ids": [],
+        "human_review_required": true,
+        "recommended_for_gating": false,
+        "calibration_status": "uncalibrated"
+      }
+    },
+    {
+      "case_id": "citation_mismatch_policy",
+      "description": "Refund answer is plausible, but the cited source is wrong.",
+      "run_fixture": "tests/fixtures/govrag_evidence_30/citation_mismatch_policy.json",
+      "engine_config": { "mode": "native", "enable_ncv": true, "enable_a2p": true, "use_llm": false },
+      "expected": {
+        "primary_failure": "CITATION_MISMATCH",
+        "first_failing_node": "citation_support",
+        "pinpoint_node": "citation_support",
+        "root_cause": "citation_support_failure",
+        "fix_category": "citation_alignment",
+        "secondary_nodes": [],
+        "affected_claim_ids": [],
+        "affected_doc_ids": ["helio-downgrade-doc-2"],
+        "human_review_required": true,
+        "recommended_for_gating": false,
+        "calibration_status": "uncalibrated"
+      }
+    },
+    {
+      "case_id": "citation_mismatch_health_faq",
+      "description": "Health guidance is grounded, but the answer cites a wellness FAQ.",
+      "run_fixture": "tests/fixtures/govrag_pinpoint_eval/runs/citation_mismatch_health_faq.json",
+      "engine_config": { "mode": "native", "enable_ncv": true, "enable_a2p": true, "use_llm": false },
+      "expected": {
+        "primary_failure": "CITATION_MISMATCH",
+        "first_failing_node": "citation_support",
+        "pinpoint_node": "citation_support",
+        "root_cause": "citation_support_failure",
+        "fix_category": "citation_alignment",
+        "secondary_nodes": [],
+        "affected_claim_ids": [],
+        "affected_doc_ids": ["wellness-faq-doc-2"],
+        "human_review_required": true,
+        "recommended_for_gating": false,
+        "calibration_status": "uncalibrated"
+      }
+    },
+    {
+      "case_id": "citation_mismatch_release_notes",
+      "description": "Release-note claim is correct, but the citation points at a UI note.",
+      "run_fixture": "tests/fixtures/govrag_pinpoint_eval/runs/citation_mismatch_release_notes.json",
+      "engine_config": { "mode": "native", "enable_ncv": true, "enable_a2p": true, "use_llm": false },
+      "expected": {
+        "primary_failure": "CITATION_MISMATCH",
+        "first_failing_node": "citation_support",
+        "pinpoint_node": "citation_support",
+        "root_cause": "citation_support_failure",
+        "fix_category": "citation_alignment",
+        "secondary_nodes": [],
+        "affected_claim_ids": [],
+        "affected_doc_ids": ["cloudport-ui-doc-2"],
+        "human_review_required": true,
+        "recommended_for_gating": false,
+        "calibration_status": "uncalibrated"
+      }
+    },
+    {
+      "case_id": "citation_mismatch_school_handbook",
+      "description": "School refund answer is supported, but the citation points at housing policy text.",
+      "run_fixture": "tests/fixtures/govrag_pinpoint_eval/runs/citation_mismatch_school_handbook.json",
+      "engine_config": { "mode": "native", "enable_ncv": true, "enable_a2p": true, "use_llm": false },
+      "expected": {
+        "primary_failure": "CITATION_MISMATCH",
+        "first_failing_node": "citation_support",
+        "pinpoint_node": "citation_support",
+        "root_cause": "citation_support_failure",
+        "fix_category": "citation_alignment",
+        "secondary_nodes": [],
+        "affected_claim_ids": [],
+        "affected_doc_ids": ["housing-policy-doc-2"],
+        "human_review_required": true,
+        "recommended_for_gating": false,
+        "calibration_status": "uncalibrated"
+      }
+    },
+    {
+      "case_id": "stale_source_sdk",
+      "description": "Legacy SDK guidance is cited even though it is stale.",
+      "run_fixture": "tests/fixtures/govrag_evidence_30/stale_source_policy.json",
+      "engine_config": { "mode": "native", "enable_ncv": true, "enable_a2p": true, "use_llm": false },
+      "expected": {
+        "primary_failure": "STALE_RETRIEVAL",
+        "first_failing_node": "version_validity",
+        "pinpoint_node": "version_validity",
+        "root_cause": "stale_or_invalid_source_usage",
+        "fix_category": "freshness",
+        "secondary_nodes": ["citation_support"],
+        "affected_claim_ids": [],
+        "affected_doc_ids": ["novaai-doc-legacy-streaming", "novaai-doc-legacy-client"],
+        "human_review_required": true,
+        "recommended_for_gating": false,
+        "calibration_status": "uncalibrated"
+      }
+    },
+    {
+      "case_id": "stale_source_smoke",
+      "description": "Legacy SDK smoke fixture should map to stale source usage.",
+      "run_fixture": "fixtures/stale_retrieval.json",
+      "engine_config": { "mode": "native", "enable_ncv": true, "enable_a2p": true, "use_llm": false },
+      "expected": {
+        "primary_failure": "STALE_RETRIEVAL",
+        "first_failing_node": "version_validity",
+        "pinpoint_node": "version_validity",
+        "root_cause": "stale_or_invalid_source_usage",
+        "fix_category": "freshness",
+        "secondary_nodes": [],
+        "affected_claim_ids": [],
+        "affected_doc_ids": ["novaai-doc-legacy-streaming", "novaai-doc-legacy-client", "novaai-doc-legacy-models"],
+        "human_review_required": true,
+        "recommended_for_gating": false,
+        "calibration_status": "uncalibrated"
+      }
+    },
+    {
+      "case_id": "stale_source_regulatory_notice",
+      "description": "Regulatory API enrollment answer relies on retired guidance.",
+      "run_fixture": "tests/fixtures/govrag_pinpoint_eval/runs/stale_source_regulatory_notice.json",
+      "engine_config": { "mode": "native", "enable_ncv": true, "enable_a2p": true, "use_llm": false },
+      "expected": {
+        "primary_failure": "STALE_RETRIEVAL",
+        "first_failing_node": "version_validity",
+        "pinpoint_node": "version_validity",
+        "root_cause": "stale_or_invalid_source_usage",
+        "fix_category": "freshness",
+        "secondary_nodes": ["citation_support"],
+        "affected_claim_ids": [],
+        "affected_doc_ids": ["deltatax-legacy-doc-1", "deltatax-legacy-doc-2"],
+        "human_review_required": true,
+        "recommended_for_gating": false,
+        "calibration_status": "uncalibrated"
+      }
+    },
+    {
+      "case_id": "claim_support_contradicted_policy",
+      "description": "The answer directly contradicts a clear policy rule.",
+      "run_fixture": "tests/fixtures/govrag_evidence_30/contradicted_claim_policy.json",
+      "engine_config": { "mode": "native", "enable_ncv": true, "enable_a2p": true, "use_llm": false },
+      "expected": {
+        "primary_failure": "CONTRADICTED_CLAIM",
+        "first_failing_node": "claim_support",
+        "pinpoint_node": "claim_support",
+        "root_cause": "generation_grounding_failure",
+        "fix_category": "generation_grounding",
+        "secondary_nodes": [],
+        "affected_claim_ids": [],
+        "affected_doc_ids": [],
+        "human_review_required": true,
+        "recommended_for_gating": false,
+        "calibration_status": "uncalibrated"
+      }
+    },
+    {
+      "case_id": "claim_support_finance_receipts",
+      "description": "A finance-policy answer invents reimbursement where the source forbids it.",
+      "run_fixture": "tests/fixtures/govrag_pinpoint_eval/runs/claim_support_finance_receipts.json",
+      "engine_config": { "mode": "native", "enable_ncv": true, "enable_a2p": true, "use_llm": false },
+      "expected": {
+        "primary_failure": "UNSUPPORTED_CLAIM",
+        "first_failing_node": "claim_support",
+        "pinpoint_node": "claim_support",
+        "root_cause": "generation_grounding_failure",
+        "fix_category": "generation_grounding",
+        "secondary_nodes": [],
+        "affected_claim_ids": [],
+        "affected_doc_ids": [],
+        "human_review_required": true,
+        "recommended_for_gating": false,
+        "calibration_status": "uncalibrated"
+      }
+    },
+    {
+      "case_id": "claim_support_medical_interval",
+      "description": "Medical interval answer conflicts with the retrieved dosing guidance.",
+      "run_fixture": "tests/fixtures/govrag_pinpoint_eval/runs/claim_support_medical_interval.json",
+      "engine_config": { "mode": "native", "enable_ncv": true, "enable_a2p": true, "use_llm": false },
+      "expected": {
+        "primary_failure": "UNSUPPORTED_CLAIM",
+        "first_failing_node": "claim_support",
+        "pinpoint_node": "claim_support",
+        "root_cause": "generation_grounding_failure",
+        "fix_category": "generation_grounding",
+        "secondary_nodes": [],
+        "affected_claim_ids": [],
+        "affected_doc_ids": [],
+        "human_review_required": true,
+        "recommended_for_gating": false,
+        "calibration_status": "uncalibrated"
+      }
+    },
+    {
+      "case_id": "claim_support_education_latework",
+      "description": "The answer is both wrong and incomplete relative to the late-work rule.",
+      "run_fixture": "tests/fixtures/govrag_pinpoint_eval/runs/claim_support_education_latework.json",
+      "engine_config": { "mode": "native", "enable_ncv": true, "enable_a2p": true, "use_llm": false },
+      "expected": {
+        "primary_failure": "UNSUPPORTED_CLAIM",
+        "first_failing_node": "claim_support",
+        "pinpoint_node": "claim_support",
+        "root_cause": "generation_grounding_failure",
+        "fix_category": "generation_grounding",
+        "secondary_nodes": ["answer_completeness"],
+        "affected_claim_ids": [],
+        "affected_doc_ids": [],
+        "human_review_required": true,
+        "recommended_for_gating": false,
+        "calibration_status": "uncalibrated"
+      }
+    },
+    {
+      "case_id": "security_prompt_injection_policy",
+      "description": "Prompt injection appears in retrieved context for a policy answer.",
+      "run_fixture": "tests/fixtures/govrag_evidence_30/prompt_injection_context.json",
+      "engine_config": { "mode": "native", "enable_ncv": true, "enable_a2p": true, "use_llm": false },
+      "expected": {
+        "primary_failure": "PROMPT_INJECTION",
+        "first_failing_node": "security_risk",
+        "pinpoint_node": "security_risk",
+        "root_cause": "adversarial_or_unsafe_context",
+        "fix_category": "security",
+        "secondary_nodes": [],
+        "affected_claim_ids": [],
+        "affected_doc_ids": [],
+        "human_review_required": true,
+        "recommended_for_gating": false,
+        "calibration_status": "uncalibrated"
+      }
+    },
+    {
+      "case_id": "security_prompt_injection_smoke",
+      "description": "Prompt injection smoke fixture should still surface security risk.",
+      "run_fixture": "fixtures/prompt_injection.json",
+      "engine_config": { "mode": "native", "enable_ncv": true, "enable_a2p": true, "use_llm": false },
+      "expected": {
+        "primary_failure": "PROMPT_INJECTION",
+        "first_failing_node": "security_risk",
+        "pinpoint_node": "security_risk",
+        "root_cause": "adversarial_or_unsafe_context",
+        "fix_category": "security",
+        "secondary_nodes": [],
+        "affected_claim_ids": [],
+        "affected_doc_ids": [],
+        "human_review_required": true,
+        "recommended_for_gating": false,
+        "calibration_status": "uncalibrated"
+      }
+    },
+    {
+      "case_id": "security_poisoned_pricing_note",
+      "description": "A poisoned pricing note steers the answer away from trusted product sources.",
+      "run_fixture": "fixtures/poisoned_chunk.json",
+      "engine_config": { "mode": "native", "enable_ncv": true, "enable_a2p": true, "use_llm": false },
+      "expected": {
+        "primary_failure": "SUSPICIOUS_CHUNK",
+        "first_failing_node": "security_risk",
+        "pinpoint_node": "security_risk",
+        "root_cause": "adversarial_or_unsafe_context",
+        "fix_category": "security",
+        "secondary_nodes": [],
+        "affected_claim_ids": [],
+        "affected_doc_ids": ["pricing-user-note-1"],
+        "human_review_required": true,
+        "recommended_for_gating": false,
+        "calibration_status": "uncalibrated"
+      }
+    },
+    {
+      "case_id": "context_assembly_conflicting_policy_chunks",
+      "description": "The retrieval set contains directly conflicting appeal rules.",
+      "run_fixture": "tests/fixtures/govrag_pinpoint_eval/runs/context_assembly_conflicting_policy_chunks.json",
+      "engine_config": { "mode": "native", "enable_ncv": true, "enable_a2p": true, "use_llm": false },
+      "expected": {
+        "primary_failure": "INCONSISTENT_CHUNKS",
+        "first_failing_node": "context_assembly",
+        "pinpoint_node": "context_assembly",
+        "root_cause": "conflicting_or_badly_assembled_context",
+        "fix_category": "retrieval_precision_or_reranking",
+        "secondary_nodes": [],
+        "affected_claim_ids": [],
+        "affected_doc_ids": ["harbor-appeal-doc-1", "harbor-appeal-doc-2"],
+        "human_review_required": true,
+        "recommended_for_gating": false,
+        "calibration_status": "uncalibrated"
+      }
+    },
+    {
+      "case_id": "answer_completeness_missing_deadline",
+      "description": "The answer omits the required date despite supported retrieved context.",
+      "run_fixture": "tests/fixtures/govrag_pinpoint_eval/runs/answer_completeness_missing_deadline.json",
+      "engine_config": { "mode": "native", "enable_ncv": true, "enable_a2p": true, "use_llm": false },
+      "expected": {
+        "primary_failure": "GENERATION_IGNORE",
+        "first_failing_node": "answer_completeness",
+        "pinpoint_node": "answer_completeness",
+        "root_cause": "answer_completeness_failure",
+        "fix_category": "answer_completeness",
+        "secondary_nodes": [],
+        "affected_claim_ids": [],
+        "affected_doc_ids": ["orion-grant-doc-1"],
+        "human_review_required": true,
+        "recommended_for_gating": false,
+        "calibration_status": "uncalibrated"
+      }
+    }
+  ]
+}

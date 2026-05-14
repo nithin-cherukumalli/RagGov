@@ -23,7 +23,6 @@ def _diagnosis(
         root_cause_stage=stage,
         should_have_answered=should_have_answered,
         security_risk=SecurityRisk.NONE,
-        confidence=None,
         recommended_fix="fix",
     )
 

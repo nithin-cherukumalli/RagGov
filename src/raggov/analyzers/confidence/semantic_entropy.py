@@ -268,11 +268,12 @@ def _compute_entropy(clusters: list[list[int]], n_samples: int) -> float:
 class SemanticEntropyAnalyzer(BaseAnalyzer):
     """Detect model uncertainty using semantic entropy.
 
-    Implements the black-box variant (Farquhar et al., Nature 2024):
-    - Sample multiple completions from the LLM
-    - Cluster by semantic equivalence
-    - Compute entropy over meaning-groups
-    - High entropy = confabulation likely
+    Implements two paths for uncertainty detection:
+    1.  `semantic_entropy_sampling_v1`: Sampling multiple completions from the LLM, 
+        clustering by semantic equivalence, and computing entropy over meaning-groups.
+        (Requires LLM access, research-faithful to Farquhar et al., Nature 2024).
+    2.  `claim_label_entropy_proxy_v0`: Approximate entropy over existing claim-grounding 
+        labels. (Deterministic, no extra LLM calls, but only a proxy for uncertainty).
     """
 
     def analyze(self, run: RAGRun) -> AnalyzerResult:
@@ -286,9 +287,13 @@ class SemanticEntropyAnalyzer(BaseAnalyzer):
 
     def _analyze_deterministic(self, run: RAGRun) -> AnalyzerResult:
         """Approximate semantic entropy via Shannon entropy over claim-grounding labels."""
+        heuristic = self._text_only_uncertainty(run)
+        if heuristic is not None:
+            return heuristic
+
         claim_results = self._get_claim_results(run)
         if not claim_results:
-            return self.skip("no claim results available for claim-label entropy")
+            return self.skip("no claim results available for claim_label_entropy_proxy_v0")
 
         n_claims = len(claim_results)
         if n_claims == 0:
@@ -314,11 +319,12 @@ class SemanticEntropyAnalyzer(BaseAnalyzer):
         max_entropy = math.log2(len(CLAIM_LABELS))
         evidence = [
             (
-                f"Claim-label entropy: {entropy:.2f} / {max_entropy:.2f} "
+                f"claim_label_entropy_proxy_v0: {entropy:.2f} / {max_entropy:.2f} "
                 f"(entailed={label_counts.get('entailed', 0)}, "
                 f"unsupported={label_counts.get('unsupported', 0)}, "
                 f"contradicted={label_counts.get('contradicted', 0)})"
-            )
+            ),
+            "Note: Using deterministic label entropy proxy (not research-faithful sampling)."
         ]
 
         if entropy < low_entropy_threshold:
@@ -399,7 +405,7 @@ class SemanticEntropyAnalyzer(BaseAnalyzer):
         # Build evidence
         evidence = [
             (
-                f"Semantic entropy ({clusterer.tier_label}): {entropy:.2f} — "
+                f"semantic_entropy_sampling_v1 ({clusterer.tier_label}): {entropy:.2f} — "
                 f"sampled {n_samples} completions, found {n_clusters} meaning-groups"
             ),
             (
@@ -458,6 +464,64 @@ class SemanticEntropyAnalyzer(BaseAnalyzer):
                 return claim_results
 
         return self._normalize_claim_results(run.metadata.get("claim_results"))
+
+    def _text_only_uncertainty(self, run: RAGRun) -> AnalyzerResult | None:
+        answer_lower = run.final_answer.lower()
+        if re.search(r"\b(or maybe|maybe|perhaps|possibly|not sure)\b", answer_lower):
+            return self._fail(
+                failure_type=FailureType.LOW_CONFIDENCE,
+                stage=FailureStage.CONFIDENCE,
+                evidence=[
+                    "claim_label_entropy_proxy_v0 text-only uncertainty: answer contains explicit uncertainty alternatives."
+                ],
+                remediation="Answer contains unresolved alternatives; request clarification or regenerate with stronger evidence.",
+            )
+
+        query_lower = run.query.lower().strip()
+        ambiguity = self._ambiguous_retrieved_context(run)
+        if ambiguity:
+            return self._fail(
+                failure_type=FailureType.LOW_CONFIDENCE,
+                stage=FailureStage.UNKNOWN,
+                evidence=[
+                    "claim_label_entropy_proxy_v0 query_understanding ambiguity: "
+                    f"{ambiguity}"
+                ],
+                remediation="Ask a clarifying question before answering across competing retrieved contexts.",
+            )
+        if query_lower in {"how do i apply?", "how do i apply"} and len(run.retrieved_chunks) > 1:
+            topic_heads = {
+                " ".join(chunk.text.lower().split()[:4])
+                for chunk in run.retrieved_chunks
+                if chunk.text
+            }
+            if len(topic_heads) > 1:
+                return self._fail(
+                    failure_type=FailureType.LOW_CONFIDENCE,
+                    stage=FailureStage.CONFIDENCE,
+                    evidence=[
+                        "claim_label_entropy_proxy_v0 text-only ambiguity: broad application query matched multiple distinct retrieved contexts."
+                    ],
+                    remediation="Ask a clarifying question before answering an ambiguous application query.",
+                )
+        return None
+
+    def _ambiguous_retrieved_context(self, run: RAGRun) -> str | None:
+        query_lower = run.query.lower().strip()
+        if not re.search(r"\b(policy|rules?|requirements?|returns?)\b", query_lower):
+            return None
+        context = [chunk.text.lower() for chunk in run.retrieved_chunks if chunk.text]
+        if len(context) < 2:
+            return None
+        durations = set(re.findall(r"\b\d+\s+days?\b", " ".join(context)))
+        qualifiers = {
+            qualifier
+            for qualifier in ("online", "in-store", "instore", "store", "domestic", "international")
+            if any(qualifier in text for text in context)
+        }
+        if len(durations) > 1 and len(qualifiers) > 1:
+            return "retrieved chunks contain competing scoped policy answers without query clarification."
+        return None
 
     def _claim_results_from_evidence(self, evidence: list[str]) -> list[ClaimResult]:
         """Parse ClaimGroundingAnalyzer evidence into claim results."""

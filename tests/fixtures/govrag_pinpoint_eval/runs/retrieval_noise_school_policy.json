@@ -1,0 +1,42 @@
+{
+  "case_id": "retrieval_noise_school_policy",
+  "description": "Refund answer is supported but surrounded by irrelevant campus operations chunks.",
+  "query": "What is the refund deadline for the evening lab course?",
+  "retrieved_chunks": [
+    {
+      "chunk_id": "evening-lab-refund-chunk-1",
+      "text": "Students may withdraw from the evening lab course for a full refund within 10 calendar days of enrollment.",
+      "source_doc_id": "evening-lab-policy-doc-1",
+      "score": 0.55
+    },
+    {
+      "chunk_id": "evening-lab-refund-chunk-2",
+      "text": "Parking permits for the east garage must be renewed by the first Friday of each term.",
+      "source_doc_id": "campus-parking-doc-2",
+      "score": 0.51
+    },
+    {
+      "chunk_id": "evening-lab-refund-chunk-3",
+      "text": "The student canteen offers extended service hours during the winter examination period.",
+      "source_doc_id": "canteen-hours-doc-3",
+      "score": 0.48
+    }
+  ],
+  "final_answer": "Students may withdraw from the evening lab course for a full refund within 10 calendar days of enrollment.",
+  "citations": ["evening-lab-policy-doc-1"],
+  "cited_doc_ids": ["evening-lab-policy-doc-1"],
+  "corpus_metadata": {
+    "query_date": "2026-05-01T00:00:00Z",
+    "entries": [
+      {
+        "doc_id": "evening-lab-policy-doc-1",
+        "text": "Students may withdraw from the evening lab course for a full refund within 10 calendar days of enrollment.",
+        "timestamp": "2026-02-18T00:00:00Z",
+        "metadata": {
+          "status": "active"
+        }
+      }
+    ]
+  },
+  "parser_validation_profile": null
+}

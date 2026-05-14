@@ -21,3 +21,9 @@ def test_non_policy_explanatory_text_can_remain_unchecked() -> None:
     claims = ClaimExtractor().extract(answer)
 
     assert claims == []
+
+
+def test_short_entity_answer_is_claim_worthy_for_citation_checks() -> None:
+    claims = ClaimExtractor().extract("Paris.")
+
+    assert claims == ["Paris."]

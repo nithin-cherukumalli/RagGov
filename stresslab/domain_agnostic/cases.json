@@ -1,0 +1,1346 @@
+[
+  {
+    "case_id": "software_docs_retrieval_miss",
+    "domain": "software_docs",
+    "query": "How do retries work in SDK version 2.4?",
+    "answer": "Retries are enabled by default in SDK version 2.4.",
+    "citations": [],
+    "expected_primary_failure": "INSUFFICIENT_CONTEXT",
+    "expected_stage": "RETRIEVAL",
+    "expected_first_failing_node": "retriever",
+    "expected_fix_category": "COVERAGE_EXPANSION",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": []
+  },
+  {
+    "case_id": "software_docs_retrieval_noise",
+    "domain": "software_docs",
+    "query": "How do retries work in SDK version 2.4?",
+    "answer": "Retries are enabled by default in SDK version 2.4.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "RETRIEVAL_ANOMALY",
+    "expected_stage": "RETRIEVAL",
+    "expected_first_failing_node": "ranker",
+    "expected_fix_category": "NOISE_FILTER",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "SDK version 2.4 retries timeout errors twice by default.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      },
+      {
+        "chunk_id": "c2",
+        "source_doc_id": "doc-noise",
+        "text": "Unrelated onboarding text with matching common terms but no answer evidence.",
+        "score": 0.88,
+        "metadata": {
+          "status": "current",
+          "noise": true
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "software_docs_unsupported_claim",
+    "domain": "software_docs",
+    "query": "How do retries work in SDK version 2.4?",
+    "answer": "Retries are enabled by default in SDK version 2.4. It also includes an unsupported premium exception.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "UNSUPPORTED_CLAIM",
+    "expected_stage": "GROUNDING",
+    "expected_first_failing_node": "claim_verifier",
+    "expected_fix_category": "SOURCE_VERIFICATION",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "SDK version 2.4 retries timeout errors twice by default.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "software_docs_contradicted_claim",
+    "domain": "software_docs",
+    "query": "How do retries work in SDK version 2.4?",
+    "answer": "Retries are enabled by default in SDK version 2.4.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "CONTRADICTED_CLAIM",
+    "expected_stage": "GROUNDING",
+    "expected_first_failing_node": "claim_verifier",
+    "expected_fix_category": "ANSWER_REWRITE",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "SDK version 2.4 disables retries by default.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "software_docs_citation_mismatch",
+    "domain": "software_docs",
+    "query": "How do retries work in SDK version 2.4?",
+    "answer": "Retries are enabled by default in SDK version 2.4.",
+    "citations": [
+      "missing-doc"
+    ],
+    "expected_primary_failure": "CITATION_MISMATCH",
+    "expected_stage": "GROUNDING",
+    "expected_first_failing_node": "citation_checker",
+    "expected_fix_category": "CITATION_REPAIR",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "SDK version 2.4 retries timeout errors twice by default.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "software_docs_stale_deprecated_source",
+    "domain": "software_docs",
+    "query": "How do retries work in SDK version 2.4?",
+    "answer": "Retries are enabled by default in SDK version 2.4.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "STALE_RETRIEVAL",
+    "expected_stage": "RETRIEVAL",
+    "expected_first_failing_node": "source_validity",
+    "expected_fix_category": "FRESHNESS_FILTER",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-stale",
+        "text": "SDK version 1.9 retry API is deprecated by sdk-v2.4.",
+        "score": 0.9,
+        "metadata": {
+          "status": "deprecated",
+          "deprecated_by": "doc-current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "software_docs_insufficient_context",
+    "domain": "software_docs",
+    "query": "How do retries work in SDK version 2.4?",
+    "answer": "Retries are enabled by default in SDK version 2.4.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "INSUFFICIENT_CONTEXT",
+    "expected_stage": "SUFFICIENCY",
+    "expected_first_failing_node": "sufficiency",
+    "expected_fix_category": "ABSTENTION_THRESHOLD",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "The retrieved context covers the default case but omits the requested condition.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "software_docs_incomplete_answer",
+    "domain": "software_docs",
+    "query": "How do retries work in SDK version 2.4?",
+    "answer": "The answer mentions the topic but omits the requested value, condition, or baseline.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "INSUFFICIENT_CONTEXT",
+    "expected_stage": "GENERATION",
+    "expected_first_failing_node": "answer_completeness",
+    "expected_fix_category": "ANSWER_COMPLETION",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "SDK version 2.4 retries timeout errors twice by default.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "software_docs_weak_grounding",
+    "domain": "software_docs",
+    "query": "How do retries work in SDK version 2.4?",
+    "answer": "Retries are enabled by default in SDK version 2.4.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "UNSUPPORTED_CLAIM",
+    "expected_stage": "GROUNDING",
+    "expected_first_failing_node": "grounding",
+    "expected_fix_category": "EVIDENCE_STRENGTHENING",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "The context is topically related but does not explicitly support the answer.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "healthcare_guideline_retrieval_miss",
+    "domain": "healthcare_guideline",
+    "query": "What dose applies if renal impairment is present?",
+    "answer": "The dose is 5 mg daily for renal impairment.",
+    "citations": [],
+    "expected_primary_failure": "INSUFFICIENT_CONTEXT",
+    "expected_stage": "RETRIEVAL",
+    "expected_first_failing_node": "retriever",
+    "expected_fix_category": "COVERAGE_EXPANSION",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": []
+  },
+  {
+    "case_id": "healthcare_guideline_retrieval_noise",
+    "domain": "healthcare_guideline",
+    "query": "What dose applies if renal impairment is present?",
+    "answer": "The dose is 5 mg daily for renal impairment.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "RETRIEVAL_ANOMALY",
+    "expected_stage": "RETRIEVAL",
+    "expected_first_failing_node": "ranker",
+    "expected_fix_category": "NOISE_FILTER",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "For renal impairment, the guideline recommends 2.5 mg daily.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      },
+      {
+        "chunk_id": "c2",
+        "source_doc_id": "doc-noise",
+        "text": "Unrelated onboarding text with matching common terms but no answer evidence.",
+        "score": 0.88,
+        "metadata": {
+          "status": "current",
+          "noise": true
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "healthcare_guideline_unsupported_claim",
+    "domain": "healthcare_guideline",
+    "query": "What dose applies if renal impairment is present?",
+    "answer": "The dose is 5 mg daily for renal impairment. It also includes an unsupported premium exception.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "UNSUPPORTED_CLAIM",
+    "expected_stage": "GROUNDING",
+    "expected_first_failing_node": "claim_verifier",
+    "expected_fix_category": "SOURCE_VERIFICATION",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "For renal impairment, the guideline recommends 2.5 mg daily.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "healthcare_guideline_contradicted_claim",
+    "domain": "healthcare_guideline",
+    "query": "What dose applies if renal impairment is present?",
+    "answer": "The dose is 5 mg daily for renal impairment.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "CONTRADICTED_CLAIM",
+    "expected_stage": "GROUNDING",
+    "expected_first_failing_node": "claim_verifier",
+    "expected_fix_category": "ANSWER_REWRITE",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "For renal impairment, 5 mg daily is contraindicated.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "healthcare_guideline_citation_mismatch",
+    "domain": "healthcare_guideline",
+    "query": "What dose applies if renal impairment is present?",
+    "answer": "The dose is 5 mg daily for renal impairment.",
+    "citations": [
+      "missing-doc"
+    ],
+    "expected_primary_failure": "CITATION_MISMATCH",
+    "expected_stage": "GROUNDING",
+    "expected_first_failing_node": "citation_checker",
+    "expected_fix_category": "CITATION_REPAIR",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "For renal impairment, the guideline recommends 2.5 mg daily.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "healthcare_guideline_stale_deprecated_source",
+    "domain": "healthcare_guideline",
+    "query": "What dose applies if renal impairment is present?",
+    "answer": "The dose is 5 mg daily for renal impairment.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "STALE_RETRIEVAL",
+    "expected_stage": "RETRIEVAL",
+    "expected_first_failing_node": "source_validity",
+    "expected_fix_category": "FRESHNESS_FILTER",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-stale",
+        "text": "The 2020 dosing guideline is superseded by guideline-2025.",
+        "score": 0.9,
+        "metadata": {
+          "status": "deprecated",
+          "deprecated_by": "doc-current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "healthcare_guideline_insufficient_context",
+    "domain": "healthcare_guideline",
+    "query": "What dose applies if renal impairment is present?",
+    "answer": "The dose is 5 mg daily for renal impairment.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "INSUFFICIENT_CONTEXT",
+    "expected_stage": "SUFFICIENCY",
+    "expected_first_failing_node": "sufficiency",
+    "expected_fix_category": "ABSTENTION_THRESHOLD",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "The retrieved context covers the default case but omits the requested condition.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "healthcare_guideline_incomplete_answer",
+    "domain": "healthcare_guideline",
+    "query": "What dose applies if renal impairment is present?",
+    "answer": "The answer mentions the topic but omits the requested value, condition, or baseline.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "INSUFFICIENT_CONTEXT",
+    "expected_stage": "GENERATION",
+    "expected_first_failing_node": "answer_completeness",
+    "expected_fix_category": "ANSWER_COMPLETION",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "For renal impairment, the guideline recommends 2.5 mg daily.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "healthcare_guideline_weak_grounding",
+    "domain": "healthcare_guideline",
+    "query": "What dose applies if renal impairment is present?",
+    "answer": "The dose is 5 mg daily for renal impairment.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "UNSUPPORTED_CLAIM",
+    "expected_stage": "GROUNDING",
+    "expected_first_failing_node": "grounding",
+    "expected_fix_category": "EVIDENCE_STRENGTHENING",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "The context is topically related but does not explicitly support the answer.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "finance_insurance_retrieval_miss",
+    "domain": "finance_insurance",
+    "query": "Which advisory fee applies after the 2026 effective date?",
+    "answer": "The advisory fee is 1.2% after the 2026 effective date.",
+    "citations": [],
+    "expected_primary_failure": "INSUFFICIENT_CONTEXT",
+    "expected_stage": "RETRIEVAL",
+    "expected_first_failing_node": "retriever",
+    "expected_fix_category": "COVERAGE_EXPANSION",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": []
+  },
+  {
+    "case_id": "finance_insurance_retrieval_noise",
+    "domain": "finance_insurance",
+    "query": "Which advisory fee applies after the 2026 effective date?",
+    "answer": "The advisory fee is 1.2% after the 2026 effective date.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "RETRIEVAL_ANOMALY",
+    "expected_stage": "RETRIEVAL",
+    "expected_first_failing_node": "ranker",
+    "expected_fix_category": "NOISE_FILTER",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "Effective 2026-01-01, the advisory fee is 1.2%.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      },
+      {
+        "chunk_id": "c2",
+        "source_doc_id": "doc-noise",
+        "text": "Unrelated onboarding text with matching common terms but no answer evidence.",
+        "score": 0.88,
+        "metadata": {
+          "status": "current",
+          "noise": true
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "finance_insurance_unsupported_claim",
+    "domain": "finance_insurance",
+    "query": "Which advisory fee applies after the 2026 effective date?",
+    "answer": "The advisory fee is 1.2% after the 2026 effective date. It also includes an unsupported premium exception.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "UNSUPPORTED_CLAIM",
+    "expected_stage": "GROUNDING",
+    "expected_first_failing_node": "claim_verifier",
+    "expected_fix_category": "SOURCE_VERIFICATION",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "Effective 2026-01-01, the advisory fee is 1.2%.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "finance_insurance_contradicted_claim",
+    "domain": "finance_insurance",
+    "query": "Which advisory fee applies after the 2026 effective date?",
+    "answer": "The advisory fee is 1.2% after the 2026 effective date.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "CONTRADICTED_CLAIM",
+    "expected_stage": "GROUNDING",
+    "expected_first_failing_node": "claim_verifier",
+    "expected_fix_category": "ANSWER_REWRITE",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "Effective 2026-01-01, the advisory fee is 0.8%.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "finance_insurance_citation_mismatch",
+    "domain": "finance_insurance",
+    "query": "Which advisory fee applies after the 2026 effective date?",
+    "answer": "The advisory fee is 1.2% after the 2026 effective date.",
+    "citations": [
+      "missing-doc"
+    ],
+    "expected_primary_failure": "CITATION_MISMATCH",
+    "expected_stage": "GROUNDING",
+    "expected_first_failing_node": "citation_checker",
+    "expected_fix_category": "CITATION_REPAIR",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "Effective 2026-01-01, the advisory fee is 1.2%.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "finance_insurance_stale_deprecated_source",
+    "domain": "finance_insurance",
+    "query": "Which advisory fee applies after the 2026 effective date?",
+    "answer": "The advisory fee is 1.2% after the 2026 effective date.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "STALE_RETRIEVAL",
+    "expected_stage": "RETRIEVAL",
+    "expected_first_failing_node": "source_validity",
+    "expected_fix_category": "FRESHNESS_FILTER",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-stale",
+        "text": "The 2024 advisory disclosure expired 2025.",
+        "score": 0.9,
+        "metadata": {
+          "status": "deprecated",
+          "deprecated_by": "doc-current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "finance_insurance_insufficient_context",
+    "domain": "finance_insurance",
+    "query": "Which advisory fee applies after the 2026 effective date?",
+    "answer": "The advisory fee is 1.2% after the 2026 effective date.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "INSUFFICIENT_CONTEXT",
+    "expected_stage": "SUFFICIENCY",
+    "expected_first_failing_node": "sufficiency",
+    "expected_fix_category": "ABSTENTION_THRESHOLD",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "The retrieved context covers the default case but omits the requested condition.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "finance_insurance_incomplete_answer",
+    "domain": "finance_insurance",
+    "query": "Which advisory fee applies after the 2026 effective date?",
+    "answer": "The answer mentions the topic but omits the requested value, condition, or baseline.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "INSUFFICIENT_CONTEXT",
+    "expected_stage": "GENERATION",
+    "expected_first_failing_node": "answer_completeness",
+    "expected_fix_category": "ANSWER_COMPLETION",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "Effective 2026-01-01, the advisory fee is 1.2%.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "finance_insurance_weak_grounding",
+    "domain": "finance_insurance",
+    "query": "Which advisory fee applies after the 2026 effective date?",
+    "answer": "The advisory fee is 1.2% after the 2026 effective date.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "UNSUPPORTED_CLAIM",
+    "expected_stage": "GROUNDING",
+    "expected_first_failing_node": "grounding",
+    "expected_fix_category": "EVIDENCE_STRENGTHENING",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "The context is topically related but does not explicitly support the answer.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "product_manual_support_retrieval_miss",
+    "domain": "product_manual_support",
+    "query": "Can every filter be washed?",
+    "answer": "Every filter can be washed monthly.",
+    "citations": [],
+    "expected_primary_failure": "INSUFFICIENT_CONTEXT",
+    "expected_stage": "RETRIEVAL",
+    "expected_first_failing_node": "retriever",
+    "expected_fix_category": "COVERAGE_EXPANSION",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": []
+  },
+  {
+    "case_id": "product_manual_support_retrieval_noise",
+    "domain": "product_manual_support",
+    "query": "Can every filter be washed?",
+    "answer": "Every filter can be washed monthly.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "RETRIEVAL_ANOMALY",
+    "expected_stage": "RETRIEVAL",
+    "expected_first_failing_node": "ranker",
+    "expected_fix_category": "NOISE_FILTER",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "Only the washable pre-filter can be rinsed monthly.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      },
+      {
+        "chunk_id": "c2",
+        "source_doc_id": "doc-noise",
+        "text": "Unrelated onboarding text with matching common terms but no answer evidence.",
+        "score": 0.88,
+        "metadata": {
+          "status": "current",
+          "noise": true
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "product_manual_support_unsupported_claim",
+    "domain": "product_manual_support",
+    "query": "Can every filter be washed?",
+    "answer": "Every filter can be washed monthly. It also includes an unsupported premium exception.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "UNSUPPORTED_CLAIM",
+    "expected_stage": "GROUNDING",
+    "expected_first_failing_node": "claim_verifier",
+    "expected_fix_category": "SOURCE_VERIFICATION",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "Only the washable pre-filter can be rinsed monthly.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "product_manual_support_contradicted_claim",
+    "domain": "product_manual_support",
+    "query": "Can every filter be washed?",
+    "answer": "Every filter can be washed monthly.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "CONTRADICTED_CLAIM",
+    "expected_stage": "GROUNDING",
+    "expected_first_failing_node": "claim_verifier",
+    "expected_fix_category": "ANSWER_REWRITE",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "The HEPA filter must not be washed.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "product_manual_support_citation_mismatch",
+    "domain": "product_manual_support",
+    "query": "Can every filter be washed?",
+    "answer": "Every filter can be washed monthly.",
+    "citations": [
+      "missing-doc"
+    ],
+    "expected_primary_failure": "CITATION_MISMATCH",
+    "expected_stage": "GROUNDING",
+    "expected_first_failing_node": "citation_checker",
+    "expected_fix_category": "CITATION_REPAIR",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "Only the washable pre-filter can be rinsed monthly.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "product_manual_support_stale_deprecated_source",
+    "domain": "product_manual_support",
+    "query": "Can every filter be washed?",
+    "answer": "Every filter can be washed monthly.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "STALE_RETRIEVAL",
+    "expected_stage": "RETRIEVAL",
+    "expected_first_failing_node": "source_validity",
+    "expected_fix_category": "FRESHNESS_FILTER",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-stale",
+        "text": "Manual version 1.0 is replaced by manual-v2.",
+        "score": 0.9,
+        "metadata": {
+          "status": "deprecated",
+          "deprecated_by": "doc-current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "product_manual_support_insufficient_context",
+    "domain": "product_manual_support",
+    "query": "Can every filter be washed?",
+    "answer": "Every filter can be washed monthly.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "INSUFFICIENT_CONTEXT",
+    "expected_stage": "SUFFICIENCY",
+    "expected_first_failing_node": "sufficiency",
+    "expected_fix_category": "ABSTENTION_THRESHOLD",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "The retrieved context covers the default case but omits the requested condition.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "product_manual_support_incomplete_answer",
+    "domain": "product_manual_support",
+    "query": "Can every filter be washed?",
+    "answer": "The answer mentions the topic but omits the requested value, condition, or baseline.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "INSUFFICIENT_CONTEXT",
+    "expected_stage": "GENERATION",
+    "expected_first_failing_node": "answer_completeness",
+    "expected_fix_category": "ANSWER_COMPLETION",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "Only the washable pre-filter can be rinsed monthly.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "product_manual_support_weak_grounding",
+    "domain": "product_manual_support",
+    "query": "Can every filter be washed?",
+    "answer": "Every filter can be washed monthly.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "UNSUPPORTED_CLAIM",
+    "expected_stage": "GROUNDING",
+    "expected_first_failing_node": "grounding",
+    "expected_fix_category": "EVIDENCE_STRENGTHENING",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "The context is topically related but does not explicitly support the answer.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "scientific_paper_retrieval_miss",
+    "domain": "scientific_paper",
+    "query": "How much did treatment improve outcomes compared with placebo?",
+    "answer": "Treatment improved outcomes by 12% compared with placebo.",
+    "citations": [],
+    "expected_primary_failure": "INSUFFICIENT_CONTEXT",
+    "expected_stage": "RETRIEVAL",
+    "expected_first_failing_node": "retriever",
+    "expected_fix_category": "COVERAGE_EXPANSION",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": []
+  },
+  {
+    "case_id": "scientific_paper_retrieval_noise",
+    "domain": "scientific_paper",
+    "query": "How much did treatment improve outcomes compared with placebo?",
+    "answer": "Treatment improved outcomes by 12% compared with placebo.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "RETRIEVAL_ANOMALY",
+    "expected_stage": "RETRIEVAL",
+    "expected_first_failing_node": "ranker",
+    "expected_fix_category": "NOISE_FILTER",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "Treatment improved outcomes by 12% compared with placebo in the randomized trial.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      },
+      {
+        "chunk_id": "c2",
+        "source_doc_id": "doc-noise",
+        "text": "Unrelated onboarding text with matching common terms but no answer evidence.",
+        "score": 0.88,
+        "metadata": {
+          "status": "current",
+          "noise": true
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "scientific_paper_unsupported_claim",
+    "domain": "scientific_paper",
+    "query": "How much did treatment improve outcomes compared with placebo?",
+    "answer": "Treatment improved outcomes by 12% compared with placebo. It also includes an unsupported premium exception.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "UNSUPPORTED_CLAIM",
+    "expected_stage": "GROUNDING",
+    "expected_first_failing_node": "claim_verifier",
+    "expected_fix_category": "SOURCE_VERIFICATION",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "Treatment improved outcomes by 12% compared with placebo in the randomized trial.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "scientific_paper_contradicted_claim",
+    "domain": "scientific_paper",
+    "query": "How much did treatment improve outcomes compared with placebo?",
+    "answer": "Treatment improved outcomes by 12% compared with placebo.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "CONTRADICTED_CLAIM",
+    "expected_stage": "GROUNDING",
+    "expected_first_failing_node": "claim_verifier",
+    "expected_fix_category": "ANSWER_REWRITE",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "Treatment improved outcomes by 3% compared with placebo in the randomized trial.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "scientific_paper_citation_mismatch",
+    "domain": "scientific_paper",
+    "query": "How much did treatment improve outcomes compared with placebo?",
+    "answer": "Treatment improved outcomes by 12% compared with placebo.",
+    "citations": [
+      "missing-doc"
+    ],
+    "expected_primary_failure": "CITATION_MISMATCH",
+    "expected_stage": "GROUNDING",
+    "expected_first_failing_node": "citation_checker",
+    "expected_fix_category": "CITATION_REPAIR",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "Treatment improved outcomes by 12% compared with placebo in the randomized trial.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "scientific_paper_stale_deprecated_source",
+    "domain": "scientific_paper",
+    "query": "How much did treatment improve outcomes compared with placebo?",
+    "answer": "Treatment improved outcomes by 12% compared with placebo.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "STALE_RETRIEVAL",
+    "expected_stage": "RETRIEVAL",
+    "expected_first_failing_node": "source_validity",
+    "expected_fix_category": "FRESHNESS_FILTER",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-stale",
+        "text": "The preprint draft was withdrawn before peer review.",
+        "score": 0.9,
+        "metadata": {
+          "status": "deprecated",
+          "deprecated_by": "doc-current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "scientific_paper_insufficient_context",
+    "domain": "scientific_paper",
+    "query": "How much did treatment improve outcomes compared with placebo?",
+    "answer": "Treatment improved outcomes by 12% compared with placebo.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "INSUFFICIENT_CONTEXT",
+    "expected_stage": "SUFFICIENCY",
+    "expected_first_failing_node": "sufficiency",
+    "expected_fix_category": "ABSTENTION_THRESHOLD",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "The retrieved context covers the default case but omits the requested condition.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "scientific_paper_incomplete_answer",
+    "domain": "scientific_paper",
+    "query": "How much did treatment improve outcomes compared with placebo?",
+    "answer": "The answer mentions the topic but omits the requested value, condition, or baseline.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "INSUFFICIENT_CONTEXT",
+    "expected_stage": "GENERATION",
+    "expected_first_failing_node": "answer_completeness",
+    "expected_fix_category": "ANSWER_COMPLETION",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "Treatment improved outcomes by 12% compared with placebo in the randomized trial.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "scientific_paper_weak_grounding",
+    "domain": "scientific_paper",
+    "query": "How much did treatment improve outcomes compared with placebo?",
+    "answer": "Treatment improved outcomes by 12% compared with placebo.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "UNSUPPORTED_CLAIM",
+    "expected_stage": "GROUNDING",
+    "expected_first_failing_node": "grounding",
+    "expected_fix_category": "EVIDENCE_STRENGTHENING",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "The context is topically related but does not explicitly support the answer.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "enterprise_kb_retrieval_miss",
+    "domain": "enterprise_kb",
+    "query": "When should support escalate priority incidents?",
+    "answer": "Support should escalate priority incidents after 30 minutes.",
+    "citations": [],
+    "expected_primary_failure": "INSUFFICIENT_CONTEXT",
+    "expected_stage": "RETRIEVAL",
+    "expected_first_failing_node": "retriever",
+    "expected_fix_category": "COVERAGE_EXPANSION",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": []
+  },
+  {
+    "case_id": "enterprise_kb_retrieval_noise",
+    "domain": "enterprise_kb",
+    "query": "When should support escalate priority incidents?",
+    "answer": "Support should escalate priority incidents after 30 minutes.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "RETRIEVAL_ANOMALY",
+    "expected_stage": "RETRIEVAL",
+    "expected_first_failing_node": "ranker",
+    "expected_fix_category": "NOISE_FILTER",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "Priority incidents must be escalated after 30 minutes without owner assignment.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      },
+      {
+        "chunk_id": "c2",
+        "source_doc_id": "doc-noise",
+        "text": "Unrelated onboarding text with matching common terms but no answer evidence.",
+        "score": 0.88,
+        "metadata": {
+          "status": "current",
+          "noise": true
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "enterprise_kb_unsupported_claim",
+    "domain": "enterprise_kb",
+    "query": "When should support escalate priority incidents?",
+    "answer": "Support should escalate priority incidents after 30 minutes. It also includes an unsupported premium exception.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "UNSUPPORTED_CLAIM",
+    "expected_stage": "GROUNDING",
+    "expected_first_failing_node": "claim_verifier",
+    "expected_fix_category": "SOURCE_VERIFICATION",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "Priority incidents must be escalated after 30 minutes without owner assignment.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "enterprise_kb_contradicted_claim",
+    "domain": "enterprise_kb",
+    "query": "When should support escalate priority incidents?",
+    "answer": "Support should escalate priority incidents after 30 minutes.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "CONTRADICTED_CLAIM",
+    "expected_stage": "GROUNDING",
+    "expected_first_failing_node": "claim_verifier",
+    "expected_fix_category": "ANSWER_REWRITE",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "Priority incidents must be escalated after 10 minutes without owner assignment.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "enterprise_kb_citation_mismatch",
+    "domain": "enterprise_kb",
+    "query": "When should support escalate priority incidents?",
+    "answer": "Support should escalate priority incidents after 30 minutes.",
+    "citations": [
+      "missing-doc"
+    ],
+    "expected_primary_failure": "CITATION_MISMATCH",
+    "expected_stage": "GROUNDING",
+    "expected_first_failing_node": "citation_checker",
+    "expected_fix_category": "CITATION_REPAIR",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "Priority incidents must be escalated after 30 minutes without owner assignment.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "enterprise_kb_stale_deprecated_source",
+    "domain": "enterprise_kb",
+    "query": "When should support escalate priority incidents?",
+    "answer": "Support should escalate priority incidents after 30 minutes.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "STALE_RETRIEVAL",
+    "expected_stage": "RETRIEVAL",
+    "expected_first_failing_node": "source_validity",
+    "expected_fix_category": "FRESHNESS_FILTER",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-stale",
+        "text": "The escalation KB article is deprecated by kb-2026-incident-flow.",
+        "score": 0.9,
+        "metadata": {
+          "status": "deprecated",
+          "deprecated_by": "doc-current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "enterprise_kb_insufficient_context",
+    "domain": "enterprise_kb",
+    "query": "When should support escalate priority incidents?",
+    "answer": "Support should escalate priority incidents after 30 minutes.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "INSUFFICIENT_CONTEXT",
+    "expected_stage": "SUFFICIENCY",
+    "expected_first_failing_node": "sufficiency",
+    "expected_fix_category": "ABSTENTION_THRESHOLD",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "The retrieved context covers the default case but omits the requested condition.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "enterprise_kb_incomplete_answer",
+    "domain": "enterprise_kb",
+    "query": "When should support escalate priority incidents?",
+    "answer": "The answer mentions the topic but omits the requested value, condition, or baseline.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "INSUFFICIENT_CONTEXT",
+    "expected_stage": "GENERATION",
+    "expected_first_failing_node": "answer_completeness",
+    "expected_fix_category": "ANSWER_COMPLETION",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "Priority incidents must be escalated after 30 minutes without owner assignment.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "enterprise_kb_weak_grounding",
+    "domain": "enterprise_kb",
+    "query": "When should support escalate priority incidents?",
+    "answer": "Support should escalate priority incidents after 30 minutes.",
+    "citations": [
+      "c1"
+    ],
+    "expected_primary_failure": "UNSUPPORTED_CLAIM",
+    "expected_stage": "GROUNDING",
+    "expected_first_failing_node": "grounding",
+    "expected_fix_category": "EVIDENCE_STRENGTHENING",
+    "expected_no_government_logic_used": true,
+    "retrieved_chunks": [
+      {
+        "chunk_id": "c1",
+        "source_doc_id": "doc-current",
+        "text": "The context is topically related but does not explicitly support the answer.",
+        "score": 0.9,
+        "metadata": {
+          "status": "current"
+        }
+      }
+    ]
+  }
+]

@@ -107,6 +107,70 @@ class DeepEvalRetrievalSignalProvider:
         except ImportError:
             return False
 
+    def check_readiness(self) -> ProviderReadiness:
+        from raggov.evaluators.readiness import ProviderReadiness, package_version_or_none
+        enabled = set(self.config.get("enabled_external_providers", []))
+        if enabled and self.name not in enabled:
+            return ProviderReadiness(
+                provider_name=self.name,
+                available=False,
+                status="disabled",
+                reason_code="disabled",
+                reason="Provider is not enabled in the current configuration.",
+                fallback_provider="native_retrieval_signals_only",
+            )
+
+        package_version = package_version_or_none("deepeval")
+        if not self.is_available():
+            return ProviderReadiness(
+                provider_name=self.name,
+                available=False,
+                status="unavailable",
+                reason_code="package_missing",
+                reason="DeepEval package could not be imported.",
+                install_hint="pip install deepeval",
+                fallback_provider="native_retrieval_signals_only",
+                package_version=package_version,
+            )
+
+        if self.config.get("deepeval_metric_results") is not None or self.config.get("metric_results") is not None:
+            maturity = "mock_runner"
+            runtime_available = True
+            runtime_reason = "Using mock metric_results."
+        elif self.config.get("deepeval_metric_runner") is not None or self.config.get("metric_runner") is not None:
+            maturity = "configured_runner"
+            runtime_available = True
+            runtime_reason = "Using user-configured runner."
+        else:
+            maturity = "schema_only"
+            runtime_available = False
+            runtime_reason = "No runner or mock results configured. Native runtime execution not implemented."
+
+        if not runtime_available:
+            return ProviderReadiness(
+                provider_name=self.name,
+                available=False,
+                status="degraded",
+                reason_code="runtime_execution_not_configured",
+                reason=runtime_reason,
+                fallback_provider="native_retrieval_signals_only",
+                package_version=package_version,
+                integration_maturity=maturity,
+                runtime_execution_available=runtime_available,
+                runtime_execution_reason=runtime_reason,
+            )
+
+        return ProviderReadiness(
+            provider_name=self.name,
+            available=True,
+            status="available",
+            fallback_provider="native_retrieval_signals_only",
+            package_version=package_version,
+            integration_maturity=maturity,
+            runtime_execution_available=runtime_available,
+            runtime_execution_reason=runtime_reason,
+        )
+
     def evaluate(self, run: RAGRun) -> ExternalEvaluationResult:
         """Evaluate DeepEval metrics for the given RAGRun."""
         if not self.is_available():
@@ -186,11 +250,11 @@ class DeepEvalRetrievalSignalProvider:
         ]
 
     def _metric_payload(self, run: RAGRun) -> dict[str, Any]:
-        runner = self.config.get("metric_runner")
+        runner = self.config.get("deepeval_metric_runner") or self.config.get("metric_runner")
         if runner is not None:
             return dict(runner(run))
 
-        configured = self.config.get("metric_results")
+        configured = self.config.get("deepeval_metric_results") or self.config.get("metric_results")
         if configured is not None:
             return dict(configured)
 

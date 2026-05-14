@@ -8,6 +8,10 @@ from collections.abc import Sequence
 from typing import Any
 
 from raggov.analyzers.attribution.a2p import A2PAttributionAnalyzer
+from raggov.analyzers.attribution.causal_chain import (
+    build_conservative_trust_decision,
+    build_causal_chains_from_a2p,
+)
 from raggov.analyzers.base import BaseAnalyzer
 from raggov.analyzers.citation_faithfulness import CitationFaithfulnessAnalyzerV0
 from raggov.analyzers.confidence.semantic_entropy import SemanticEntropyAnalyzer
@@ -41,6 +45,9 @@ from raggov.models.diagnosis import (
 )
 from raggov.models.run import RAGRun
 from raggov.models.result_index import AnalyzerResultIndex
+from raggov.pinpoint.from_ncv import build_pinpoint_findings_from_ncv_report
+from raggov.decision_policy import select_primary_failure_with_policy
+from raggov.external_signal_bridge import build_external_signal_diagnosis_probes
 from raggov.taxonomy import (
     DEFAULT_REMEDIATIONS,
     FAILURE_PRIORITY,
@@ -77,8 +84,9 @@ class DiagnosisEngine:
         "StaleRetrievalAnalyzer",
         "CitationMismatchAnalyzer",
         "InconsistentChunksAnalyzer",
-        "PromptInjectionAnalyzer",
+        "RetrievalDiagnosisAnalyzerV0",
         "RetrievalAnomalyAnalyzer",
+        "PromptInjectionAnalyzer",
         "PrivacyAnalyzer",
     }
     STATUS_ORDER = {
@@ -153,12 +161,24 @@ class DiagnosisEngine:
         has_llm = bool(self.config.get("llm_client")) or bool(self.config.get("llm_fn"))
         
         missing_external_providers = []
+        external_provider_readiness = []
         external_signals_used = []
         external_adapter_errors = []
         fallback_heuristics_used = []
         degraded_external_mode = False
 
         if mode == "external-enhanced":
+            preexisting_external_results = list(
+                run.metadata.get("external_evaluation_results", [])
+            )
+            readiness_report = self.external_registry.readiness_report(
+                enabled_providers=list(enabled_providers),
+            )
+            external_provider_readiness = list(readiness_report.providers)
+            for provider_readiness in external_provider_readiness:
+                if provider_readiness.status == "degraded" and provider_readiness.reason_code == "runtime_execution_not_configured":
+                    degraded_external_mode = True
+
             eval_providers_to_run = [p for p in enabled_providers if p not in ("structured_llm_claim", "structured_llm_citation")]
             if self.config.get("retrieval_relevance_provider") == "native" and "cross_encoder_relevance" in eval_providers_to_run:
                 eval_providers_to_run.remove("cross_encoder_relevance")
@@ -178,20 +198,26 @@ class DiagnosisEngine:
                     missing_external_providers.append("structured_llm_citation")
                 degraded_external_mode = True
 
-            run.metadata["external_evaluation_results"] = [r.model_dump() for r in eval_results]
+            run.metadata["external_evaluation_results"] = [
+                *preexisting_external_results,
+                *[r.model_dump() for r in eval_results],
+            ]
             
             for r in eval_results:
                 name = r.adapter_name or str(r.provider.value)
                 if r.succeeded:
-                    external_signals_used.append(name)
+                    if len(r.signals) > 0:
+                        external_signals_used.append(name)
                 elif r.missing_dependency:
-                    missing_external_providers.append(name)
+                    if name not in missing_external_providers:
+                        missing_external_providers.append(name)
                     degraded_external_mode = True
                 else:
                     # In non-strict mode, some errors might be considered missing providers 
                     # if they are due to environmental reasons.
                     if "not installed" in (r.error or "").lower():
-                        missing_external_providers.append(name)
+                        if name not in missing_external_providers:
+                            missing_external_providers.append(name)
                         degraded_external_mode = True
                     else:
                         external_adapter_errors.append(f"{name}: {r.error}")
@@ -246,6 +272,9 @@ class DiagnosisEngine:
 
         run.metadata["external_signals_used"] = external_signals_used
         run.metadata["missing_external_providers"] = missing_external_providers
+        run.metadata["external_provider_readiness"] = [
+            readiness.model_dump() for readiness in external_provider_readiness
+        ]
         run.metadata["external_adapter_errors"] = external_adapter_errors
         run.metadata["degraded_external_mode"] = degraded_external_mode
         run.metadata["fallback_heuristics_used"] = fallback_heuristics_used
@@ -275,6 +304,7 @@ class DiagnosisEngine:
                     SemanticEntropyAnalyzer,
                     ClaimAwareSufficiencyAnalyzer,
                     RetrievalDiagnosisAnalyzerV0,
+                    NCVPipelineVerifier,
                 ),
             ):
                 config_update: dict[str, Any] = {
@@ -282,7 +312,7 @@ class DiagnosisEngine:
                     **analyzer.config,
                     "prior_results": list(results),
                 }
-                if isinstance(analyzer, (A2PAttributionAnalyzer, Layer6TaxonomyClassifier)):
+                if isinstance(analyzer, (A2PAttributionAnalyzer, Layer6TaxonomyClassifier, NCVPipelineVerifier)):
                     config_update["weighted_prior_results"] = self._weighted_prior_results(
                         results,
                         result_weights,
@@ -303,9 +333,57 @@ class DiagnosisEngine:
             result_weights.setdefault(result.analyzer_name, analyzer.weight)
             self._attach_result_outputs(run, result)
 
-        primary_failure, missing_critical = self._primary_failure(results, result_weights, run)
-        primary_result = self._primary_result(results, primary_failure, result_weights)
-        secondary_failures = self._secondary_failures(results, primary_failure, result_weights)
+        primary_failure, primary_result, missing_critical, decision_trace = self._primary_failure(
+            results,
+            result_weights,
+            run,
+        )
+        
+        external_probes = build_external_signal_diagnosis_probes(run, results)
+        
+        if primary_failure == FailureType.CLEAN:
+            blocking_probes = [p for p in external_probes if p.should_block_clean and p.severity == "high"]
+            if blocking_probes:
+                if missing_critical:
+                    primary_failure = FailureType.INCOMPLETE_DIAGNOSIS
+                else:
+                    primary_failure = FailureType.LOW_CONFIDENCE
+                decision_trace = dict(decision_trace or {})
+                warnings = list(decision_trace.get("warnings", []))
+                for probe in blocking_probes:
+                    warnings.append(
+                        f"CLEAN blocked by high severity external signal ({probe.provider} {probe.metric_name}). "
+                        f"Explanation: {probe.explanation}"
+                    )
+                decision_trace.update(
+                    {
+                        "selected_primary_failure": primary_failure.value,
+                        "selected_analyzer": None,
+                        "selected_tier": "EXTERNAL_ADVISORY",
+                        "selection_reason": (
+                            "External evaluator reported severe weakness; GovRAG could not explain it with internal evidence. "
+                            "CLEAN blocked pending re-check."
+                        ),
+                        "warnings": warnings,
+                    }
+                )
+                missing_critical.append("External evaluator reported severe weakness; GovRAG could not explain it with internal evidence. CLEAN blocked pending re-check.")
+        else:
+            if external_probes:
+                decision_trace = dict(decision_trace or {})
+                warnings = list(decision_trace.get("warnings", []))
+                for probe in external_probes:
+                    warnings.append(
+                        f"External signal warning ({probe.severity}): {probe.provider} {probe.metric_name} - {probe.explanation}"
+                    )
+                decision_trace["warnings"] = warnings
+
+        secondary_failures = self._secondary_failures(
+            results,
+            primary_failure,
+            result_weights,
+            decision_trace,
+        )
 
         result_index = AnalyzerResultIndex(results)
 
@@ -327,7 +405,6 @@ class DiagnosisEngine:
         else:
             root_cause_stage = FailureStage.UNKNOWN
 
-        confidence = self._confidence(results)
 
         # Extract A2P attribution fields if present
         root_cause_attribution = None
@@ -351,6 +428,7 @@ class DiagnosisEngine:
             "NCVPipelineVerifier",
             "ncv_report",
         )
+        ncv_report = self._final_ncv_report(run, results, result_weights, ncv_report)
         pipeline_health_score = None
         first_failing_node = None
         first_uncertain_node = None
@@ -425,12 +503,72 @@ class DiagnosisEngine:
 
         grounding_result = result_index.grounding_result()
         diagnosis_claim_results = grounding_result.claim_results or [] if grounding_result else []
+        diagnosis_pinpoint_findings = (
+            list(a2p_result.pinpoint_findings)
+            if a2p_result is not None and a2p_result.pinpoint_findings
+            else []
+        )
+        if not diagnosis_pinpoint_findings and ncv_report is not None:
+            try:
+                diagnosis_pinpoint_findings = build_pinpoint_findings_from_ncv_report(ncv_report)
+            except Exception:
+                diagnosis_pinpoint_findings = []
+
+        diagnosis_causal_chains = (
+            list(a2p_result.causal_chains)
+            if a2p_result is not None and a2p_result.causal_chains
+            else []
+        )
+        if not diagnosis_causal_chains and diagnosis_pinpoint_findings:
+            diagnosis_causal_chains = build_causal_chains_from_a2p(
+                pinpoint_findings=diagnosis_pinpoint_findings,
+                claim_attributions=(a2p_result.claim_attributions if a2p_result is not None else None),
+                claim_attributions_v2=(a2p_result.claim_attributions_v2 if a2p_result is not None else None),
+            )
+        diagnosis_trust_decision = (
+            a2p_result.trust_decision
+            if a2p_result is not None and a2p_result.trust_decision is not None
+            else build_conservative_trust_decision(
+                diagnosis_pinpoint_findings,
+                diagnosis_causal_chains,
+            )
+        )
+
+        # Scores and Calibration
+        heuristic_score = self._heuristic_score(results)
+        diagnostic_score = self._diagnostic_score(results)
+        calibrated_confidence = None
+        calibration_status = "uncalibrated"
+        confidence_intervals = None
+
+        calibrator_config = self.config.get("calibrator")
+        if calibrator_config:
+            from raggov.calibration import ARESCalibrator
+            try:
+                # If it's already an object, use it; otherwise load from dict/path
+                if isinstance(calibrator_config, ARESCalibrator):
+                    calibrator = calibrator_config
+                elif isinstance(calibrator_config, dict):
+                    calibrator = ARESCalibrator.from_dict(calibrator_config)
+                else:
+                    # Assume it's a path
+                    calibrator = ARESCalibrator.load(calibrator_config)
+                
+                intervals, status, _ = calibrator.calibrate_with_status()
+                # Find best confidence match
+                calibrated_confidence = next((ci.point_estimate for ci in intervals if ci.metric == "overall_confidence"), None)
+                confidence_intervals = intervals
+                calibration_status = status.lower()
+            except Exception:
+                # Fallback to uncalibrated if calibrator fails
+                pass
 
         diagnosis = Diagnosis(
             run_id=run.run_id,
             diagnosis_mode=mode,
             external_signals_used=external_signals_used,
             missing_external_providers=missing_external_providers,
+            external_provider_readiness=external_provider_readiness,
             fallback_heuristics_used=fallback_heuristics_used,
             degraded=degraded_external_mode,
             degraded_external_mode=degraded_external_mode,
@@ -440,7 +578,11 @@ class DiagnosisEngine:
             root_cause_stage=root_cause_stage,
             should_have_answered=should_have_answered(primary_failure),
             security_risk=_max_risk(results),
-            confidence=confidence,
+            heuristic_score=heuristic_score,
+            diagnostic_score=diagnostic_score,
+            calibrated_confidence=calibrated_confidence,
+            calibration_status=calibration_status,
+            confidence_intervals=confidence_intervals,
             claim_results=diagnosis_claim_results,
             evidence=self._evidence(results) + missing_critical,
             recommended_fix=self._recommended_fix(primary_failure, primary_result),
@@ -467,12 +609,79 @@ class DiagnosisEngine:
             retrieval_diagnosis_report=retrieval_diagnosis_report,
             failure_chain=failure_chain,
             semantic_entropy=semantic_entropy,
+            diagnosis_decision_trace=decision_trace,
+            pinpoint_findings=diagnosis_pinpoint_findings,
+            causal_chains=diagnosis_causal_chains,
+            trust_decision=diagnosis_trust_decision,
+            external_diagnosis_probes=external_probes,
         )
 
-        if self.config.get("calibrator"):
-            diagnosis.confidence_intervals = self.config["calibrator"].calibrate()
-
+        diagnosis.summary_v1 = self._populate_summary(diagnosis, results)
         return diagnosis
+
+    def _populate_summary(self, d: Diagnosis, results: list[AnalyzerResult]) -> Any:
+        from raggov.models.diagnosis import DiagnosisSummary
+        
+        # 1. External state
+        ext_state = {p.provider_name: p.status for p in d.external_provider_readiness}
+        
+        # 2. Selected Evidence (Top 3 failures/warns)
+        selected_evidence = []
+        for r in results:
+            if r.status in ("fail", "warn") and r.evidence:
+                selected_evidence.extend(r.evidence[:2])
+        if not selected_evidence:
+            selected_evidence = d.evidence[:3]
+            
+        # 3. Pinpoint location
+        pinpoint_loc = d.first_failing_node
+        if not pinpoint_loc and d.causal_chains:
+            # Get first node of first causal chain
+            pinpoint_loc = d.causal_chains[0].nodes[0] if d.causal_chains[0].nodes else None
+
+        return DiagnosisSummary(
+            primary_failure=d.primary_failure,
+            root_cause_stage=d.root_cause_stage,
+            first_failing_node=d.first_failing_node,
+            pinpoint_location=pinpoint_loc,
+            selected_evidence=selected_evidence[:5],
+            suppressed_alternatives=d.secondary_failures[:3],
+            missing_evidence=d.ncv_missing_reports,
+            external_provider_state=ext_state,
+            fallback_heuristics=d.fallback_heuristics_used,
+            human_review_required=d.human_review_required(),
+            recommended_fix=d.proposed_fix if d.proposed_fix else d.recommended_fix,
+            recommended_next_debug_step=self._recommended_next_debug_step(d)
+        )
+
+    def _recommended_next_debug_step(self, d: Diagnosis) -> str:
+        """Heuristic for the next best debug action an engineer should take."""
+        if d.primary_failure == FailureType.CLEAN:
+            return "No immediate action. Monitor for drift."
+            
+        mapping = {
+            FailureType.CITATION_MISMATCH: "Check if the LLM hallucinated the citation or if chunking split the context.",
+            FailureType.INSUFFICIENT_CONTEXT: "Verify if the missing info exists in the corpus; if yes, tune retrieval top-k or queries.",
+            FailureType.UNSUPPORTED_CLAIM: "Cross-reference the claim with retrieved chunks manually to rule out judge error.",
+            FailureType.CONTRADICTED_CLAIM: "Investigate source documents for conflicting information or model reasoning errors.",
+            FailureType.STALE_RETRIEVAL: "Re-index the specific document IDs identified in the evidence profile.",
+            FailureType.PARSER_STRUCTURE_LOSS: "Run parser-profile-init and check if your fields (e.g. table_field) are mapped correctly.",
+            FailureType.RETRIEVAL_ANOMALY: "Check for adversarial queries or corrupted document chunks in the vector store.",
+            FailureType.INCOMPLETE_DIAGNOSIS: "Ensure all external providers are installed and API keys are configured.",
+            FailureType.LOW_CONFIDENCE: "Verify if the query is ambiguous or if the corpus lacks definitive evidence.",
+        }
+        
+        step = mapping.get(d.primary_failure)
+        if step:
+            return step
+            
+        # Stage-based fallbacks
+        if d.root_cause_stage == FailureStage.RETRIEVAL:
+            return "Inspect retrieval precision vs recall in the RetrievalDiagnosisReport."
+        if d.root_cause_stage == FailureStage.PARSING:
+            return "Inspect the raw text chunks for layout/provenance metadata loss."
+            
+        return "Inspect the pinpoint findings and causal chains for detailed failure propagation."
 
     def _should_use_a2p_stage_override(self, a2p_result: AnalyzerResult | None) -> bool:
         if a2p_result is None or a2p_result.attribution_stage is None:
@@ -532,12 +741,12 @@ class DiagnosisEngine:
             TemporalSourceValidityAnalyzerV1(self.config),
             RetrievalDiagnosisAnalyzerV0(self.config),
             CitationFaithfulnessProbe(self.config),
+            RetrievalAnomalyAnalyzer(self.config),
             # ════════════════════════════════════════════════════════════════
             # LAYER 4 — SECURITY
             # ════════════════════════════════════════════════════════════════
             PromptInjectionAnalyzer(self.config),
             PoisoningHeuristicAnalyzer(self.config),
-            RetrievalAnomalyAnalyzer(self.config),
             PrivacyAnalyzer(self.config),
             # ════════════════════════════════════════════════════════════════
             # LAYER 5 — ATTRIBUTION + CONFIDENCE
@@ -639,39 +848,85 @@ class DiagnosisEngine:
         results: list[AnalyzerResult],
         result_weights: dict[str, float],
         run: RAGRun,
-    ) -> tuple[FailureType, list[str]]:
-        ranked_failures = self._ranked_failure_types(results, result_weights)
-        primary = ranked_failures[0][0] if ranked_failures else FailureType.CLEAN
+    ) -> tuple[FailureType, AnalyzerResult | None, list[str], dict[str, Any] | None]:
+        primary, primary_result, decision_trace = select_primary_failure_with_policy(
+            results,
+            result_weights,
+            FAILURE_PRIORITY,
+        )
 
         if primary == FailureType.CLEAN:
             ranked_warnings = self._ranked_warn_failure_types(results, result_weights)
             if ranked_warnings:
-                primary = ranked_warnings[0][0]
-        
+                warning_failure = ranked_warnings[0][0]
+                warning_result = self._best_result_for_failure(
+                    results,
+                    result_weights,
+                    warning_failure,
+                    statuses={"warn"},
+                )
+                if warning_result is not None:
+                    primary = warning_failure
+                    primary_result = warning_result
+                    decision_trace = dict(decision_trace or {})
+                    decision_trace["selected_primary_failure"] = warning_failure.value
+                    decision_trace["selected_analyzer"] = warning_result.analyzer_name
+                    decision_trace["selected_tier"] = None
+                    decision_trace["selection_reason"] = (
+                        "No fail-level policy winner was available; falling back to an "
+                        "allowed warn-level signal."
+                    )
+
         # Reliability Gate: Prevent false CLEAN if critical evidence is missing
         if primary == FailureType.CLEAN:
             missing_critical = self._get_missing_critical_evidence(results, run)
             if missing_critical:
-                return FailureType.INCOMPLETE_DIAGNOSIS, missing_critical
-                
-        return primary, []
+                decision_trace = dict(decision_trace or {})
+                warnings = list(decision_trace.get("warnings", []))
+                warnings.append(
+                    "Reliability gate promoted the diagnosis to INCOMPLETE_DIAGNOSIS because critical evidence was missing."
+                )
+                decision_trace.update(
+                    {
+                        "selected_primary_failure": FailureType.INCOMPLETE_DIAGNOSIS.value,
+                        "selected_analyzer": None,
+                        "selected_tier": "BLOCKING_DETERMINISTIC",
+                        "selection_reason": (
+                            "Critical analyzers failed or were missing, so the reliability gate "
+                            "blocked a CLEAN decision."
+                        ),
+                        "warnings": warnings,
+                    }
+                )
+                return FailureType.INCOMPLETE_DIAGNOSIS, None, missing_critical, decision_trace
 
-    def _primary_result(
-        self,
-        results: list[AnalyzerResult],
-        primary_failure: FailureType,
-        result_weights: dict[str, float],
-    ) -> AnalyzerResult | None:
-        if primary_failure == FailureType.CLEAN:
-            return None
-        return self._best_failure_results(results, result_weights).get(primary_failure)
+        return primary, primary_result, [], decision_trace
 
     def _secondary_failures(
         self,
         results: list[AnalyzerResult],
         primary_failure: FailureType,
         result_weights: dict[str, float],
+        decision_trace: dict[str, Any] | None = None,
     ) -> list[FailureType]:
+        if decision_trace is not None:
+            ranked_failures: list[FailureType] = []
+            for bucket_name in ("alternatives_considered", "suppressed_candidates"):
+                for candidate in decision_trace.get(bucket_name, []):
+                    failure_name = candidate.get("failure_type")
+                    evidence_tier = candidate.get("evidence_tier")
+                    if failure_name is None or failure_name == primary_failure.value:
+                        continue
+                    if evidence_tier == "EXTERNAL_ADVISORY":
+                        continue
+                    try:
+                        failure_type = FailureType(failure_name)
+                    except ValueError:
+                        continue
+                    if failure_type not in ranked_failures:
+                        ranked_failures.append(failure_type)
+            return ranked_failures
+
         return [
             failure_type
             for failure_type, _, _ in self._ranked_candidate_types(
@@ -696,8 +951,16 @@ class DiagnosisEngine:
             return primary_result.remediation
         return DEFAULT_REMEDIATIONS[primary_failure]
 
-    def _confidence(self, results: list[AnalyzerResult]) -> float | None:
-        # Use SemanticEntropyAnalyzer score (works in both LLM and deterministic modes)
+    def _heuristic_score(self, results: list[AnalyzerResult]) -> float | None:
+        """Return a simple average of rule-based heuristic scores."""
+        scores = [
+            r.score for r in results 
+            if r.score is not None and r.analyzer_name != "SemanticEntropyAnalyzer"
+        ]
+        return sum(scores) / len(scores) if scores else None
+
+    def _diagnostic_score(self, results: list[AnalyzerResult]) -> float | None:
+        """Return the primary diagnostic signal (Semantic Entropy)."""
         for result in results:
             if result.analyzer_name == "SemanticEntropyAnalyzer":
                 return result.score
@@ -748,6 +1011,27 @@ class DiagnosisEngine:
             for failure_type, payload in best_by_type.items()
         }
 
+    def _best_result_for_failure(
+        self,
+        results: list[AnalyzerResult],
+        result_weights: dict[str, float],
+        failure_type: FailureType,
+        *,
+        statuses: set[str],
+    ) -> AnalyzerResult | None:
+        best_result: AnalyzerResult | None = None
+        best_weight = float("-inf")
+        best_index = len(results)
+        for index, result in enumerate(results):
+            if result.status not in statuses or result.failure_type != failure_type:
+                continue
+            weight = self._result_weight(result, result_weights)
+            if weight > best_weight or (weight == best_weight and index < best_index):
+                best_result = result
+                best_weight = weight
+                best_index = index
+        return best_result
+
     def _ranked_candidate_types(
         self,
         results: list[AnalyzerResult],
@@ -785,14 +1069,66 @@ class DiagnosisEngine:
         results: list[AnalyzerResult],
         result_weights: dict[str, float],
     ) -> list[tuple[FailureType, float, int]]:
-        ranked = self._ranked_candidate_types(results, result_weights, statuses={"warn"})
         allowed = []
         blocking_names = self.WARN_BLOCKING_ANALYZER_NAMES
-        for failure_type, weight, index in ranked:
-            result = results[index]
-            if result.analyzer_name in blocking_names:
-                allowed.append((failure_type, weight, index))
+        for index, result in enumerate(results):
+            if (
+                result.status == "warn"
+                and result.failure_type is not None
+                and result.analyzer_name in blocking_names
+            ):
+                allowed.append(
+                    (
+                        result.failure_type,
+                        self._result_weight(result, result_weights),
+                        index,
+                    )
+                )
+        allowed.sort(
+            key=lambda item: (
+                0
+                if (
+                    item[0] == FailureType.RETRIEVAL_ANOMALY
+                    and results[item[2]].analyzer_name
+                    in {"RetrievalDiagnosisAnalyzerV0", "RetrievalAnomalyAnalyzer"}
+                )
+                else 1,
+                -item[1],
+                item[2],
+            )
+        )
         return allowed
+
+    def _final_ncv_report(
+        self,
+        run: RAGRun,
+        results: list[AnalyzerResult],
+        result_weights: dict[str, float],
+        existing_report: dict[str, Any] | None,
+    ) -> dict[str, Any] | None:
+        if not any(isinstance(analyzer, NCVPipelineVerifier) for analyzer in self.analyzers):
+            return existing_report
+
+        verifier = NCVPipelineVerifier(
+            {
+                **self.config,
+                "prior_results": list(results),
+                "weighted_prior_results": self._weighted_prior_results(results, result_weights),
+                "analyzer_weights": dict(result_weights),
+                "fail_fast": False,
+            }
+        )
+        rerun = verifier.analyze(run)
+        rerun_report = rerun.ncv_report
+        if rerun_report is None:
+            return existing_report
+        if existing_report is None:
+            return rerun_report
+        if rerun_report.get("first_failing_node") is not None:
+            return rerun_report
+        if existing_report.get("first_failing_node") is not None:
+            return existing_report
+        return rerun_report
 
     def _sorted_ranked_failures(
         self,

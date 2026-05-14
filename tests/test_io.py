@@ -44,7 +44,7 @@ def sample_diagnosis() -> Diagnosis:
         root_cause_stage=FailureStage.UNKNOWN,
         should_have_answered=True,
         security_risk=SecurityRisk.NONE,
-        confidence=0.9,
+        diagnostic_score=0.9,
         ncv_report={"pipeline_health_score": 1.0},
         pipeline_health_score=1.0,
         first_failing_node=None,

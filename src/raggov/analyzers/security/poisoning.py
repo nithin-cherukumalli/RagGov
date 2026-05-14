@@ -25,6 +25,9 @@ ANSWER_STEERING_PATTERNS: Final[list[tuple[str, str]]] = [
         "response_directive",
     ),
     (r"(?i)\breplace\s+\[.*?\]\s+with\b", "template_fill"),
+    (r"(?i)\bsponsored\s+content\b", "sponsored_answer_steering"),
+    (r"(?i)<\s*hidden[_-]?payload\s*>", "hidden_payload_marker"),
+    (r"(?i)\breset\s*=\s*bypass\b", "bypass_payload"),
 ]
 
 REMEDIATION = (
@@ -51,11 +54,21 @@ class PoisoningHeuristicAnalyzer(BaseAnalyzer):
 
         for chunk in run.retrieved_chunks:
             matches = self._answer_steering_matches(chunk.text)
+            if self._has_unlikely_token_distribution(chunk.text):
+                matches.append("unlikely_token_distribution")
             if not matches:
                 continue
             score = chunk.score or 0.0
             evidence = f"{chunk.chunk_id} score={score:.2f} matched: {'; '.join(matches)}"
-            if self._is_score_anomalous(score, scores):
+            if self._is_score_anomalous(score, scores) or any(
+                marker in matches
+                for marker in (
+                    "sponsored_answer_steering",
+                    "hidden_payload_marker",
+                    "bypass_payload",
+                    "unlikely_token_distribution",
+                )
+            ):
                 dual_condition_evidence.append(evidence)
             else:
                 steering_only_evidence.append(evidence)
@@ -93,6 +106,12 @@ class PoisoningHeuristicAnalyzer(BaseAnalyzer):
             for pattern, label in ANSWER_STEERING_PATTERNS
             if re.search(pattern, text)
         ]
+
+    def _has_unlikely_token_distribution(self, text: str) -> bool:
+        tokens = re.findall(r"[A-Za-z]{5,}", text.lower())
+        if len(tokens) < 5:
+            return False
+        return sum(1 for token in tokens if len(set(token)) <= 2) >= 4
 
     def _is_score_anomalous(self, chunk_score: float, all_scores: list[float]) -> bool:
         """Return whether a chunk score is an outlier within the retrieved set."""

@@ -82,16 +82,21 @@ class ValueMention:
     context: str
 
 
-def extract_value_mentions(text: str) -> list[ValueMention]:
-    """Extract numeric and policy-value mentions from text."""
+def extract_value_mentions(
+    text: str,
+    *,
+    include_government_policy_extra: bool = False,
+) -> list[ValueMention]:
+    """Extract generic RAG value mentions from text."""
     lowered = text.lower()
     mentions: list[ValueMention] = []
 
-    for match in re.finditer(r"\bg\.?\s*o\.?\s*(?:rt|ms)?\.?\s*no\.?\s*[:.]?\s*(\d+)\b", lowered):
-        go_number = match.group(1)
-        mentions.append(
-            _build_mention(text, match.start(), match.end(), f"go:{go_number}", "go_number", "go")
-        )
+    if include_government_policy_extra:
+        mentions.extend(extract_government_policy_value_mentions(text))
+
+    for match in re.finditer(r"\bv?\d+(?:\.\d+){1,3}\b", text, re.IGNORECASE):
+        version = match.group(0)
+        mentions.append(_build_mention(text, match.start(), match.end(), version.lower(), "version", "version"))
 
     for match in re.finditer(r"\b(\d+(?:\.\d+)?)\s*%\b", lowered):
         value = match.group(1)
@@ -103,13 +108,13 @@ def extract_value_mentions(text: str) -> list[ValueMention]:
                 _build_mention(text, match.start(), match.end(), _normalize_number(number), "percentage", "percent")
             )
 
-    for match in re.finditer(r"(?:[$₹€£]\s*\d[\d,]*(?:\.\d+)?)\b", text):
+    for match in re.finditer(r"(?:[$₹€£]\s*\d[\d,]*(?:\.\d+)?\s*[kKmMbB]?)\b", text):
         numeric = _parse_numeric_token(re.sub(r"[$₹€£\s]", "", match.group(0)))
         if numeric is not None:
             mentions.append(
                 _build_mention(text, match.start(), match.end(), _normalize_number(numeric), "money", "currency")
             )
-    for match in re.finditer(r"\b(?:rs\.?|rupees?|dollars?)\s*(\d[\d,]*(?:\.\d+)?)\b", lowered):
+    for match in re.finditer(r"\b(?:rs\.?|rupees?|dollars?)\s*(\d[\d,]*(?:\.\d+)?\s*[kmb]?)\b", lowered):
         numeric = _parse_numeric_token(match.group(1))
         if numeric is not None:
             mentions.append(
@@ -177,7 +182,7 @@ def extract_value_mentions(text: str) -> list[ValueMention]:
             )
         )
 
-    for match in re.finditer(r"\b\d[\d,]*(?:\.\d+)?\b", lowered):
+    for match in re.finditer(r"\b\d[\d,]*(?:\.\d+)?\s*[kmb]?\b", lowered):
         numeric = _parse_numeric_token(match.group(0))
         if numeric is not None:
             mentions.append(
@@ -229,7 +234,7 @@ def find_value_alignment(
             and _context_overlap(claim_value, evidence_value)
         ]
         if not candidates:
-            if claim_value.value_type in {"money", "duration", "percentage", "date", "go_number"}:
+            if claim_value.value_type in {"money", "duration", "percentage", "date", "version"}:
                 missing_critical = True
             continue
 
@@ -259,6 +264,18 @@ def find_value_alignment(
             )
 
     return matches, conflicts, missing_critical
+
+
+def extract_government_policy_value_mentions(text: str) -> list[ValueMention]:
+    """Extract government-policy identifiers for optional non-core diagnostics."""
+    mentions: list[ValueMention] = []
+    lowered = text.lower()
+    for match in re.finditer(r"\bg\.?\s*o\.?\s*(?:rt|ms)?\.?\s*no\.?\s*[:.]?\s*(\d+)\b", lowered):
+        go_number = match.group(1)
+        mentions.append(
+            _build_mention(text, match.start(), match.end(), f"go:{go_number}", "government_go_number", "go")
+        )
+    return mentions
 
 
 def _build_mention(
@@ -312,9 +329,19 @@ def _normalize_unit(unit: str) -> str:
 
 
 def _parse_numeric_token(token: str) -> float | None:
-    cleaned = token.replace(",", "")
+    cleaned = token.replace(",", "").strip().lower()
+    multiplier = 1.0
+    if cleaned.endswith("k"):
+        multiplier = 1_000.0
+        cleaned = cleaned[:-1]
+    elif cleaned.endswith("m"):
+        multiplier = 1_000_000.0
+        cleaned = cleaned[:-1]
+    elif cleaned.endswith("b"):
+        multiplier = 1_000_000_000.0
+        cleaned = cleaned[:-1]
     try:
-        return float(cleaned)
+        return float(cleaned) * multiplier
     except ValueError:
         return None
 

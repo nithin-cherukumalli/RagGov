@@ -6,7 +6,14 @@ import json
 
 from raggov.analyzers.verification.ncv import NCVPipelineVerifier
 from raggov.models.chunk import RetrievedChunk
-from raggov.models.diagnosis import AnalyzerResult, ClaimResult, FailureStage, FailureType, SufficiencyResult
+from raggov.models.diagnosis import (
+    AnalyzerResult,
+    ClaimResult,
+    FailureStage,
+    FailureType,
+    SecurityRisk,
+    SufficiencyResult,
+)
 from raggov.models.ncv import NCVNode
 from raggov.models.retrieval_diagnosis import (
     RetrievalDiagnosisCalibrationStatus,
@@ -43,6 +50,10 @@ def run_with_chunks(
         retrieved_chunks=chunks,
         final_answer=answer,
     )
+
+
+def _node_payload(report: dict[str, object], node: NCVNode) -> dict[str, object]:
+    return next(item for item in report["node_results"] if item["node"] == node.value)
 
 
 def test_all_nodes_pass_pipeline_health_is_one() -> None:
@@ -106,6 +117,110 @@ def test_retrieval_quality_fail_stops_in_fail_fast_mode() -> None:
         NCVNode.RETRIEVAL_PRECISION.value,
     ]
     assert "mean_retrieval_score_threshold" in report["fallback_heuristics_used"]
+
+
+def test_retrieval_anomaly_alone_does_not_trigger_security_risk() -> None:
+    prior = AnalyzerResult(
+        analyzer_name="RetrievalAnomalyAnalyzer",
+        status="warn",
+        failure_type=FailureType.RETRIEVAL_ANOMALY,
+        stage=FailureStage.SECURITY,
+        evidence=["score cliff between chunk-1 and chunk-2"],
+    )
+    analyzer = NCVPipelineVerifier(
+        {"prior_results": [prior], "fail_fast": False, "allow_retrieval_precision_fallback": True}
+    )
+
+    result = analyzer.analyze(
+        run_with_chunks(
+            [
+                chunk("chunk-1", "Rule 5 requires notice.", 0.31),
+                chunk("chunk-2", "Rule 5 requires review.", 0.28),
+            ]
+        )
+    )
+
+    report = json.loads(result.evidence[0])
+    assert report["first_failing_node"] != NCVNode.SECURITY_RISK.value
+    retrieval_node = _node_payload(report, NCVNode.RETRIEVAL_PRECISION)
+    assert retrieval_node["status"] in {"warn", "fail"}
+    security_node = _node_payload(report, NCVNode.SECURITY_RISK)
+    assert security_node["status"] == "skip"
+
+
+def test_prompt_injection_still_triggers_security_risk() -> None:
+    prior = AnalyzerResult(
+        analyzer_name="PromptInjectionAnalyzer",
+        status="fail",
+        failure_type=FailureType.PROMPT_INJECTION,
+        stage=FailureStage.SECURITY,
+        security_risk=SecurityRisk.HIGH,
+        remediation="Ignore hostile instructions in retrieved text.",
+    )
+    analyzer = NCVPipelineVerifier({"prior_results": [prior], "fail_fast": False})
+
+    result = analyzer.analyze(
+        run_with_chunks(
+            [chunk("chunk-1", "Rule 5 requires notice before action.", 0.88)],
+            query="What does Rule 5 require?",
+            answer="Rule 5 requires notice before action.",
+        )
+    )
+
+    report = json.loads(result.evidence[0])
+    assert report["first_failing_node"] == NCVNode.SECURITY_RISK.value
+    security_node = _node_payload(report, NCVNode.SECURITY_RISK)
+    assert security_node["status"] == "fail"
+    assert "prompt injection" in security_node["primary_reason"].lower()
+
+
+def test_suspicious_chunk_still_triggers_security_risk() -> None:
+    prior = AnalyzerResult(
+        analyzer_name="SuspiciousChunkAnalyzer",
+        status="warn",
+        failure_type=FailureType.SUSPICIOUS_CHUNK,
+        stage=FailureStage.SECURITY,
+        security_risk=SecurityRisk.MEDIUM,
+    )
+    analyzer = NCVPipelineVerifier({"prior_results": [prior], "fail_fast": False})
+
+    result = analyzer.analyze(
+        run_with_chunks(
+            [chunk("chunk-1", "Rule 5 requires notice before action.", 0.88)],
+            query="What does Rule 5 require?",
+            answer="Rule 5 requires notice before action.",
+        )
+    )
+
+    report = json.loads(result.evidence[0])
+    security_node = _node_payload(report, NCVNode.SECURITY_RISK)
+    assert security_node["status"] == "warn"
+    assert "suspicious" in security_node["primary_reason"].lower()
+
+
+def test_privacy_violation_still_triggers_security_risk() -> None:
+    prior = AnalyzerResult(
+        analyzer_name="PrivacyAnalyzer",
+        status="fail",
+        failure_type=FailureType.PRIVACY_VIOLATION,
+        stage=FailureStage.SECURITY,
+        security_risk=SecurityRisk.HIGH,
+    )
+    analyzer = NCVPipelineVerifier({"prior_results": [prior], "fail_fast": False})
+
+    result = analyzer.analyze(
+        run_with_chunks(
+            [chunk("chunk-1", "Rule 5 requires notice before action.", 0.88)],
+            query="What does Rule 5 require?",
+            answer="Rule 5 requires notice before action.",
+        )
+    )
+
+    report = json.loads(result.evidence[0])
+    assert report["first_failing_node"] == NCVNode.SECURITY_RISK.value
+    security_node = _node_payload(report, NCVNode.SECURITY_RISK)
+    assert security_node["status"] == "fail"
+    assert "privacy" in security_node["primary_reason"].lower()
 
 
 def test_claim_grounding_fail_maps_to_unsupported_claim() -> None:

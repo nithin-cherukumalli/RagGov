@@ -7,6 +7,15 @@ from collections.abc import Callable
 from typing import Any, TYPE_CHECKING
 
 from raggov.analyzers.base import BaseAnalyzer
+from raggov.analyzers.attribution.causal_chain import (
+    build_conservative_trust_decision,
+    build_causal_chains_from_a2p,
+    summarize_causal_chains_for_a2p,
+)
+from raggov.analyzers.attribution.pinpoint_context import (
+    get_pinpoint_findings_for_a2p,
+    summarize_pinpoint_findings_for_a2p,
+)
 from raggov.analyzers.attribution.trace import extract_attribution_trace
 from raggov.analyzers.attribution.candidates import (
     identify_claims_needing_attribution,
@@ -81,7 +90,6 @@ Respond ONLY with valid JSON:
 SECURITY_FAILURE_TYPES = {
     FailureType.PROMPT_INJECTION,
     FailureType.SUSPICIOUS_CHUNK,
-    FailureType.RETRIEVAL_ANOMALY,
     FailureType.PRIVACY_VIOLATION,
 }
 
@@ -102,6 +110,12 @@ class A2PAttributionAnalyzer(BaseAnalyzer):
     def analyze(self, run: RAGRun) -> AnalyzerResult:
         """Analyze a RAG run and attribute failure to root cause stage."""
         prior_results = self.config.get("weighted_prior_results") or self.config.get("prior_results", [])
+        pinpoint_findings = get_pinpoint_findings_for_a2p(
+            run,
+            prior_results=prior_results,
+            config=self.config,
+        )
+        pinpoint_context = summarize_pinpoint_findings_for_a2p(pinpoint_findings)
 
         failed_results = [
             r for r in prior_results if r.status == "fail" and r.failure_type is not None
@@ -117,21 +131,43 @@ class A2PAttributionAnalyzer(BaseAnalyzer):
         if use_v2:
             claim_level_result_v2 = self._claim_level_mode_v2(run, prior_results, bundle=bundle)
             if claim_level_result_v2 is not None:
-                return claim_level_result_v2
+                claim_level_result_v2 = self._attach_pinpoint_context(
+                    claim_level_result_v2,
+                    pinpoint_context,
+                    pinpoint_findings,
+                )
+                return self._attach_causal_chain(claim_level_result_v2, pinpoint_findings)
 
         # v1 claim-level mode (backward compatibility)
         claim_level_result = self._claim_level_mode(run, prior_results, bundle=bundle)
         if claim_level_result is not None:
-            return claim_level_result
+            claim_level_result = self._attach_pinpoint_context(
+                claim_level_result,
+                pinpoint_context,
+                pinpoint_findings,
+            )
+            return self._attach_causal_chain(claim_level_result, pinpoint_findings)
 
         use_llm = self.config.get("use_llm", False)
         llm_fn = self.config.get("llm_fn")
 
         if use_llm and llm_fn:
-            return self._llm_mode(run, prior_results, llm_fn)
+            llm_result = self._attach_pinpoint_context(
+                self._llm_mode(run, prior_results, llm_fn),
+                pinpoint_context,
+                pinpoint_findings,
+            )
+            return self._attach_causal_chain(llm_result, pinpoint_findings)
         else:
             return self._attach_legacy_claim_fallback(
-                self._deterministic_mode(run, prior_results)
+                self._attach_causal_chain(
+                    self._attach_pinpoint_context(
+                        self._deterministic_mode(run, prior_results),
+                        pinpoint_context,
+                        pinpoint_findings,
+                    ),
+                    pinpoint_findings,
+                )
             )
 
     def _claim_level_mode(
@@ -832,6 +868,79 @@ class A2PAttributionAnalyzer(BaseAnalyzer):
                 fallback_used=True,
             )
         ]
+        return result
+
+    def _attach_pinpoint_context(
+        self,
+        result: AnalyzerResult,
+        pinpoint_context: dict[str, Any],
+        pinpoint_findings: list[Any],
+    ) -> AnalyzerResult:
+        if not pinpoint_context.get("pinpoint_available"):
+            return result
+
+        result.pinpoint_findings = list(pinpoint_findings)
+        context_line = (
+            "a2p_pinpoint_context:"
+            + json.dumps(pinpoint_context, sort_keys=True)
+        )
+        if context_line not in result.evidence:
+            result.evidence.append(context_line)
+
+        summary_text = (
+            f"A2P pinpoint context: primary_ncv_node={pinpoint_context.get('primary_ncv_node')}, "
+            f"pipeline_stage={pinpoint_context.get('pipeline_stage')}, "
+            f"failure_type={pinpoint_context.get('failure_type')}, "
+            f"calibration_status={pinpoint_context.get('calibration_status')}, "
+            f"recommended_for_gating={pinpoint_context.get('recommended_for_gating')}"
+        )
+        for attribution in result.claim_attributions or []:
+            if summary_text not in attribution.evidence:
+                attribution.evidence.append(summary_text)
+        for attribution_v2 in result.claim_attributions_v2 or []:
+            if summary_text not in attribution_v2.evidence_summary:
+                attribution_v2.evidence_summary.append(summary_text)
+        return result
+
+    def _attach_causal_chain(
+        self,
+        result: AnalyzerResult,
+        pinpoint_findings: list[Any],
+    ) -> AnalyzerResult:
+        if not pinpoint_findings:
+            return result
+
+        chains = build_causal_chains_from_a2p(
+            pinpoint_findings=pinpoint_findings,
+            claim_attributions=result.claim_attributions,
+            claim_attributions_v2=result.claim_attributions_v2,
+        )
+        if not chains:
+            return result
+
+        result.causal_chains = chains
+        result.trust_decision = build_conservative_trust_decision(
+            list(pinpoint_findings),
+            chains,
+        )
+
+        summary = summarize_causal_chains_for_a2p(chains)
+        chain_line = "a2p_causal_chain:" + json.dumps(summary, sort_keys=True)
+        if chain_line not in result.evidence:
+            result.evidence.append(chain_line)
+
+        summary_text = (
+            f"A2P causal chain: root_node={summary.get('root_node')}, "
+            f"root_cause={summary.get('root_cause')}, "
+            f"calibration_status={summary.get('calibration_status')}, "
+            f"recommended_for_gating={summary.get('recommended_for_gating')}"
+        )
+        for attribution in result.claim_attributions or []:
+            if summary_text not in attribution.evidence:
+                attribution.evidence.append(summary_text)
+        for attribution_v2 in result.claim_attributions_v2 or []:
+            if summary_text not in attribution_v2.evidence_summary:
+                attribution_v2.evidence_summary.append(summary_text)
         return result
 
     def _build_a2p_prompt(self, run: RAGRun, prior_results: list[AnalyzerResult]) -> str:

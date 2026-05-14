@@ -66,7 +66,7 @@ class ConfidenceInterval(BaseModel):
 
     model_config = ConfigDict(frozen=False, extra="forbid")
 
-    metric: Literal["faithfulness", "retrieval_precision", "answer_correctness"]
+    metric: Literal["faithfulness", "retrieval_precision", "answer_correctness", "overall_confidence"]
     point_estimate: float
     lower: float
     upper: float
@@ -233,7 +233,8 @@ class ARESCalibrator:
         results = []
 
         # Calibrate each metric independently
-        for metric in ("faithfulness", "retrieval_precision", "answer_correctness"):
+        metrics = ["faithfulness", "retrieval_precision", "answer_correctness"]
+        for metric in metrics:
             # Extract automated and gold values for this metric
             automated = [
                 getattr(sample, f"automated_{metric}") for sample in self._samples
@@ -257,6 +258,32 @@ class ARESCalibrator:
                     n_total=len(self._samples),
                 )
             )
+
+        # Compute overall_confidence (average of metrics)
+        overall_automated = [
+            (s.automated_faithfulness + s.automated_retrieval_precision + s.automated_answer_correctness) / 3
+            for s in self._samples
+        ]
+        overall_gold = [
+            (s.gold_faithfulness + s.gold_retrieval_precision + s.gold_answer_correctness) / 3
+            for s in self._samples
+        ]
+        
+        point_est = _ppi_point_estimate(overall_automated, overall_gold, overall_automated)
+        var = _ppi_variance(overall_automated, overall_gold)
+        lower, upper = _confidence_interval(point_est, var, self._confidence_level)
+        
+        results.append(
+            ConfidenceInterval(
+                metric="overall_confidence",
+                point_estimate=round(point_est, 4),
+                lower=round(max(0.0, lower), 4),
+                upper=round(min(1.0, upper), 4),
+                confidence_level=self._confidence_level,
+                n_labeled=len(self._samples),
+                n_total=len(self._samples),
+            )
+        )
 
         return results
 
@@ -362,6 +389,23 @@ class ARESCalibrator:
         with path.open("w") as f:
             for sample in self._samples:
                 f.write(sample.model_dump_json() + "\n")
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> ARESCalibrator:
+        """Create calibrator from a dictionary of samples.
+        
+        Args:
+            data: Dictionary with 'samples' list and optional 'confidence_level'
+            
+        Returns:
+            ARESCalibrator instance
+        """
+        confidence_level = data.get("confidence_level", 0.95)
+        calibrator = cls(confidence_level=confidence_level)
+        for sample_data in data.get("samples", []):
+            sample = CalibrationSample.model_validate(sample_data)
+            calibrator.add_sample(sample)
+        return calibrator
 
     @classmethod
     def load(

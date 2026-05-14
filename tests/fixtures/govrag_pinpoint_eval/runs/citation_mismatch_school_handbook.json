@@ -1,0 +1,44 @@
+{
+  "case_id": "citation_mismatch_school_handbook",
+  "description": "Seminar refund rule is supported, but the answer cites an unrelated housing policy page.",
+  "query": "When can students drop a seminar for a full refund?",
+  "retrieved_chunks": [
+    {
+      "chunk_id": "school-citation-chunk-1",
+      "text": "Students may drop a seminar for a full refund within 7 calendar days of the term start date.",
+      "source_doc_id": "seminar-refund-doc-1",
+      "score": 0.86
+    },
+    {
+      "chunk_id": "school-citation-chunk-2",
+      "text": "Residence hall cancellation fees are waived only when the student withdraws before key collection.",
+      "source_doc_id": "housing-policy-doc-2",
+      "score": 0.77
+    }
+  ],
+  "final_answer": "Students may drop a seminar for a full refund within 7 calendar days of the term start date.",
+  "citations": ["housing-policy-doc-2"],
+  "cited_doc_ids": ["housing-policy-doc-2"],
+  "corpus_metadata": {
+    "query_date": "2026-05-01T00:00:00Z",
+    "entries": [
+      {
+        "doc_id": "seminar-refund-doc-1",
+        "text": "Students may drop a seminar for a full refund within 7 calendar days of the term start date.",
+        "timestamp": "2026-01-20T00:00:00Z",
+        "metadata": {
+          "status": "active"
+        }
+      },
+      {
+        "doc_id": "housing-policy-doc-2",
+        "text": "Residence hall cancellation fees are waived only when the student withdraws before key collection.",
+        "timestamp": "2026-01-21T00:00:00Z",
+        "metadata": {
+          "status": "active"
+        }
+      }
+    ]
+  },
+  "parser_validation_profile": null
+}

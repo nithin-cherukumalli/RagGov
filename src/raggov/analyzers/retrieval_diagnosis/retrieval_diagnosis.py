@@ -12,6 +12,7 @@ gating.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable
 
 from raggov.analyzers.base import BaseAnalyzer
@@ -96,6 +97,44 @@ class RetrievalDiagnosisAnalyzerV0(BaseAnalyzer):
             )
             return self._result("fail", report, FailureType.STALE_RETRIEVAL, report.recommended_fix)
 
+        answer_bearing_invalid_doc_ids = self._answer_bearing_invalid_doc_ids(version_report)
+        if answer_bearing_invalid_doc_ids:
+            report = self._report(
+                run=run,
+                primary_failure_type=RetrievalFailureType.VERSION_RETRIEVAL_FAILURE,
+                invalid_retrieved_doc_ids=answer_bearing_invalid_doc_ids,
+                evidence_signals=[
+                    RetrievalEvidenceSignal(
+                        signal_name="answer_bearing_invalid_source_docs",
+                        value=len(answer_bearing_invalid_doc_ids),
+                        source_report="VersionValidityReport",
+                        source_ids=answer_bearing_invalid_doc_ids,
+                        interpretation="Answer-bearing retrieved sources are invalid by lifecycle metadata or freshness evidence.",
+                    )
+                ],
+                recommended_fix="Filter invalid or stale answer-bearing sources before claim generation and support checking.",
+            )
+            return self._result("fail", report, FailureType.STALE_RETRIEVAL, report.recommended_fix)
+
+        retrieval_quality_affected_doc_ids = self._retrieval_quality_affected_doc_ids(version_report)
+        if retrieval_quality_affected_doc_ids:
+            report = self._report(
+                run=run,
+                primary_failure_type=RetrievalFailureType.VERSION_RETRIEVAL_FAILURE,
+                invalid_retrieved_doc_ids=retrieval_quality_affected_doc_ids,
+                evidence_signals=[
+                    RetrievalEvidenceSignal(
+                        signal_name="retrieval_quality_affected_by_stale_source_docs",
+                        value=len(retrieval_quality_affected_doc_ids),
+                        source_report="VersionValidityReport",
+                        source_ids=retrieval_quality_affected_doc_ids,
+                        interpretation="Retrieved stale sources are relevant enough to pollute ranking, deduplication, or provenance even though they were not cited.",
+                    )
+                ],
+                recommended_fix="Deduplicate or demote stale retrieved sources so they do not crowd out current evidence.",
+            )
+            return self._result("fail", report, FailureType.STALE_RETRIEVAL, report.recommended_fix)
+
         retrieved_doc_ids = {chunk.source_doc_id for chunk in run.retrieved_chunks}
         invalid_retrieved_doc_ids = sorted(set(invalid_version_doc_ids) & retrieved_doc_ids)
         if invalid_retrieved_doc_ids:
@@ -138,7 +177,8 @@ class RetrievalDiagnosisAnalyzerV0(BaseAnalyzer):
             return self._result("fail", report, FailureType.CITATION_MISMATCH, report.recommended_fix)
 
         missing_citation_claim_ids = self._missing_citation_claim_ids(run)
-        if missing_citation_claim_ids:
+        sufficiency = self._sufficiency_result(prior_results)
+        if missing_citation_claim_ids and not self._sufficiency_is_insufficient(sufficiency):
             report = self._report(
                 run=run,
                 primary_failure_type=RetrievalFailureType.CITATION_RETRIEVAL_MISMATCH,
@@ -156,7 +196,6 @@ class RetrievalDiagnosisAnalyzerV0(BaseAnalyzer):
             )
             return self._result("warn", report, FailureType.CITATION_MISMATCH, report.recommended_fix)
 
-        sufficiency = self._sufficiency_result(prior_results)
         unsupported_claims = self._unsupported_claim_records(prior_results)
         if unsupported_claims and self._externally_relevant_rank_failure(run, unsupported_claims):
             candidate_chunk_ids = self._candidate_chunk_ids(unsupported_claims)
@@ -181,10 +220,44 @@ class RetrievalDiagnosisAnalyzerV0(BaseAnalyzer):
             )
             return self._result("warn", report, FailureType.RERANKER_FAILURE, report.recommended_fix)
 
+        if unsupported_claims and self._query_attribute_missing_but_entity_present(run):
+            affected_claim_ids = [claim.claim_id for claim in unsupported_claims]
+            report = self._report(
+                run=run,
+                primary_failure_type=RetrievalFailureType.RETRIEVAL_MISS,
+                affected_claim_ids=affected_claim_ids,
+                candidate_chunk_ids=self._candidate_chunk_ids(unsupported_claims),
+                claim_records=[
+                    self._claim_record(
+                        claim,
+                        RetrievalFailureType.RETRIEVAL_MISS,
+                        "Retrieved chunks mention the requested entity but omit the requested attribute.",
+                    )
+                    for claim in unsupported_claims
+                ],
+                evidence_signals=[
+                    RetrievalEvidenceSignal(
+                        signal_name="entity_present_attribute_missing",
+                        value=True,
+                        source_report="RAGRun+GroundingEvidenceBundle",
+                        source_ids=affected_claim_ids,
+                        interpretation=(
+                            "Retrieved chunks are near misses: they mention the entity but not the attribute needed by the query."
+                        ),
+                    )
+                ],
+                recommended_fix="Retrieve evidence for the missing entity attribute before answering.",
+            )
+            return self._result("fail", report, FailureType.INSUFFICIENT_CONTEXT, report.recommended_fix)
+
         if (
             sufficiency is not None
-            and sufficiency.sufficiency_label == "insufficient"
             and unsupported_claims
+            and (not run.cited_doc_ids or self._externally_irrelevant_retrieval_miss(run))
+            and (
+                sufficiency.sufficiency_label == "insufficient"
+                or not sufficiency.sufficient
+            )
         ) or (unsupported_claims and self._externally_irrelevant_retrieval_miss(run)):
             claim_records = [
                 self._claim_record(
@@ -213,6 +286,31 @@ class RetrievalDiagnosisAnalyzerV0(BaseAnalyzer):
                     )
                 ],
                 recommended_fix="Expand retrieval for missing evidence requirements and unsupported claims.",
+            )
+            return self._result("fail", report, FailureType.INSUFFICIENT_CONTEXT, report.recommended_fix)
+
+        if (
+            sufficiency is not None
+            and not unsupported_claims
+            and (
+                sufficiency.sufficiency_label == "insufficient"
+                or not sufficiency.sufficient
+            )
+        ):
+            report = self._report(
+                run=run,
+                primary_failure_type=RetrievalFailureType.RETRIEVAL_MISS,
+                affected_claim_ids=list(sufficiency.affected_claims),
+                evidence_signals=[
+                    RetrievalEvidenceSignal(
+                        signal_name="insufficient_context_without_verifiable_claims",
+                        value=True,
+                        source_report="SufficiencyResult",
+                        source_ids=list(sufficiency.affected_claims),
+                        interpretation="Retrieved context does not cover critical query requirements before claim grounding can verify an answer.",
+                    )
+                ],
+                recommended_fix="Expand retrieval for missing query requirements before generating an answer.",
             )
             return self._result("fail", report, FailureType.INSUFFICIENT_CONTEXT, report.recommended_fix)
 
@@ -369,6 +467,16 @@ class RetrievalDiagnosisAnalyzerV0(BaseAnalyzer):
                 ids.append(record.doc_id)
         return sorted(set(ids))
 
+    def _answer_bearing_invalid_doc_ids(self, report: VersionValidityReport | None) -> list[str]:
+        if report is None:
+            return []
+        return list(getattr(report, "answer_bearing_invalid_doc_ids", []))
+
+    def _retrieval_quality_affected_doc_ids(self, report: VersionValidityReport | None) -> list[str]:
+        if report is None:
+            return []
+        return list(getattr(report, "retrieval_quality_affected_doc_ids", []))
+
     def _phantom_citation_doc_ids(
         self,
         run: RAGRun,
@@ -399,10 +507,33 @@ class RetrievalDiagnosisAnalyzerV0(BaseAnalyzer):
         return list(run.citation_faithfulness_report.missing_citation_claim_ids)
 
     def _sufficiency_result(self, prior_results: list[AnalyzerResult]) -> SufficiencyResult | None:
+        fallback: SufficiencyResult | None = None
         for result in reversed(prior_results):
             if result.sufficiency_result is not None:
-                return result.sufficiency_result
-        return None
+                sufficiency = result.sufficiency_result
+                if fallback is None:
+                    fallback = sufficiency
+                if self._sufficiency_is_insufficient(sufficiency):
+                    return sufficiency
+        return fallback
+
+    def _sufficiency_is_insufficient(self, sufficiency: SufficiencyResult | None) -> bool:
+        return bool(
+            sufficiency is not None
+            and (
+                sufficiency.sufficiency_label == "insufficient"
+                or (not sufficiency.sufficient and bool(sufficiency.coverage))
+            )
+        )
+
+    def _sufficiency_has_critical_anchor(self, sufficiency: SufficiencyResult | None) -> bool:
+        if sufficiency is None:
+            return False
+        for coverage in sufficiency.coverage:
+            rationale = coverage.rationale.lower()
+            if "project " in rationale or "tool " in rationale or "product " in rationale:
+                return True
+        return False
 
     def _unsupported_claim_records(
         self,
@@ -537,6 +668,18 @@ class RetrievalDiagnosisAnalyzerV0(BaseAnalyzer):
         scored_chunks = [cp for cp in profile.chunks if cp.relevance_method == RelevanceMethod.CROSS_ENCODER]
         return all(cp.query_relevance_label == QueryRelevanceLabel.IRRELEVANT for cp in scored_chunks)
 
+    def _query_attribute_missing_but_entity_present(self, run: RAGRun) -> bool:
+        query_terms = self._terms(run.query)
+        context_terms = self._terms(" ".join(chunk.text for chunk in run.retrieved_chunks))
+        if not query_terms or not context_terms:
+            return False
+        attribute_terms = {"salary", "income", "rate", "interest", "deadline", "date", "amount"}
+        entity_terms = {"ceo", "cfo", "manager", "project", "account", "company"}
+        requested_attributes = query_terms & attribute_terms
+        if not requested_attributes:
+            return False
+        return bool(query_terms & entity_terms & context_terms) and not bool(requested_attributes & context_terms)
+
     def _missing_reports(
         self,
         run: RAGRun,
@@ -587,6 +730,9 @@ class RetrievalDiagnosisAnalyzerV0(BaseAnalyzer):
 
     def _unique(self, values: Iterable[str]) -> list[str]:
         return list(dict.fromkeys(value for value in values if value))
+
+    def _terms(self, text: str) -> set[str]:
+        return set(re.findall(r"[a-z0-9]+", text.lower()))
 
     def _external_retrieval_evidence_signals(self, run: RAGRun) -> list[RetrievalEvidenceSignal]:
         records: list[ExternalSignalRecord] = []

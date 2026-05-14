@@ -116,6 +116,47 @@ def test_invalid_retrieved_uncited_docs_warn() -> None:
     assert "answer did not cite them" in report.alternative_explanations[0]
 
 
+def test_retrieval_quality_affected_stale_docs_fail_as_version_retrieval_failure() -> None:
+    version_report = VersionValidityReport(
+        run_id="run-retrieval-diagnosis",
+        stale_doc_ids=["doc-old"],
+        retrieved_only_stale_doc_ids=["doc-old"],
+        retrieval_quality_affected_doc_ids=["doc-old"],
+    )
+
+    result, report = analyze(
+        run(
+            chunks=[chunk("chunk-old", "doc-old"), chunk("chunk-new", "doc-new")],
+            cited_doc_ids=["doc-new"],
+            version_report=version_report,
+        )
+    )
+
+    assert result.status == "fail"
+    assert result.failure_type == FailureType.STALE_RETRIEVAL
+    assert report.primary_failure_type == RetrievalFailureType.VERSION_RETRIEVAL_FAILURE
+    assert report.invalid_retrieved_doc_ids == ["doc-old"]
+
+
+def test_answer_bearing_invalid_source_fails_as_version_retrieval_failure() -> None:
+    version_report = VersionValidityReport(
+        run_id="run-retrieval-diagnosis",
+        answer_bearing_invalid_doc_ids=["doc-old"],
+    )
+
+    result, report = analyze(
+        run(
+            chunks=[chunk("chunk-old", "doc-old")],
+            cited_doc_ids=[],
+            version_report=version_report,
+        )
+    )
+
+    assert result.status == "fail"
+    assert result.failure_type == FailureType.STALE_RETRIEVAL
+    assert report.primary_failure_type == RetrievalFailureType.VERSION_RETRIEVAL_FAILURE
+
+
 def test_phantom_citation_fails_as_citation_retrieval_mismatch() -> None:
     citation_report = CitationFaithfulnessReport(
         run_id="run-retrieval-diagnosis",

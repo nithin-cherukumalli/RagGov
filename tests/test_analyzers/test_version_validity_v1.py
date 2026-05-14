@@ -318,6 +318,64 @@ def test_claim_linked_to_invalid_cited_doc_becomes_high_risk() -> None:
     assert "claim.cited_doc_ids" in claim_record.evidence_paths
     assert "document_records.doc-1.validity_status" in claim_record.evidence_paths
     assert report.high_risk_claim_ids == ["claim-1"]
+    assert report.cited_invalid_doc_ids == ["doc-1"]
+
+
+def test_retrieved_only_stale_source_is_marked_when_query_is_current() -> None:
+    result, report = analyze(
+        run(
+            chunks=[
+                RetrievedChunk(
+                    chunk_id="chunk-old",
+                    text="Old CEO Bob (2010)",
+                    source_doc_id="doc-old",
+                    score=0.4,
+                    metadata={},
+                ),
+                RetrievedChunk(
+                    chunk_id="chunk-new",
+                    text="New CEO Alice (2024)",
+                    source_doc_id="doc-new",
+                    score=0.9,
+                    metadata={},
+                ),
+            ],
+            cited_doc_ids=["doc-new"],
+            query_date=QUERY_DATE,
+        ).model_copy(update={"query": "Who is the current CEO?", "final_answer": "The CEO is Alice."})
+    )
+
+    assert result.status == "fail"
+    assert report.retrieved_only_stale_doc_ids == ["doc-old"]
+    assert report.retrieval_quality_affected_doc_ids == ["doc-old"]
+
+
+def test_stale_irrelevant_source_is_tracked_without_primary_failure() -> None:
+    result, report = analyze(
+        run(
+            chunks=[
+                RetrievedChunk(
+                    chunk_id="chunk-lease",
+                    text="Legacy lease terms (2010)",
+                    source_doc_id="doc-lease",
+                    score=0.2,
+                    metadata={},
+                ),
+                RetrievedChunk(
+                    chunk_id="chunk-ceo",
+                    text="New CEO Alice (2024)",
+                    source_doc_id="doc-ceo",
+                    score=0.9,
+                    metadata={},
+                ),
+            ],
+            cited_doc_ids=["doc-ceo"],
+            query_date=QUERY_DATE,
+        ).model_copy(update={"query": "Who is the CEO?", "final_answer": "The CEO is Alice."})
+    )
+
+    assert report.stale_but_irrelevant_doc_ids == ["doc-lease"]
+    assert report.retrieval_quality_affected_doc_ids == []
 
 
 def test_recommended_for_gating_is_false_and_metadata_uncalibrated() -> None:

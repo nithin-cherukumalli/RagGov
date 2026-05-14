@@ -2,12 +2,89 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
+import pytest
+from pydantic import ValidationError
+
+from stresslab.cases import ClaimDiagnosisGoldSet
 from stresslab.cases import load_claim_diagnosis_gold_set
 from stresslab.claim_diagnosis_evaluation import (
     EVALUATION_STATUS,
     render_claim_diagnosis_report,
     run_claim_diagnosis_harness,
 )
+from stresslab.runners.run_claim_diagnosis_harness import (
+    write_claim_diagnosis_markdown_report,
+    write_claim_diagnosis_report,
+)
+
+
+def _minimal_case() -> dict[str, object]:
+    return {
+        "case_id": "schema_case",
+        "query": "What is the refund window?",
+        "retrieved_chunks": [
+            {
+                "chunk_id": "c1",
+                "text": "Refunds are available within thirty days.",
+                "source_doc_id": "doc1",
+                "score": 0.9,
+            }
+        ],
+        "final_answer": "Refunds are available within thirty days.",
+        "expected_claims": [
+            {
+                "claim_text": "Refunds are available within thirty days.",
+                "expected_claim_label": "entailed",
+            }
+        ],
+        "expected_sufficient": True,
+        "expected_primary_stage": "UNKNOWN",
+        "expected_fix_category": "other",
+    }
+
+
+def test_loads_legacy_version_cases_schema() -> None:
+    gold = ClaimDiagnosisGoldSet.model_validate(
+        {
+            "version": "legacy_version_cases",
+            "cases": [_minimal_case()],
+        }
+    )
+
+    assert gold.version == "legacy_version_cases"
+    assert gold.evaluation_status == "legacy_version_cases"
+    assert len(gold.cases) == 1
+    assert gold.examples[0].case_id == "schema_case"
+
+
+def test_loads_current_evaluation_status_examples_schema() -> None:
+    gold = ClaimDiagnosisGoldSet.model_validate(
+        {
+            "evaluation_status": "current_evaluation_examples",
+            "examples": [_minimal_case()],
+        }
+    )
+
+    assert gold.version == "current_evaluation_examples"
+    assert gold.evaluation_status == "current_evaluation_examples"
+    assert len(gold.examples) == 1
+    assert gold.cases[0].case_id == "schema_case"
+
+
+def test_invalid_gold_missing_expected_fields_fails_loudly() -> None:
+    invalid_case = _minimal_case()
+    invalid_case.pop("expected_claims")
+
+    with pytest.raises(ValidationError, match="schema_case.*expected_claims"):
+        ClaimDiagnosisGoldSet.model_validate(
+            {
+                "evaluation_status": "invalid_missing_expected_fields",
+                "examples": [invalid_case],
+            }
+        )
 
 
 def test_claim_diagnosis_gold_set_loads() -> None:
@@ -37,10 +114,14 @@ def test_claim_diagnosis_harness_runs_and_produces_metrics() -> None:
     assert 0.0 <= result.primary_stage_accuracy <= 1.0
     assert 0.0 <= result.fix_category_exact_accuracy <= 1.0
     assert 0.0 <= result.fix_category_partial_accuracy <= 1.0
+    assert isinstance(result.false_clean_count, int)
+    assert "unsupported" in result.claim_label_breakdown
+    assert "contradicted" in result.claim_label_breakdown
 
     report = render_claim_diagnosis_report(result)
     assert "Claim-Level Diagnostic Evaluation Harness" in report
     assert "Per-example results:" in report
+    assert "false_clean_count=" in report
 
 
 def test_claim_diagnosis_harness_detects_intentional_mismatch() -> None:
@@ -52,6 +133,46 @@ def test_claim_diagnosis_harness_detects_intentional_mismatch() -> None:
 
     assert result.mismatches
     assert any("stage mismatch" in "; ".join(mismatch["notes"]) for mismatch in result.mismatches)
+
+
+def test_mismatch_report_contains_case_id_expected_actual() -> None:
+    gold = load_claim_diagnosis_gold_set("claim_diagnosis_gold_v0")
+    gold.examples[0].expected_primary_stage = "RETRIEVAL"
+
+    result = run_claim_diagnosis_harness(gold)
+
+    mismatch = result.mismatches[0]
+    assert mismatch["case_id"] == gold.examples[0].case_id
+    assert "expected" in mismatch
+    assert "actual" in mismatch
+    assert mismatch["expected"]["primary_stage"] == "RETRIEVAL"
+    assert "primary_stage" in mismatch["actual"]
+
+
+def test_claim_diagnosis_harness_generates_json_report(tmp_path: Path) -> None:
+    result = run_claim_diagnosis_harness(load_claim_diagnosis_gold_set("claim_diagnosis_gold_v0"))
+    output_path = tmp_path / "claim_diagnosis_report.json"
+
+    write_claim_diagnosis_report(result, output_path)
+
+    payload = json.loads(output_path.read_text(encoding="utf-8"))
+    assert payload["total_examples"] == 10
+    assert payload["case_count"] == 10
+    assert payload["aggregate_metrics"]["false_clean_count"] == result.false_clean_count
+    assert "claim_label_breakdown" in payload["aggregate_metrics"]
+    assert "mismatches" in payload
+
+
+def test_claim_diagnosis_harness_generates_markdown_report(tmp_path: Path) -> None:
+    result = run_claim_diagnosis_harness(load_claim_diagnosis_gold_set("claim_diagnosis_gold_v0"))
+    output_path = tmp_path / "claim_diagnosis_report.md"
+
+    write_claim_diagnosis_markdown_report(result, output_path)
+
+    markdown = output_path.read_text(encoding="utf-8")
+    assert "# Claim-Level Diagnostic Evaluation Report" in markdown
+    assert "false_clean_count" in markdown
+    assert "claim_label_breakdown" in markdown
 
 
 def test_claim_diagnosis_harness_observes_non_null_sufficiency_for_some_cases() -> None:

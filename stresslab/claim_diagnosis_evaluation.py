@@ -40,6 +40,8 @@ class ClaimDiagnosisCaseResult:
     fix_category_exact_pass: bool
     fix_category_partial_pass: bool
     matched_overall: bool
+    expected_non_clean: bool
+    observed_primary_failure: str
     notes: list[str] = field(default_factory=list)
 
 
@@ -67,6 +69,8 @@ class ClaimDiagnosisHarnessResult:
     primary_stage_accuracy: float
     fix_category_exact_accuracy: float
     fix_category_partial_accuracy: float
+    false_clean_count: int
+    claim_label_breakdown: dict[str, dict[str, int]]
     category_metrics: dict[str, dict[str, float | int]]
     mismatches: list[dict[str, Any]]
 
@@ -84,12 +88,15 @@ def run_claim_diagnosis_harness(
     a2p_mode = _a2p_mode_from_config(resolved_engine_config)
     per_example: list[ClaimDiagnosisCaseResult] = []
     mismatches: list[dict[str, Any]] = []
+    claim_label_breakdown = _empty_claim_label_breakdown()
 
     for example in gold_set.examples:
         diagnosis = diagnose(_run_from_example(example), config=resolved_engine_config)
+        _record_claim_labels(claim_label_breakdown, example, diagnosis)
         case_result = _evaluate_example(example, diagnosis)
         per_example.append(case_result)
         if not case_result.matched_overall:
+            expected_actual = _expected_actual_payload(example, diagnosis)
             mismatches.append(
                 {
                     "case_id": example.case_id,
@@ -99,6 +106,8 @@ def run_claim_diagnosis_harness(
                     "observed_primary_stage": diagnosis.root_cause_stage.value,
                     "expected_fix_category": example.expected_fix_category,
                     "observed_fix_category": _fix_category(diagnosis.proposed_fix or diagnosis.recommended_fix),
+                    "expected": expected_actual["expected"],
+                    "actual": expected_actual["actual"],
                 }
             )
 
@@ -111,6 +120,11 @@ def run_claim_diagnosis_harness(
     stage_acc = sum(1 for result in per_example if result.primary_stage_pass) / total
     fix_exact_acc = sum(1 for result in per_example if result.fix_category_exact_pass) / total
     fix_partial_acc = sum(1 for result in per_example if result.fix_category_partial_pass) / total
+    false_clean_count = sum(
+        1
+        for result in per_example
+        if result.expected_non_clean and result.observed_primary_failure == "CLEAN"
+    )
     category_metrics = _category_metrics(per_example)
 
     return ClaimDiagnosisHarnessResult(
@@ -126,6 +140,8 @@ def run_claim_diagnosis_harness(
         primary_stage_accuracy=stage_acc,
         fix_category_exact_accuracy=fix_exact_acc,
         fix_category_partial_accuracy=fix_partial_acc,
+        false_clean_count=false_clean_count,
+        claim_label_breakdown=claim_label_breakdown,
         category_metrics=category_metrics,
         mismatches=mismatches,
     )
@@ -148,6 +164,8 @@ def render_claim_diagnosis_report(result: ClaimDiagnosisHarnessResult) -> str:
         f"  Primary Stage:                {result.primary_stage_accuracy:.2f}",
         f"  Fix Category (exact):         {result.fix_category_exact_accuracy:.2f}",
         f"  Fix Category (partial):       {result.fix_category_partial_accuracy:.2f}",
+        f"false_clean_count={result.false_clean_count}",
+        f"claim_label_breakdown={result.claim_label_breakdown}",
         "",
         "Per-example results:",
     ]
@@ -358,6 +376,7 @@ def _evaluate_example(example: ClaimDiagnosisGoldCase, diagnosis: Diagnosis) -> 
         and primary_stage_pass
         and fix_category_partial_pass
     )
+    expected_non_clean = _expected_non_clean(example)
     return ClaimDiagnosisCaseResult(
         case_id=example.case_id,
         category=example.category,
@@ -370,8 +389,91 @@ def _evaluate_example(example: ClaimDiagnosisGoldCase, diagnosis: Diagnosis) -> 
         fix_category_exact_pass=fix_category_exact_pass,
         fix_category_partial_pass=fix_category_partial_pass,
         matched_overall=matched_overall,
+        expected_non_clean=expected_non_clean,
+        observed_primary_failure=diagnosis.primary_failure.value,
         notes=notes,
     )
+
+
+def _expected_actual_payload(
+    example: ClaimDiagnosisGoldCase,
+    diagnosis: Diagnosis,
+) -> dict[str, dict[str, Any]]:
+    sufficiency = _claim_aware_or_base_sufficiency(diagnosis)
+    observed_sufficient = (
+        sufficiency.sufficiency_result.sufficient
+        if sufficiency is not None and sufficiency.sufficiency_result is not None
+        else None
+    )
+    expected_sufficient = (
+        example.expected_sufficiency
+        if example.expected_sufficiency is not None
+        else example.expected_sufficient
+    )
+    return {
+        "expected": {
+            "primary_stage": example.expected_primary_stage,
+            "fix_category": example.expected_fix_category,
+            "sufficient": expected_sufficient,
+            "claim_labels": {
+                claim.claim_text: claim.expected_claim_label or claim.expected_label
+                for claim in example.expected_claims
+            },
+        },
+        "actual": {
+            "primary_failure": diagnosis.primary_failure.value,
+            "primary_stage": diagnosis.root_cause_stage.value,
+            "fix_category": _fix_category(diagnosis.proposed_fix or diagnosis.recommended_fix),
+            "sufficient": observed_sufficient,
+            "claim_labels": {
+                claim.claim_text: claim.label
+                for claim in diagnosis.claim_results
+            },
+        },
+    }
+
+
+def _expected_non_clean(example: ClaimDiagnosisGoldCase) -> bool:
+    expected_sufficient = (
+        example.expected_sufficiency
+        if example.expected_sufficiency is not None
+        else example.expected_sufficient
+    )
+    if expected_sufficient is False:
+        return True
+    if example.expected_primary_stage != "UNKNOWN":
+        return True
+    for claim in example.expected_claims:
+        expected_label = claim.expected_claim_label or claim.expected_label
+        if expected_label in {"unsupported", "contradicted", "abstain"}:
+            return True
+        if claim.expected_citation_validity == "invalid":
+            return True
+        if claim.expected_freshness_validity == "stale":
+            return True
+    return False
+
+
+def _empty_claim_label_breakdown() -> dict[str, dict[str, int]]:
+    labels = ["entailed", "unsupported", "contradicted", "abstain", "missing"]
+    return {label: {"expected": 0, "observed": 0} for label in labels}
+
+
+def _record_claim_labels(
+    breakdown: dict[str, dict[str, int]],
+    example: ClaimDiagnosisGoldCase,
+    diagnosis: Diagnosis,
+) -> None:
+    observed_by_text = {claim.claim_text: claim.label for claim in diagnosis.claim_results}
+
+    for claim in example.expected_claims:
+        expected_label = claim.expected_claim_label or claim.expected_label or "missing"
+        breakdown.setdefault(expected_label, {"expected": 0, "observed": 0})
+        breakdown[expected_label]["expected"] += 1
+
+        observed_label = observed_by_text.get(claim.claim_text, "missing")
+        breakdown.setdefault(observed_label, {"expected": 0, "observed": 0})
+        breakdown[observed_label]["observed"] += 1
 
 
 def _category_metrics(

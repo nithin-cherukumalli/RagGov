@@ -9,9 +9,12 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from raggov.calibration import ConfidenceInterval
+from raggov.evaluators.readiness import ProviderReadiness
+from raggov.models.external_diagnosis import ExternalSignalDiagnosisProbe
 
 from raggov.models.citation_faithfulness import CitationFaithfulnessReport
 from raggov.models.grounding import GroundingEvidenceBundle
+from raggov.models.pinpoint import CausalChain, PinpointFinding, TrustDecision
 from raggov.models.retrieval_diagnosis import RetrievalDiagnosisReport
 from raggov.models.version_validity import VersionValidityReport
 
@@ -97,6 +100,16 @@ class EvidenceRequirement(BaseModel):
     requirement_id: str
     description: str
     requirement_type: Literal[
+        "required_entity",
+        "required_value",
+        "required_date_or_time",
+        "required_condition_or_scope",
+        "required_exception_or_limitation",
+        "required_comparison_baseline",
+        "required_step_or_procedure",
+        "required_causal_support",
+        "required_source_or_citation",
+        # Legacy aliases accepted for backward compatibility with existing fixtures.
         "definition",
         "rule",
         "date",
@@ -152,11 +165,33 @@ class SufficiencyResult(BaseModel):
     missing_evidence: list[str] = Field(default_factory=list)
     affected_claims: list[str] = Field(default_factory=list)
     evidence_chunk_ids: list[str] = Field(default_factory=list)
+    structured_failure_reason: str | None = None
+    recommended_fix_category: str | None = None
+    evidence_markers: list[str] = Field(default_factory=list)
+    missing_requirement_types: list[str] = Field(default_factory=list)
     method: str
     calibration_status: Literal[
         "uncalibrated",
         "preliminary_calibrated_v1",
     ] = "uncalibrated"
+
+
+class DiagnosisSummary(BaseModel):
+    """Actionable structured summary of a GovRAG diagnosis."""
+    model_config = ConfigDict(frozen=False, extra="forbid")
+
+    primary_failure: FailureType
+    root_cause_stage: FailureStage
+    first_failing_node: str | None = None
+    pinpoint_location: str | None = None
+    selected_evidence: list[str] = Field(default_factory=list)
+    suppressed_alternatives: list[FailureType] = Field(default_factory=list)
+    missing_evidence: list[str] = Field(default_factory=list)
+    external_provider_state: dict[str, str] = Field(default_factory=dict)
+    fallback_heuristics: list[str] = Field(default_factory=list)
+    human_review_required: bool = False
+    recommended_fix: str
+    recommended_next_debug_step: str | None = None
 
 
 class CandidateCause(BaseModel):
@@ -291,6 +326,9 @@ class AnalyzerResult(BaseModel):
     Used as the primary substrate for downstream taxonomy classification
     and attribution.
     """
+    pinpoint_findings: list[PinpointFinding] = Field(default_factory=list)
+    causal_chains: list[CausalChain] = Field(default_factory=list)
+    trust_decision: TrustDecision | None = None
 
 
 
@@ -303,6 +341,7 @@ class Diagnosis(BaseModel):
     diagnosis_mode: str = "external-enhanced"
     external_signals_used: list[str] = Field(default_factory=list)
     missing_external_providers: list[str] = Field(default_factory=list)
+    external_provider_readiness: list[ProviderReadiness] = Field(default_factory=list)
     fallback_heuristics_used: list[str] = Field(default_factory=list)
     degraded: bool = False
     degraded_external_mode: bool = False  # Alias to degraded for clarity
@@ -312,13 +351,14 @@ class Diagnosis(BaseModel):
     root_cause_stage: FailureStage
     should_have_answered: bool
     security_risk: SecurityRisk
-    confidence: float | None
     claim_results: list[ClaimResult] = Field(default_factory=list)
     evidence: list[str] = Field(default_factory=list)
     recommended_fix: str
     checks_run: list[str] = Field(default_factory=list)
     checks_skipped: list[str] = Field(default_factory=list)
     analyzer_results: list[AnalyzerResult] = Field(default_factory=list)
+    external_diagnosis_probes: list[ExternalSignalDiagnosisProbe] = Field(default_factory=list)
+    external_probe_summary: dict[str, Any] | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     root_cause_attribution: str | None = None
     proposed_fix: str | None = None
@@ -338,18 +378,123 @@ class Diagnosis(BaseModel):
     retrieval_diagnosis_report: RetrievalDiagnosisReport | None = None
     failure_chain: list[str] = Field(default_factory=list)
     semantic_entropy: float | None = None
+    heuristic_score: float | None = None
+    diagnostic_score: float | None = None
+    calibrated_confidence: float | None = None
+    calibration_status: str = "uncalibrated"
     confidence_intervals: list[ConfidenceInterval] | None = None
+    diagnosis_decision_trace: dict[str, Any] | None = None
+    pinpoint_findings: list[PinpointFinding] = Field(default_factory=list)
+    causal_chains: list[CausalChain] = Field(default_factory=list)
+    trust_decision: TrustDecision | None = None
+    summary_v1: DiagnosisSummary | None = None
+
+    @property
+    def confidence_label(self) -> str:
+        """Return a careful label for the confidence score."""
+        if self.calibration_status == "calibrated":
+            return "Calibrated Confidence"
+        if self.calibration_status == "provisional":
+            return "Provisional Confidence"
+        return "Confidence Signal (uncalibrated)"
+
+    @property
+    def confidence(self) -> float | None:
+        """Return the best available confidence measure."""
+        if self.calibrated_confidence is not None:
+            return self.calibrated_confidence
+        # Fallback to diagnostic score if available
+        return self.diagnostic_score
+    def human_review_required(self) -> bool:
+        """Consolidates review requirements across internal trust decisions and external diagnostic probes."""
+        # 1. Trigger if explicit trust decision requires it
+        if self.trust_decision and self.trust_decision.human_review_required:
+            return True
+            
+        # 2. Trigger if any external diagnostic probe recommends it
+        if any(p.should_trigger_human_review for p in self.external_diagnosis_probes):
+            return True
+            
+        # 3. Trigger for specific failure types that are high-risk or represent subtle RAG failures
+        # These are cases where the system has detected a specific anomaly that typically
+        # requires human validation before making production decisions.
+        high_oversight_failures = {
+            FailureType.LOW_CONFIDENCE, 
+            FailureType.INCOMPLETE_DIAGNOSIS,
+            FailureType.UNSUPPORTED_CLAIM,
+            FailureType.CONTRADICTED_CLAIM,
+            FailureType.CITATION_MISMATCH,
+            FailureType.POST_RATIONALIZED_CITATION,
+            FailureType.SCOPE_VIOLATION,
+            FailureType.INSUFFICIENT_CONTEXT,
+            FailureType.RETRIEVAL_ANOMALY,
+            FailureType.SUSPICIOUS_CHUNK,
+            FailureType.RERANKER_FAILURE,
+        }
+        if self.primary_failure in high_oversight_failures:
+            return True
+            
+        # 4. Trigger if any secondary failures are high-oversight types
+        if any(f in high_oversight_failures for f in self.secondary_failures):
+            return True
+            
+        return False
 
     def summary(self) -> str:
-        """Return a multi-line human-readable summary of the diagnosis.
+        """Return a multi-line human-readable summary of the diagnosis."""
+        if not self.summary_v1:
+            return self._legacy_summary()
+        
+        s = self.summary_v1
+        lines = []
+        
+        # Actionable Title
+        title = f"DIAGNOSIS: {s.primary_failure.value} @ {s.root_cause_stage.value}"
+        if s.first_failing_node:
+            title += f" (First failing node: {s.first_failing_node})"
+        lines.append(title)
+        lines.append("=" * len(title))
+        
+        # Signals
+        conf = f"{self.confidence:.2f}" if self.confidence is not None else "N/A"
+        lines.append(
+            f"Should answer: {self.should_have_answered} | "
+            f"Risk: {self.security_risk.value} | "
+            f"{self.confidence_label}: {conf} | "
+            f"Status: {self.calibration_status}"
+        )
 
-        Format:
-            Run {run_id} | {primary_failure} | Stage: {root_cause_stage}
-            Should answer: {should_have_answered} | Risk: {security_risk} | Confidence: {confidence}
-            Failure chain: {failure_chain}
-            Root cause: {root_cause_attribution}
-            Fix: {proposed_fix or recommended_fix}
-        """
+        if self.failure_chain:
+            chain_str = " → ".join(self.failure_chain)
+            lines.append(f"Failure chain: {chain_str}")
+        
+        if s.human_review_required:
+            lines.append("⚠️ HUMAN REVIEW REQUIRED")
+            
+        # Evidence
+        if s.selected_evidence:
+            lines.append("\nTop Evidence:")
+            for e in s.selected_evidence[:3]:
+                lines.append(f"  • {e}")
+                
+        # Missing/Degraded
+        if s.missing_evidence or any(v == "degraded" for v in s.external_provider_state.values()):
+            lines.append("\nUncertainty/Degradation:")
+            if s.missing_evidence:
+                lines.append(f"  • Missing evidence: {', '.join(s.missing_evidence)}")
+            degraded = [p for p, st in s.external_provider_state.items() if st == "degraded"]
+            if degraded:
+                lines.append(f"  • Degraded providers: {', '.join(degraded)}")
+
+        # Next Steps
+        lines.append(f"\nRecommended Fix: {s.recommended_fix}")
+        if s.recommended_next_debug_step:
+            lines.append(f"Next Debug Step: {s.recommended_next_debug_step}")
+            
+        return "\n".join(lines)
+
+    def _legacy_summary(self) -> str:
+        """Old summary implementation for backward compatibility."""
         lines = []
 
         # Line 1: Run ID, failure type, and stage
@@ -378,7 +523,8 @@ class Diagnosis(BaseModel):
         line2 = (
             f"Should answer: {self.should_have_answered} | "
             f"Risk: {self.security_risk.value} | "
-            f"Confidence: {confidence_str}"
+            f"{self.confidence_label}: {confidence_str} | "
+            f"Status: {self.calibration_status}"
         )
         lines.append(line2)
 

@@ -24,7 +24,6 @@ def test_evaluate_diagnosis_case_matches_exact_expectations() -> None:
         root_cause_stage=FailureStage.UNKNOWN,
         should_have_answered=True,
         security_risk=SecurityRisk.NONE,
-        confidence=None,
         recommended_fix="None",
         citation_faithfulness="genuine",
     )
@@ -55,7 +54,6 @@ def test_evaluate_diagnosis_case_reports_mismatches() -> None:
         root_cause_stage=FailureStage.UNKNOWN,
         should_have_answered=True,
         security_risk=SecurityRisk.NONE,
-        confidence=None,
         recommended_fix="None",
         citation_faithfulness="genuine",
     )

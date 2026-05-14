@@ -9,7 +9,7 @@ Reports remain uncalibrated and are not recommended for production gating.
 from __future__ import annotations
 
 from enum import Enum
-from typing import List
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -109,3 +109,5 @@ class NCVReport(BaseModel):
     calibration_status: NCVCalibrationStatus
     recommended_for_gating: bool = False
     limitations: List[str] = Field(default_factory=list)
+    original_first_failing_node: Optional[NCVNode] = None
+    priority_policy_decision: Optional[Dict[str, Any]] = None

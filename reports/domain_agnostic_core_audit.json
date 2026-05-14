@@ -1,0 +1,177 @@
+{
+  "audit_version": "2026-05-13-domain-agnostic-core-v1",
+  "scope": [
+    "src/raggov/analyzers/grounding",
+    "src/raggov/analyzers/sufficiency",
+    "src/raggov/analyzers/version_validity",
+    "src/raggov/analyzers/retrieval_diagnosis",
+    "src/raggov/analyzers/citation_faithfulness",
+    "src/raggov/analyzers/taxonomy_classifier",
+    "src/raggov/decision_policy.py",
+    "tests",
+    "stresslab"
+  ],
+  "summary": {
+    "critical": 3,
+    "high": 4,
+    "medium": 5,
+    "low": 4,
+    "default_core_leakage_after_refactor": false
+  },
+  "findings": [
+    {
+      "file": "src/raggov/analyzers/grounding/claims.py",
+      "function_or_class": "ClaimExtractor / _SUBSTANTIVE_RE",
+      "exact_term_or_pattern": "G.O, circular, notification, order, gazette",
+      "why_domain_specific": "Claim-worthiness was boosted by government order and publication vocabulary.",
+      "default_core_path": true,
+      "affects": "extraction",
+      "risk": "critical",
+      "required_action": "generalize",
+      "status": "fixed: default substantive detection now uses generic factual, value, date, version, relationship, procedure, and requirement signals."
+    },
+    {
+      "file": "src/raggov/analyzers/grounding/value_extraction.py",
+      "function_or_class": "extract_value_mentions",
+      "exact_term_or_pattern": "g.o./G.O. number regex",
+      "why_domain_specific": "GO numbers are government-order identifiers and caused generic software/product text to share a core value type with government orders.",
+      "default_core_path": true,
+      "affects": "extraction, scoring, diagnosis",
+      "risk": "critical",
+      "required_action": "move behind non-default optional config",
+      "status": "fixed: generic extractor no longer emits GO values by default; government GO extraction is available via extract_government_policy_value_mentions."
+    },
+    {
+      "file": "src/raggov/analyzers/grounding/evidence_layer.py",
+      "function_or_class": "detect_claim_type",
+      "exact_term_or_pattern": "go_number, eligibility, policy_rule",
+      "why_domain_specific": "Default claim taxonomy encoded government/policy labels instead of generic RAG assertion categories.",
+      "default_core_path": true,
+      "affects": "scoring, diagnosis",
+      "risk": "critical",
+      "required_action": "generalize",
+      "status": "fixed: default labels are value_assertion, date_time_assertion, requirement_or_condition, procedural_assertion, relationship_or_comparison, definition, and general_factual."
+    },
+    {
+      "file": "src/raggov/analyzers/grounding/triplets.py",
+      "function_or_class": "RuleBasedPolicyTripletExtractorV0 / build_triplet_extractor",
+      "exact_term_or_pattern": "G.O., circular, notification, policy, scheme, government employees, beneficiaries",
+      "why_domain_specific": "The rule extractor was explicitly tuned for Indian government/policy text and factory default selected it whenever triplet extraction was enabled.",
+      "default_core_path": false,
+      "affects": "extraction, diagnosis",
+      "risk": "high",
+      "required_action": "rename as government-specific",
+      "status": "fixed: optional extractor is GovernmentPolicyTripletExtractorV0; default enabled mode is GenericRuleTripletExtractorV0."
+    },
+    {
+      "file": "src/raggov/analyzers/grounding/triplets.py",
+      "function_or_class": "LLMTripletExtractorV1",
+      "exact_term_or_pattern": "Preserve exact legal identifiers (G.O. numbers, Act names, dates)",
+      "why_domain_specific": "LLM prompt instructed extraction to preserve government/legal identifiers as a first-class default requirement.",
+      "default_core_path": false,
+      "affects": "extraction",
+      "risk": "medium",
+      "required_action": "generalize",
+      "status": "fixed: prompt now preserves generic identifiers, versions, dates, numbers, and names; LLM fallback is generic."
+    },
+    {
+      "file": "src/raggov/analyzers/sufficiency/sufficiency.py",
+      "function_or_class": "_extract_evidence_requirements",
+      "exact_term_or_pattern": "government document RAG system; authority; citation: Specific GO number, circular number, order reference",
+      "why_domain_specific": "Requirement extraction prompt framed every query as government-document analysis.",
+      "default_core_path": true,
+      "affects": "sufficiency diagnosis",
+      "risk": "high",
+      "required_action": "generalize",
+      "status": "fixed: prompt now uses generic RAG requirement types and maps legacy aliases to generic types."
+    },
+    {
+      "file": "src/raggov/models/diagnosis.py",
+      "function_or_class": "EvidenceRequirement.requirement_type",
+      "exact_term_or_pattern": "rule, authority, scope, supersession, citation",
+      "why_domain_specific": "The schema used policy/legal-style requirement categories as the primary type system.",
+      "default_core_path": true,
+      "affects": "sufficiency diagnosis",
+      "risk": "high",
+      "required_action": "generalize",
+      "status": "fixed: generic requirement types were added; legacy aliases remain accepted for compatibility."
+    },
+    {
+      "file": "src/raggov/analyzers/sufficiency/sufficiency.py",
+      "function_or_class": "_detect_structured_sufficiency_type",
+      "exact_term_or_pattern": "US state scope list",
+      "why_domain_specific": "A geographic-scope heuristic recognizes US state names, which is domain metadata rather than a universal RAG concept.",
+      "default_core_path": true,
+      "affects": "sufficiency diagnosis",
+      "risk": "medium",
+      "required_action": "generalize",
+      "status": "partially fixed: added generic scoped qualifier terms; full location/entity scope extraction remains future work."
+    },
+    {
+      "file": "src/raggov/analyzers/version_validity/analyzer.py",
+      "function_or_class": "_document_record / _classify_document",
+      "exact_term_or_pattern": "department metadata field",
+      "why_domain_specific": "Department is common in government corpora, but can be generic organizational metadata.",
+      "default_core_path": true,
+      "affects": "source validity report metadata",
+      "risk": "low",
+      "required_action": "keep because truly generic",
+      "status": "kept: not used as a decision signal."
+    },
+    {
+      "file": "src/raggov/analyzers/version_validity/analyzer.py",
+      "function_or_class": "_document_record / _timestamp_for_doc",
+      "exact_term_or_pattern": "missing publication_date, updated_at, version, current_version support",
+      "why_domain_specific": "Relying mainly on issue_date/timestamp under-covered software, product, finance, and scientific source metadata.",
+      "default_core_path": true,
+      "affects": "source validity diagnosis",
+      "risk": "high",
+      "required_action": "generalize",
+      "status": "fixed: publication_date, updated_at, version, current_version, current, stale, and draft status handling added."
+    },
+    {
+      "file": "src/raggov/analyzers/confidence/semantic_entropy.py",
+      "function_or_class": "_ambiguous_retrieved_context",
+      "exact_term_or_pattern": "policy|rules?|requirements?|returns?",
+      "why_domain_specific": "Ambiguity detection is tuned to return/policy-like queries.",
+      "default_core_path": true,
+      "affects": "confidence diagnosis",
+      "risk": "medium",
+      "required_action": "generalize",
+      "status": "open: not modified in this pass because it is confidence-sidecar logic, not core grounding/sufficiency/version validity."
+    },
+    {
+      "file": "src/raggov/analyzers/grounding/verifiers.py",
+      "function_or_class": "_pattern_contradiction",
+      "exact_term_or_pattern": "eligible / only eligibility generalization",
+      "why_domain_specific": "Eligibility wording is policy-flavored, though the underlying failure is generic overgeneralization beyond an explicit only constraint.",
+      "default_core_path": true,
+      "affects": "grounding diagnosis",
+      "risk": "medium",
+      "required_action": "generalize",
+      "status": "open: rationale should be renamed to generic scope-overgeneralization in a follow-up."
+    },
+    {
+      "file": "stresslab/ingest/parse_go_order.py",
+      "function_or_class": "GO PDF parser",
+      "exact_term_or_pattern": "Andhra Pradesh G.O. order PDFs, DEPARTMENT, ORDER, NOTIFICATION",
+      "why_domain_specific": "This parser is intentionally government-specific.",
+      "default_core_path": false,
+      "affects": "tests/stresslab ingestion",
+      "risk": "low",
+      "required_action": "rename as government-specific",
+      "status": "kept outside core default path."
+    },
+    {
+      "file": "tests/Data/*.PDF and stresslab/cases/fixtures/*ms*.json",
+      "function_or_class": "government benchmark fixtures",
+      "exact_term_or_pattern": "AP, Andhra Pradesh, G.O.Ms, Rule, District",
+      "why_domain_specific": "The benchmark corpus is government/policy-heavy.",
+      "default_core_path": false,
+      "affects": "tests",
+      "risk": "low",
+      "required_action": "keep because tests government corpus",
+      "status": "kept; supplemented by domain_agnostic tests and benchmark."
+    }
+  ]
+}

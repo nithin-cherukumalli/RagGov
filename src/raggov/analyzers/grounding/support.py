@@ -240,13 +240,17 @@ class ClaimGroundingAnalyzer(BaseAnalyzer):
             )
 
         remediation = REMEDIATION.format(failed=len(failed_results), total=len(claim_results))
+        stage = self._failure_stage(run, failed_results)
 
         if failed_fraction >= float(self.config.get("fail_threshold", 0.3)):
+            failure_type = FailureType.UNSUPPORTED_CLAIM
+            if contradicted_results and len(contradicted_results) == len(failed_results):
+                failure_type = FailureType.CONTRADICTED_CLAIM
             return AnalyzerResult(
                 analyzer_name=self.name(),
                 status="fail",
-                failure_type=FailureType.UNSUPPORTED_CLAIM,
-                stage=FailureStage.GROUNDING,
+                failure_type=failure_type,
+                stage=stage,
                 evidence=evidence,
                 claim_results=claim_results,
                 remediation=remediation,
@@ -258,7 +262,7 @@ class ClaimGroundingAnalyzer(BaseAnalyzer):
                 analyzer_name=self.name(),
                 status="warn",
                 failure_type=FailureType.CONTRADICTED_CLAIM,
-                stage=FailureStage.GROUNDING,
+                stage=stage,
                 evidence=evidence,
                 claim_results=claim_results,
                 remediation=remediation,
@@ -270,7 +274,7 @@ class ClaimGroundingAnalyzer(BaseAnalyzer):
                 analyzer_name=self.name(),
                 status="warn",
                 failure_type=FailureType.UNSUPPORTED_CLAIM,
-                stage=FailureStage.GROUNDING,
+                stage=stage,
                 evidence=evidence,
                 claim_results=claim_results,
                 remediation=remediation,
@@ -286,6 +290,13 @@ class ClaimGroundingAnalyzer(BaseAnalyzer):
             diagnostic_rollup=rollup.as_dict(),
             grounding_evidence_bundle=bundle,
         )
+
+    def _failure_stage(self, run: RAGRun, failed_results: list[ClaimResult]) -> FailureStage:
+        for result in failed_results:
+            reason = (result.evidence_reason or "").lower()
+            if "unsupported generation detail" in reason:
+                return FailureStage.GENERATION
+        return FailureStage.GROUNDING
 
     def _evaluate_claim(
         self,

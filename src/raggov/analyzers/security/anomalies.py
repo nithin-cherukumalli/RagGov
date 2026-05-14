@@ -12,8 +12,8 @@ from raggov.models.run import RAGRun
 
 
 REMEDIATION = (
-    "Retrieval pattern shows statistical anomalies. Investigate for adversarial "
-    "document injection or corpus poisoning."
+    "Retrieval pattern shows statistical anomalies. Inspect retrieval scoring, "
+    "reranking, duplicate indexing, or chunk duplication."
 )
 
 
@@ -38,7 +38,7 @@ class RetrievalAnomalyAnalyzer(BaseAnalyzer):
         if evidence:
             return self._warn(
                 FailureType.RETRIEVAL_ANOMALY,
-                FailureStage.SECURITY,
+                FailureStage.RETRIEVAL,
                 evidence,
                 REMEDIATION,
             )

@@ -163,6 +163,11 @@ class VersionValidityReport(BaseModel):
     not_yet_effective_doc_ids: List[str] = Field(default_factory=list)
     metadata_missing_doc_ids: List[str] = Field(default_factory=list)
     high_risk_claim_ids: List[str] = Field(default_factory=list)
+    cited_invalid_doc_ids: List[str] = Field(default_factory=list)
+    answer_bearing_invalid_doc_ids: List[str] = Field(default_factory=list)
+    retrieved_only_stale_doc_ids: List[str] = Field(default_factory=list)
+    stale_but_irrelevant_doc_ids: List[str] = Field(default_factory=list)
+    retrieval_quality_affected_doc_ids: List[str] = Field(default_factory=list)
     retrieval_evidence_profile_used: bool = False
     citation_faithfulness_report_used: bool = False
     lineage_metadata_used: bool = False

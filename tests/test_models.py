@@ -120,7 +120,7 @@ def test_diagnosis_models_defaults_enums_and_summary() -> None:
         root_cause_stage=FailureStage.GROUNDING,
         should_have_answered=False,
         security_risk=SecurityRisk.LOW,
-        confidence=0.42,
+        diagnostic_score=0.42,
         pipeline_health_score=0.6,
         first_failing_node="CLAIM_GROUNDING",
         citation_faithfulness="partial",
@@ -145,7 +145,8 @@ def test_diagnosis_models_defaults_enums_and_summary() -> None:
     assert diagnosis.analyzer_results[0].citation_probe_results is not None
     assert diagnosis.summary() == (
         "Run run-1 | UNSUPPORTED_CLAIM | Stage: GROUNDING\n"
-        "Should answer: False | Risk: LOW | Confidence: 0.42\n"
+        "Should answer: False | Risk: LOW | Confidence Signal (uncalibrated): 0.42 | "
+        "Status: uncalibrated\n"
         "Pipeline health: 60% | First failure: CLAIM_GROUNDING\n"
         "Fix: Retrieve stronger evidence."
     )
@@ -158,7 +159,6 @@ def test_diagnosis_mutable_defaults_are_not_shared() -> None:
         root_cause_stage=FailureStage.UNKNOWN,
         should_have_answered=True,
         security_risk=SecurityRisk.NONE,
-        confidence=None,
         recommended_fix="No fix needed.",
     )
     second = Diagnosis(
@@ -167,7 +167,6 @@ def test_diagnosis_mutable_defaults_are_not_shared() -> None:
         root_cause_stage=FailureStage.UNKNOWN,
         should_have_answered=True,
         security_risk=SecurityRisk.NONE,
-        confidence=None,
         recommended_fix="No fix needed.",
     )
 

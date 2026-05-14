@@ -34,7 +34,7 @@ FAILURE_MESSAGES: dict[FailureType, str] = {
         "A retrieved chunk shows signs of answer-steering or corpus poisoning."
     ),
     FailureType.RETRIEVAL_ANOMALY: (
-        "Retrieval results show statistical anomalies that may indicate manipulation."
+        "Retrieval results show statistical anomalies such as score cliffs, score outliers, or near-duplicate chunks."
     ),
     FailureType.PRIVACY_VIOLATION: (
         "The query requests sensitive personal information that should not be disclosed."
@@ -123,7 +123,7 @@ DEFAULT_REMEDIATIONS: dict[FailureType, str] = {
         "Quarantine suspicious documents and investigate their source provenance."
     ),
     FailureType.RETRIEVAL_ANOMALY: (
-        "Investigate retrieval anomalies for adversarial injection or corpus poisoning."
+        "Inspect retrieval scoring, reranking, duplicate indexing, chunk duplication, and corpus/index artifacts. Escalate to security only if explicit adversarial evidence is also present."
     ),
     FailureType.PRIVACY_VIOLATION: (
         "Reject the query, abstain from answering, or redact sensitive details from context."
@@ -180,7 +180,6 @@ FAILURE_PRIORITY: list[FailureType] = [
     FailureType.PROMPT_INJECTION,
     FailureType.SUSPICIOUS_CHUNK,
     FailureType.PRIVACY_VIOLATION,
-    FailureType.RETRIEVAL_ANOMALY,
     FailureType.PARSER_STRUCTURE_LOSS,
     FailureType.CHUNKING_BOUNDARY_ERROR,
     FailureType.EMBEDDING_DRIFT,
@@ -193,6 +192,7 @@ FAILURE_PRIORITY: list[FailureType] = [
     FailureType.UNSUPPORTED_CLAIM,
     FailureType.CITATION_MISMATCH,
     FailureType.STALE_RETRIEVAL,
+    FailureType.RETRIEVAL_ANOMALY,
     FailureType.POST_RATIONALIZED_CITATION,
     FailureType.SCOPE_VIOLATION,
     FailureType.INCONSISTENT_CHUNKS,

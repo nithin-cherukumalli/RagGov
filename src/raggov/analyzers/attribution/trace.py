@@ -21,7 +21,6 @@ from raggov.models.run import RAGRun
 SECURITY_FAILURE_TYPES = {
     FailureType.PROMPT_INJECTION,
     FailureType.SUSPICIOUS_CHUNK,
-    FailureType.RETRIEVAL_ANOMALY,
     FailureType.PRIVACY_VIOLATION,
 }
 

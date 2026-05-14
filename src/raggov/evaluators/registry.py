@@ -43,6 +43,18 @@ class ExternalEvaluatorRegistry:
         """Return names of adapters whose dependencies are satisfied."""
         return [name for name, p in self._registry.items() if p.is_available()]
 
+    def readiness_report(
+        self,
+        enabled_providers: list[str] | None = None,
+    ):
+        """Return a structured doctor report for the current registry."""
+        from raggov.evaluators.doctor import build_provider_doctor_report
+
+        return build_provider_doctor_report(
+            self,
+            enabled_providers=enabled_providers,
+        )
+
     def evaluate_enabled(
         self,
         run: RAGRun,

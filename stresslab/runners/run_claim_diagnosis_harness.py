@@ -36,6 +36,7 @@ def write_claim_diagnosis_report(
     payload = {
         "evaluation_status": result.evaluation_status,
         "a2p_mode": result.a2p_mode,
+        "total_examples": result.total_examples,
         "case_count": result.total_examples,
         "aggregate_metrics": {
             "claim_label_accuracy": result.claim_label_accuracy,
@@ -46,6 +47,8 @@ def write_claim_diagnosis_report(
             "primary_stage_accuracy": result.primary_stage_accuracy,
             "fix_category_exact_accuracy": result.fix_category_exact_accuracy,
             "fix_category_partial_accuracy": result.fix_category_partial_accuracy,
+            "false_clean_count": result.false_clean_count,
+            "claim_label_breakdown": result.claim_label_breakdown,
         },
         "category_metrics": result.category_metrics,
         "per_case_results": [asdict(item) for item in result.per_example],
@@ -72,6 +75,7 @@ def _render_claim_diagnosis_markdown(result: ClaimDiagnosisHarnessResult) -> str
         "",
         f"- Evaluation status: `{result.evaluation_status}`",
         f"- A2P mode: `{result.a2p_mode}`",
+        f"- total_examples: {result.total_examples}",
         f"- Case count: {result.total_examples}",
         "",
         "## Aggregate Metrics",
@@ -86,6 +90,8 @@ def _render_claim_diagnosis_markdown(result: ClaimDiagnosisHarnessResult) -> str
         f"| primary_stage_accuracy | {result.primary_stage_accuracy:.2f} |",
         f"| fix_category_exact_accuracy | {result.fix_category_exact_accuracy:.2f} |",
         f"| fix_category_partial_accuracy | {result.fix_category_partial_accuracy:.2f} |",
+        f"| false_clean_count | {result.false_clean_count} |",
+        f"| claim_label_breakdown | {result.claim_label_breakdown} |",
         "",
         "## Category Metrics",
         "",

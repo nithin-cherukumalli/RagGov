@@ -68,7 +68,7 @@ def test_retrieval_anomaly_skips_without_scores() -> None:
     assert result.evidence == ["no retrieval scores available"]
 
 
-def test_retrieval_anomaly_warns_for_duplicate_chunks_and_score_cliff() -> None:
+def test_retrieval_anomaly_alone_is_retrieval_stage() -> None:
     result = RetrievalAnomalyAnalyzer().analyze(
         run_with_chunks(
             [
@@ -80,15 +80,28 @@ def test_retrieval_anomaly_warns_for_duplicate_chunks_and_score_cliff() -> None:
 
     assert result.status == "warn"
     assert result.failure_type == FailureType.RETRIEVAL_ANOMALY
-    assert result.stage == FailureStage.SECURITY
+    assert result.stage == FailureStage.RETRIEVAL
     assert result.evidence == [
         "near duplicate chunks chunk-1 and chunk-2 overlap=1.00",
         "score cliff between chunk-1 score=0.99 and chunk-2 score=0.40",
     ]
     assert result.remediation == (
-        "Retrieval pattern shows statistical anomalies. Investigate for "
-        "adversarial document injection or corpus poisoning."
+        "Retrieval pattern shows statistical anomalies. Inspect retrieval scoring, "
+        "reranking, duplicate indexing, or chunk duplication."
     )
+
+
+def test_retrieval_anomaly_alone_does_not_create_security_risk() -> None:
+    result = RetrievalAnomalyAnalyzer().analyze(
+        run_with_chunks(
+            [
+                chunk("chunk-1", "refund policy covers returns", 0.99),
+                chunk("chunk-2", "refund policy covers returns", 0.4),
+            ]
+        )
+    )
+
+    assert getattr(result, "security_risk", None) in (None, SecurityRisk.NONE)
 
 
 def test_retrieval_anomaly_warns_for_zscore_outlier() -> None:

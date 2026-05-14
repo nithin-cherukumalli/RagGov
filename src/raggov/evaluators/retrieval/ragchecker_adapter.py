@@ -19,6 +19,7 @@ They do not unilaterally determine GovRAG's final FailureType.
 
 from __future__ import annotations
 
+import importlib
 import importlib.util
 from typing import Any
 
@@ -27,6 +28,10 @@ from raggov.evaluators.base import (
     ExternalEvaluatorProvider,
     ExternalSignalRecord,
     ExternalSignalType,
+)
+from raggov.evaluators.readiness import (
+    ProviderReadiness,
+    package_version_or_none,
 )
 from raggov.models.run import RAGRun
 
@@ -126,6 +131,118 @@ class RAGCheckerSignalProvider:
     def is_available(self) -> bool:
         return importlib.util.find_spec("ragchecker") is not None
 
+    def check_readiness(self) -> ProviderReadiness:
+        enabled = set(self.config.get("enabled_external_providers", []))
+        if enabled and self.name not in enabled:
+            return ProviderReadiness(
+                provider_name=self.name,
+                available=False,
+                status="disabled",
+                reason_code="disabled",
+                reason="Provider is not enabled in the current configuration.",
+                fallback_provider="native_context_metrics",
+            )
+
+        package_version = package_version_or_none("ragchecker")
+        import_name = self.config.get("ragchecker_import_name", "ragchecker")
+        try:
+            module = importlib.import_module(import_name)
+        except ImportError:
+            code = "package_missing" if import_name == "ragchecker" else "import_path_mismatch"
+            reason = (
+                "RAGChecker package/module could not be imported."
+                if code == "package_missing"
+                else f"Configured ragchecker import path '{import_name}' could not be imported."
+            )
+            return ProviderReadiness(
+                provider_name=self.name,
+                available=False,
+                status="unavailable",
+                reason_code=code,
+                reason=reason,
+                install_hint="pip install ragchecker",
+                fallback_provider="native_context_metrics",
+                package_version=package_version,
+            )
+        except Exception as exc:
+            return ProviderReadiness(
+                provider_name=self.name,
+                available=False,
+                status="unavailable",
+                reason_code="unknown_import_error",
+                reason=f"Unexpected RAGChecker import error: {exc}",
+                config_hint="Verify the installed ragchecker package matches the adapter expectations.",
+                fallback_provider="native_context_metrics",
+                package_version=package_version,
+            )
+
+        required_attr = self.config.get("ragchecker_required_attr")
+        if required_attr and not hasattr(module, required_attr):
+            return ProviderReadiness(
+                provider_name=self.name,
+                available=False,
+                status="unavailable",
+                reason_code="adapter_api_mismatch",
+                reason=f"Installed ragchecker package does not expose required attribute '{required_attr}'.",
+                config_hint="Adjust ragchecker_required_attr or install a compatible ragchecker package build.",
+                fallback_provider="native_context_metrics",
+                package_version=package_version,
+            )
+
+        llm_mode = self.config.get("ragchecker_mode") == "llm"
+        has_llm = bool(self.config.get("llm_client")) or bool(self.config.get("llm_fn"))
+        if llm_mode and not has_llm:
+            return ProviderReadiness(
+                provider_name=self.name,
+                available=False,
+                status="unavailable",
+                reason_code="llm_config_missing",
+                reason="RAGChecker is configured for LLM-backed evaluation but no llm_client/llm_fn is configured.",
+                config_hint="Provide llm_client or llm_fn, or switch ragchecker_mode away from llm.",
+                requires_network=True,
+                safe_offline=False,
+                fallback_provider="native_context_metrics",
+                package_version=package_version,
+            )
+
+        if self.config.get("ragchecker_metric_results") is not None or self.config.get("metric_results") is not None:
+            maturity = "mock_runner"
+            runtime_available = True
+            runtime_reason = "Using mock metric_results."
+        elif self.config.get("ragchecker_metric_runner") is not None or self.config.get("metric_runner") is not None:
+            maturity = "configured_runner"
+            runtime_available = True
+            runtime_reason = "Using user-configured runner."
+        else:
+            maturity = "schema_only"
+            runtime_available = False
+            runtime_reason = "No runner or mock results configured. Native runtime execution not implemented."
+
+        if not runtime_available:
+            return ProviderReadiness(
+                provider_name=self.name,
+                available=False,
+                status="degraded",
+                reason_code="runtime_execution_not_configured",
+                reason=runtime_reason,
+                fallback_provider="native_context_metrics",
+                package_version=package_version,
+                integration_maturity=maturity,
+                runtime_execution_available=runtime_available,
+                runtime_execution_reason=runtime_reason,
+            )
+
+        return ProviderReadiness(
+            provider_name=self.name,
+            available=True,
+            status="available",
+            fallback_provider="native_context_metrics",
+            package_version=package_version,
+            integration_maturity=maturity,
+            runtime_execution_available=runtime_available,
+            runtime_execution_reason=runtime_reason,
+        )
+
     def evaluate(self, run: RAGRun) -> ExternalEvaluationResult:
         if not self.is_available():
             return ExternalEvaluationResult(
@@ -210,11 +327,11 @@ class RAGCheckerSignalProvider:
         ]
 
     def _metric_payload(self, run: RAGRun) -> dict[str, Any]:
-        runner = self.config.get("metric_runner")
+        runner = self.config.get("ragchecker_metric_runner") or self.config.get("metric_runner")
         if runner is not None:
             return dict(runner(run))
 
-        configured = self.config.get("metric_results")
+        configured = self.config.get("ragchecker_metric_results") or self.config.get("metric_results")
         if configured is not None:
             return dict(configured)
 

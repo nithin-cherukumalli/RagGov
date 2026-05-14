@@ -41,9 +41,70 @@ class StructuredLLMCitationVerifierAdapter:
         self._max_retries = int(self.config.get("structured_llm_max_retries", 1))
 
     def is_available(self) -> bool:
-        return self._llm_fn is not None or self._client is not None
+        return (
+            self._llm_fn is not None 
+            or self._client is not None
+            or self.config.get("structured_llm_citation_metric_results") is not None
+        )
+
+    def check_readiness(self) -> ProviderReadiness:
+        """Return readiness info for Structured LLM citation verification."""
+        from raggov.evaluators.readiness import ProviderReadiness
+        
+        enabled = set(self.config.get("enabled_external_providers", []))
+        if enabled and self.name not in enabled:
+            return ProviderReadiness(
+                provider_name=self.name,
+                available=False,
+                status="disabled",
+                reason_code="disabled",
+                reason="Provider is not enabled in the current configuration."
+            )
+
+        # Check for configured results or runners
+        if self.config.get("structured_llm_citation_metric_results") is not None:
+            maturity = "mock_runner"
+            runtime_available = True
+            runtime_reason = "Using pre-configured metric results (mock mode)."
+        elif self.is_available():
+            maturity = "configured_runner"
+            runtime_available = True
+            runtime_reason = "LLM client or function is configured for live extraction."
+        else:
+            maturity = "schema_only"
+            runtime_available = False
+            runtime_reason = "No LLM client, function, or mock results configured."
+
+        return ProviderReadiness(
+            provider_name=self.name,
+            available=self.is_available(),
+            status="available" if self.is_available() else "unavailable",
+            integration_maturity=maturity,
+            runtime_execution_available=runtime_available,
+            runtime_execution_reason=runtime_reason,
+            reason="Structured LLM citation verifier is ready." if self.is_available() else runtime_reason
+        )
 
     def evaluate(self, run: RAGRun) -> ExternalEvaluationResult:
+        # Check for mock results first
+        mock_results = self.config.get("structured_llm_citation_metric_results")
+        if mock_results is not None:
+            signals = []
+            # If mock_results is a list of results
+            if isinstance(mock_results, list):
+                for res in mock_results:
+                    signals.append(ExternalSignalRecord.model_validate(res))
+            # If it's a single result
+            elif isinstance(mock_results, dict):
+                signals.append(ExternalSignalRecord.model_validate(mock_results))
+                
+            return ExternalEvaluationResult(
+                provider=self.provider,
+                succeeded=True,
+                signals=signals,
+                raw_payload={"mock_mode": True, "chunk_count": len(signals)},
+            )
+
         return ExternalEvaluationResult(
             provider=self.provider,
             succeeded=False,

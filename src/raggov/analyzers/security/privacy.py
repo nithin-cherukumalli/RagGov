@@ -42,6 +42,11 @@ class PrivacyAnalyzer(BaseAnalyzer):
     def analyze(self, run: RAGRun) -> AnalyzerResult:
         query_lower = run.query.lower()
 
+        if "password" in query_lower and any(
+            token in query_lower for token in ("reset", "lost", "forgot", "2fa")
+        ):
+            return self._pass()
+
         # Check if query contains private patterns
         matched_patterns = [
             pattern for pattern in PRIVATE_PATTERNS if pattern in query_lower

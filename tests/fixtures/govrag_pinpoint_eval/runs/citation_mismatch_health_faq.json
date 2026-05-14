@@ -1,0 +1,44 @@
+{
+  "case_id": "citation_mismatch_health_faq",
+  "description": "Health guidance is supported in retrieved context, but the citation points to an unrelated wellness FAQ.",
+  "query": "How long should patients wait after a fever before scheduling the Helio vaccine?",
+  "retrieved_chunks": [
+    {
+      "chunk_id": "health-citation-chunk-1",
+      "text": "Patients should wait until they have been fever-free for 24 hours before scheduling the Helio vaccine.",
+      "source_doc_id": "helio-vaccine-doc-1",
+      "score": 0.9
+    },
+    {
+      "chunk_id": "health-citation-chunk-2",
+      "text": "A balanced recovery diet should include hydration, soft foods, and gradual return to normal meals.",
+      "source_doc_id": "wellness-faq-doc-2",
+      "score": 0.79
+    }
+  ],
+  "final_answer": "Patients should wait until they have been fever-free for 24 hours before scheduling the Helio vaccine.",
+  "citations": ["wellness-faq-doc-2"],
+  "cited_doc_ids": ["wellness-faq-doc-2"],
+  "corpus_metadata": {
+    "query_date": "2026-05-01T00:00:00Z",
+    "entries": [
+      {
+        "doc_id": "helio-vaccine-doc-1",
+        "text": "Patients should wait until they have been fever-free for 24 hours before scheduling the Helio vaccine.",
+        "timestamp": "2026-03-10T00:00:00Z",
+        "metadata": {
+          "status": "active"
+        }
+      },
+      {
+        "doc_id": "wellness-faq-doc-2",
+        "text": "A balanced recovery diet should include hydration, soft foods, and gradual return to normal meals.",
+        "timestamp": "2026-03-11T00:00:00Z",
+        "metadata": {
+          "status": "active"
+        }
+      }
+    ]
+  },
+  "parser_validation_profile": null
+}
