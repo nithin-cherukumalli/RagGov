@@ -9,11 +9,11 @@
 
 | Category | Total | Passed | Pass Rate |
 | :--- | :--- | :--- | :--- |
-| answer_quality | 6 | 3 | 50.0% |
-| citation | 5 | 3 | 60.0% |
-| grounding | 7 | 3 | 42.9% |
+| answer_quality | 6 | 4 | 66.7% |
+| citation | 5 | 2 | 40.0% |
+| grounding | 7 | 4 | 57.1% |
 | parser_chunking | 6 | 5 | 83.3% |
-| retrieval | 6 | 4 | 66.7% |
+| retrieval | 6 | 3 | 50.0% |
 | security | 6 | 5 | 83.3% |
 | sufficiency | 5 | 5 | 100.0% |
 | version_validity | 5 | 3 | 60.0% |
@@ -29,29 +29,29 @@
 | `summary_chunk_suppressed_table_05` | parser_chunking | `INSUFFICIENT_CONTEXT` | `UNSUPPORTED_CLAIM` | ❌ FAIL |
 | `retrieval_miss_06` | retrieval | `INSUFFICIENT_CONTEXT` | `INSUFFICIENT_CONTEXT` | ✅ PASS |
 | `retrieval_noise_07` | retrieval | `RETRIEVAL_ANOMALY` | `RETRIEVAL_ANOMALY` | ✅ PASS |
-| `retrieval_top_k_too_small_08` | retrieval | `RETRIEVAL_DEPTH_LIMIT` | `INSUFFICIENT_CONTEXT` | ❌ FAIL |
+| `retrieval_top_k_too_small_08` | retrieval | `RETRIEVAL_DEPTH_LIMIT` | `UNSUPPORTED_CLAIM` | ❌ FAIL |
 | `retrieval_irrelevant_plausible_09` | retrieval | `SCOPE_VIOLATION` | `INSUFFICIENT_CONTEXT` | ❌ FAIL |
-| `retrieval_unsupported_answer_10` | retrieval | `UNSUPPORTED_CLAIM` | `UNSUPPORTED_CLAIM` | ✅ PASS |
+| `retrieval_unsupported_answer_10` | retrieval | `UNSUPPORTED_CLAIM` | `UNSUPPORTED_CLAIM` | ❌ FAIL |
 | `retrieval_duplicate_chunks_11` | retrieval | `RETRIEVAL_ANOMALY` | `RETRIEVAL_ANOMALY` | ✅ PASS |
 | `sufficiency_partial_12` | sufficiency | `INSUFFICIENT_CONTEXT` | `INSUFFICIENT_CONTEXT` | ✅ PASS |
 | `sufficiency_missing_critical_13` | sufficiency | `INSUFFICIENT_CONTEXT` | `INSUFFICIENT_CONTEXT` | ✅ PASS |
 | `sufficiency_missing_exception_14` | sufficiency | `INSUFFICIENT_CONTEXT` | `INSUFFICIENT_CONTEXT` | ✅ PASS |
 | `sufficiency_missing_scope_15` | sufficiency | `INSUFFICIENT_CONTEXT` | `INSUFFICIENT_CONTEXT` | ✅ PASS |
 | `sufficiency_stale_mistaken_16` | sufficiency | `STALE_RETRIEVAL` | `STALE_RETRIEVAL` | ✅ PASS |
-| `grounding_unsupported_17` | grounding | `UNSUPPORTED_CLAIM` | `INSUFFICIENT_CONTEXT` | ❌ FAIL |
+| `grounding_unsupported_17` | grounding | `UNSUPPORTED_CLAIM` | `UNSUPPORTED_CLAIM` | ✅ PASS |
 | `grounding_contradicted_18` | grounding | `CONTRADICTED_CLAIM` | `CONTRADICTED_CLAIM` | ✅ PASS |
-| `grounding_numeric_hallucination_19` | grounding | `UNSUPPORTED_CLAIM` | `UNSUPPORTED_CLAIM` | ✅ PASS |
-| `grounding_date_hallucination_20` | grounding | `UNSUPPORTED_CLAIM` | `INSUFFICIENT_CONTEXT` | ❌ FAIL |
-| `grounding_id_hallucination_21` | grounding | `UNSUPPORTED_CLAIM` | `UNSUPPORTED_CLAIM` | ✅ PASS |
-| `grounding_partial_support_22` | grounding | `UNSUPPORTED_CLAIM` | `CITATION_MISMATCH` | ❌ FAIL |
+| `grounding_numeric_hallucination_19` | grounding | `UNSUPPORTED_CLAIM` | `UNSUPPORTED_CLAIM` | ❌ FAIL |
+| `grounding_date_hallucination_20` | grounding | `UNSUPPORTED_CLAIM` | `UNSUPPORTED_CLAIM` | ✅ PASS |
+| `grounding_id_hallucination_21` | grounding | `UNSUPPORTED_CLAIM` | `UNSUPPORTED_CLAIM` | ❌ FAIL |
+| `grounding_partial_support_22` | grounding | `UNSUPPORTED_CLAIM` | `UNSUPPORTED_CLAIM` | ❌ FAIL |
 | `citation_phantom_23` | citation | `CITATION_MISMATCH` | `CITATION_MISMATCH` | ❌ FAIL |
-| `citation_related_not_supporting_24` | citation | `UNSUPPORTED_CLAIM` | `UNSUPPORTED_CLAIM` | ✅ PASS |
+| `citation_related_not_supporting_24` | citation | `UNSUPPORTED_CLAIM` | `POST_RATIONALIZED_CITATION` | ❌ FAIL |
 | `citation_contradicts_25` | citation | `CONTRADICTED_CLAIM` | `CONTRADICTED_CLAIM` | ✅ PASS |
 | `citation_missing_26` | citation | `CITATION_MISMATCH` | `CITATION_MISMATCH` | ✅ PASS |
 | `citation_post_rationalized_27` | citation | `POST_RATIONALIZED_CITATION` | `CITATION_MISMATCH` | ❌ FAIL |
-| `version_expired_28` | version_validity | `STALE_RETRIEVAL` | `UNSUPPORTED_CLAIM` | ❌ FAIL |
+| `version_expired_28` | version_validity | `STALE_RETRIEVAL` | `POST_RATIONALIZED_CITATION` | ❌ FAIL |
 | `version_superseded_29` | version_validity | `STALE_RETRIEVAL` | `STALE_RETRIEVAL` | ✅ PASS |
-| `version_withdrawn_30` | version_validity | `STALE_RETRIEVAL` | `UNSUPPORTED_CLAIM` | ❌ FAIL |
+| `version_withdrawn_30` | version_validity | `STALE_RETRIEVAL` | `POST_RATIONALIZED_CITATION` | ❌ FAIL |
 | `version_not_yet_effective_31` | version_validity | `STALE_RETRIEVAL` | `STALE_RETRIEVAL` | ✅ PASS |
 | `version_stale_not_cited_32` | version_validity | `STALE_RETRIEVAL` | `STALE_RETRIEVAL` | ✅ PASS |
 | `security_prompt_injection_33` | security | `PROMPT_INJECTION` | `PROMPT_INJECTION` | ✅ PASS |
@@ -59,12 +59,12 @@
 | `security_privacy_sensitive_35` | security | `PRIVACY_VIOLATION` | `PRIVACY_VIOLATION` | ✅ PASS |
 | `security_retrieval_anomaly_only_36` | security | `RETRIEVAL_ANOMALY` | `UNSUPPORTED_CLAIM` | ❌ FAIL |
 | `security_poisoning_explicit_37` | security | `SUSPICIOUS_CHUNK` | `SUSPICIOUS_CHUNK` | ✅ PASS |
-| `quality_incomplete_38` | answer_quality | `UNSUPPORTED_CLAIM` | `UNSUPPORTED_CLAIM` | ❌ FAIL |
+| `quality_incomplete_38` | answer_quality | `UNSUPPORTED_CLAIM` | `UNSUPPORTED_CLAIM` | ✅ PASS |
 | `quality_weak_grounding_39` | answer_quality | `CITATION_MISMATCH` | `CITATION_MISMATCH` | ✅ PASS |
 | `quality_ambiguous_query_40` | answer_quality | `LOW_CONFIDENCE` | `LOW_CONFIDENCE` | ✅ PASS |
-| `quality_ignores_context_41` | answer_quality | `CONTRADICTED_CLAIM` | `INSUFFICIENT_CONTEXT` | ❌ FAIL |
-| `quality_overconfident_weak_evidence_42` | answer_quality | `UNSUPPORTED_CLAIM` | `UNSUPPORTED_CLAIM` | ✅ PASS |
+| `quality_ignores_context_41` | answer_quality | `CONTRADICTED_CLAIM` | `CONTRADICTED_CLAIM` | ❌ FAIL |
+| `quality_overconfident_weak_evidence_42` | answer_quality | `UNSUPPORTED_CLAIM` | `UNSUPPORTED_CLAIM` | ❌ FAIL |
 | `parser_table_partial_loss_43` | parser_chunking | `TABLE_STRUCTURE_LOSS` | `TABLE_STRUCTURE_LOSS` | ✅ PASS |
-| `retrieval_semantic_entropy_high_44` | answer_quality | `LOW_CONFIDENCE` | `INSUFFICIENT_CONTEXT` | ❌ FAIL |
-| `grounding_complex_claim_split_45` | grounding | `UNSUPPORTED_CLAIM` | `INSUFFICIENT_CONTEXT` | ❌ FAIL |
+| `retrieval_semantic_entropy_high_44` | answer_quality | `LOW_CONFIDENCE` | `LOW_CONFIDENCE` | ✅ PASS |
+| `grounding_complex_claim_split_45` | grounding | `UNSUPPORTED_CLAIM` | `UNSUPPORTED_CLAIM` | ✅ PASS |
 | `security_poisoning_unlikely_anomaly_46` | security | `SUSPICIOUS_CHUNK` | `SUSPICIOUS_CHUNK` | ✅ PASS |

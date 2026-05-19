@@ -19,9 +19,11 @@ from raggov.analyzers.grounding.verifiers import (
     AbstainingVerifier,
     EvidenceVerifier,
     HeuristicValueOverlapVerifier,
+    LLMClaimEntailmentVerifierV1,
     StructuredLLMClaimVerifier,
     TripletVerifier,
     LLMTripletVerifierV1,
+    ConservativeEnsembleVerifier,
 )
 from raggov.evaluators.claim.structured_llm import StructuredLLMClaimVerifierAdapter
 from raggov.evaluators.claim.refchecker_adapter import RefCheckerClaimSignalProvider
@@ -63,17 +65,40 @@ def _record_to_claim_result(record: ClaimEvidenceRecord) -> ClaimResult:
     evidence_reason = record.evidence_reason
     if record.calibration_status == "uncalibrated":
         evidence_reason = f"{evidence_reason} {_CALIBRATION_NOTE}"
-        
+
+    source_start_char = None
+    source_end_char = None
+    if record.source_answer_span is not None:
+        source_start_char, source_end_char = record.source_answer_span
+    calibration_status = getattr(record.calibration_status, "value", record.calibration_status)
+
     return ClaimResult(
         claim_text=record.claim_text,
         label=_claim_result_label(record),  # type: ignore[arg-type]
+        claim_id=record.claim_id,
+        source_sentence=record.source_sentence,
+        source_start_char=source_start_char,
+        source_end_char=source_end_char,
+        atomicity_status=record.atomicity_status,
+        claim_type=record.claim_type,
+        extraction_method=record.extraction_method,
+        extraction_warnings=list(record.extraction_warnings),
+        skip_reason=record.skip_reason,
+        support_label=record.support_label,
         supporting_chunk_ids=record.supporting_chunk_ids,
         candidate_chunk_ids=[c.chunk_id for c in record.candidate_evidence_chunks],
         contradicting_chunk_ids=record.contradicting_chunk_ids,
+        neutral_chunk_ids=list(record.neutral_candidate_ids),
         confidence=record.calibrated_confidence if record.calibrated_confidence is not None else record.verifier_score,
+        confidence_status=record.confidence_status,
         verification_method=record.verifier_method,
         evidence_reason=evidence_reason,
-        calibration_status=record.calibration_status,
+        label_reason=getattr(record, "label_reason", None),
+        calibration_status=(
+            calibration_status
+            if calibration_status in {"uncalibrated", "calibrated"}
+            else "uncalibrated"
+        ),
         fallback_used=record.fallback_used,
         value_conflicts=record.value_conflicts,
         value_matches=record.value_matches,
@@ -91,8 +116,8 @@ class ClaimGroundingAnalyzer(BaseAnalyzer):
     def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__(config)
         self._selector = EvidenceCandidateSelector(self.config)
-        requested_verifier = self.config.get("claim_verifier")
-        mode = self.config.get("claim_verifier_mode", "heuristic")
+        requested_verifier = self.config.get("claim_grounding_verifier_policy") or self.config.get("claim_verifier")
+        mode = self.config.get("claim_grounding_verifier_policy") or self.config.get("claim_verifier_mode", "conservative_ensemble")
         has_llm_client = bool(self.config.get("llm_client"))
         self._external_verifier_error: str | None = None
         if requested_verifier == "structured_llm":
@@ -103,11 +128,34 @@ class ClaimGroundingAnalyzer(BaseAnalyzer):
                     "structured_llm_claim: no LLM client configured; native fallback used."
                 )
                 self._verifier = HeuristicValueOverlapVerifier(self.config)
+        elif requested_verifier == "llm_entailment":
+            if has_llm_client:
+                self._verifier = LLMClaimEntailmentVerifierV1(self.config)
+            else:
+                self._external_verifier_error = (
+                    "llm_entailment: no LLM client configured; heuristic top-k verifier used."
+                )
+                self._verifier = HeuristicValueOverlapVerifier(self.config)
+        elif mode == "llm_entailment" and has_llm_client:
+            self._verifier = LLMClaimEntailmentVerifierV1(self.config)
+        elif mode == "llm_entailment":
+            self._external_verifier_error = (
+                "llm_entailment: no LLM client configured; heuristic top-k verifier used."
+            )
+            self._verifier = HeuristicValueOverlapVerifier(self.config)
         elif mode == "structured_llm" and has_llm_client:
             self._verifier = StructuredLLMClaimVerifier(self.config)
+        elif requested_verifier == "conservative_ensemble" or mode == "conservative_ensemble":
+            if has_llm_client:
+                self._verifier = ConservativeEnsembleVerifier(self.config)
+            else:
+                self._external_verifier_error = (
+                    "conservative_ensemble: no LLM client configured; heuristic top-k verifier used."
+                )
+                self._verifier = HeuristicValueOverlapVerifier(self.config)
         elif self.config.get("use_llm", False) and has_llm_client:
-            # Only use LLM verifier when an actual llm_client is provided
-            self._verifier = StructuredLLMClaimVerifier(self.config)
+            # Prefer the entailment verifier when an actual llm_client is provided.
+            self._verifier = LLMClaimEntailmentVerifierV1(self.config)
         elif requested_verifier == "refchecker":
             rc = RefCheckerClaimSignalProvider(self.config)
             if rc.is_available():
@@ -153,7 +201,7 @@ class ClaimGroundingAnalyzer(BaseAnalyzer):
             use_llm=claim_extractor_client is not None,
             llm_client=claim_extractor_client,
         )
-        claims = extractor.extract(run.final_answer)
+        claims = extractor.extract_structured(run.final_answer)
         if not claims:
             return self.skip("no claims extracted from final answer")
 

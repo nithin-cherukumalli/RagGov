@@ -1,0 +1,55 @@
+Loaded 25 cases from seed_cases.jsonl
+
+# Claim-Grounding Evaluation Report
+
+- **Dataset**: `seed_cases.jsonl`
+- **Total cases**: 25
+- **Verifier**: `conservative_ensemble`
+
+## Summary Metrics
+
+| Metric | Value |
+|--------|-------|
+| Overall accuracy | `56.0%` |
+| **False-pass rate** | `11.1%` |
+| False-fail rate | `6.2%` |
+| Contradiction detection rate | `50.0%` |
+| Evidence chunk recall | `93.8%` |
+| Fallback rate | `0.0%` |
+
+## Per-Label Metrics
+
+| Label | Precision | Recall | F1 | TP | FP | FN |
+|-------|-----------|--------|----|----|----|----|
+| entailed | 0.909 | 0.625 | 0.741 | 10 | 1 | 6 |
+| unsupported | 0.000 | 0.000 | 0.000 | 0 | 0 | 1 |
+| contradicted | 0.800 | 0.500 | 0.615 | 4 | 1 | 4 |
+
+## Raw Counts
+
+- Correct predictions: **14** / 25
+- False passes (bad answers let through): **1**
+- False fails (good answers rejected): **1**
+- Contradictions correctly caught: **4**
+- Predictions using fallback: **0**
+
+## Ensemble & Disagreement Metrics
+
+- Safety gate downgrades: **0**
+- LLM Supported vs Heuristic Contradicted: **0**
+
+> **Note**: False-pass rate is the primary risk metric for high-trust RAG.
+> A false pass means a fabricated or contradicted claim was silently accepted.
+
+## False Pass Cases
+
+- **Case ID**: `cgc-008`
+  - Claim: The maximum grant from the Chief Minister's Relief Fund is Rs. 5 lakhs per family.
+  - Expected: `unsupported` | Predicted: `ClaimVerificationLabel.ENTAILED`
+  - Rationale: LLM entailment judgment.
+  - Safety Gate Caught It: False
+
+provider=groq
+model=llama-3.1-8b-instant
+call_count=25
+rate_limited=false

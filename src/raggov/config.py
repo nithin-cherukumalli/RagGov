@@ -19,6 +19,7 @@ class EngineConfig(TypedDict, total=False):
     use_a2p_v2: bool
     claim_verifier: str
     claim_verifier_mode: str
+    claim_grounding_verifier_policy: str
     llm_client: Any
     llm_fn: Any
     claim_extractor_client: Any

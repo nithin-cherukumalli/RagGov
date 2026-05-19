@@ -1,0 +1,588 @@
+{
+  "generated_from": "reports/domain_agnostic_grounding_eval.json",
+  "false_pass_count": 20,
+  "category_breakdown": {
+    "llm_overpermissive_no_deterministic_gate": 8,
+    "related_but_non_supporting": 5,
+    "entity_mismatch_missed": 2,
+    "value_mismatch_missed": 3,
+    "lexical_decoy": 2
+  },
+  "cases": [
+    {
+      "case_id": "sd-003",
+      "domain": "software_docs",
+      "difficulty": "easy",
+      "failure_type": "insufficient_missing_value",
+      "claim": "The SDK supports retries in version 2.4.",
+      "expected_label": "unsupported",
+      "predicted_label": "entailed",
+      "evidence_chunk_id": "chunk-sd-002",
+      "evidence_text": "The SDK supports asynchronous processing of API calls.",
+      "llm_verdict": "supported",
+      "heuristic_verdict": "unknown",
+      "safety_gate_triggered": false,
+      "safety_gate_reason": null,
+      "critical_entities": [
+        "SDK"
+      ],
+      "critical_values": [
+        "2.4"
+      ],
+      "critical_dates": [],
+      "critical_units": [],
+      "value_mismatch_existed": false,
+      "entity_mismatch_existed": false,
+      "date_mismatch_existed": false,
+      "related_but_non_supporting": false,
+      "compound_claim": false,
+      "likely_failure_cause": "llm_overpermissive_no_deterministic_gate"
+    },
+    {
+      "case_id": "sd-007",
+      "domain": "software_docs",
+      "difficulty": "easy",
+      "failure_type": "insufficient_missing_entity",
+      "claim": "The base URL for the API is api.example.com.",
+      "expected_label": "unsupported",
+      "predicted_label": "entailed",
+      "evidence_chunk_id": "chunk-sd-005",
+      "evidence_text": "The API endpoint requires authentication via bearer token.",
+      "llm_verdict": "supported",
+      "heuristic_verdict": "supported",
+      "safety_gate_triggered": false,
+      "safety_gate_reason": null,
+      "critical_entities": [
+        "base URL"
+      ],
+      "critical_values": [],
+      "critical_dates": [],
+      "critical_units": [],
+      "value_mismatch_existed": false,
+      "entity_mismatch_existed": false,
+      "date_mismatch_existed": false,
+      "related_but_non_supporting": true,
+      "compound_claim": false,
+      "likely_failure_cause": "related_but_non_supporting"
+    },
+    {
+      "case_id": "sd-008",
+      "domain": "software_docs",
+      "difficulty": "easy",
+      "failure_type": "contradicted_entity",
+      "claim": "The --silent flag disables all verbose logging in the CLI.",
+      "expected_label": "contradicted",
+      "predicted_label": "entailed",
+      "evidence_chunk_id": "chunk-sd-006",
+      "evidence_text": "Use the --quiet or -q flags to suppress standard console output.",
+      "llm_verdict": "supported",
+      "heuristic_verdict": "insufficient_evidence",
+      "safety_gate_triggered": false,
+      "safety_gate_reason": null,
+      "critical_entities": [
+        "silent flag"
+      ],
+      "critical_values": [],
+      "critical_dates": [],
+      "critical_units": [],
+      "value_mismatch_existed": false,
+      "entity_mismatch_existed": true,
+      "date_mismatch_existed": false,
+      "related_but_non_supporting": false,
+      "compound_claim": false,
+      "likely_failure_cause": "entity_mismatch_missed"
+    },
+    {
+      "case_id": "sd-012",
+      "domain": "software_docs",
+      "difficulty": "easy",
+      "failure_type": "contradicted_value",
+      "claim": "The maximum request body size is limited to 50 MB.",
+      "expected_label": "contradicted",
+      "predicted_label": "entailed",
+      "evidence_chunk_id": "chunk-sd-009",
+      "evidence_text": "Requests with payloads larger than 10 megabytes will fail with HTTP 413.",
+      "llm_verdict": "supported",
+      "heuristic_verdict": "insufficient_evidence",
+      "safety_gate_triggered": false,
+      "safety_gate_reason": null,
+      "critical_entities": [
+        "body size"
+      ],
+      "critical_values": [
+        "50"
+      ],
+      "critical_dates": [],
+      "critical_units": [
+        "mb"
+      ],
+      "value_mismatch_existed": true,
+      "entity_mismatch_existed": false,
+      "date_mismatch_existed": false,
+      "related_but_non_supporting": false,
+      "compound_claim": false,
+      "likely_failure_cause": "value_mismatch_missed"
+    },
+    {
+      "case_id": "hc-007",
+      "domain": "healthcare_guidelines",
+      "difficulty": "easy",
+      "failure_type": "insufficient_missing_entity",
+      "claim": "Treatment A causes headaches, nausea, and double vision.",
+      "expected_label": "unsupported",
+      "predicted_label": "entailed",
+      "evidence_chunk_id": "chunk-hc-006",
+      "evidence_text": "Side effects of treatment A commonly include mild headaches and nausea.",
+      "llm_verdict": "supported",
+      "heuristic_verdict": "unknown",
+      "safety_gate_triggered": false,
+      "safety_gate_reason": null,
+      "critical_entities": [
+        "double vision"
+      ],
+      "critical_values": [],
+      "critical_dates": [],
+      "critical_units": [],
+      "value_mismatch_existed": false,
+      "entity_mismatch_existed": false,
+      "date_mismatch_existed": false,
+      "related_but_non_supporting": true,
+      "compound_claim": false,
+      "likely_failure_cause": "related_but_non_supporting"
+    },
+    {
+      "case_id": "hc-012",
+      "domain": "healthcare_guidelines",
+      "difficulty": "easy",
+      "failure_type": "contradicted_value",
+      "claim": "A high fever is defined as a temperature of 39.5 degrees Celsius or higher.",
+      "expected_label": "contradicted",
+      "predicted_label": "entailed",
+      "evidence_chunk_id": "chunk-hc-010",
+      "evidence_text": "Medical guidelines classify high fevers at 38.5 C and above.",
+      "llm_verdict": "supported",
+      "heuristic_verdict": "insufficient_evidence",
+      "safety_gate_triggered": false,
+      "safety_gate_reason": null,
+      "critical_entities": [
+        "high fever"
+      ],
+      "critical_values": [
+        "39.5"
+      ],
+      "critical_dates": [],
+      "critical_units": [],
+      "value_mismatch_existed": true,
+      "entity_mismatch_existed": false,
+      "date_mismatch_existed": false,
+      "related_but_non_supporting": false,
+      "compound_claim": false,
+      "likely_failure_cause": "value_mismatch_missed"
+    },
+    {
+      "case_id": "hc-013",
+      "domain": "healthcare_guidelines",
+      "difficulty": "easy",
+      "failure_type": "insufficient_missing_entity",
+      "claim": "Medicine A may cause mild drowsiness.",
+      "expected_label": "unsupported",
+      "predicted_label": "entailed",
+      "evidence_chunk_id": "chunk-hc-011",
+      "evidence_text": "Medicine A shows an excellent safety profile with minimal systemic interactions.",
+      "llm_verdict": "supported",
+      "heuristic_verdict": "unknown",
+      "safety_gate_triggered": false,
+      "safety_gate_reason": null,
+      "critical_entities": [
+        "drowsiness"
+      ],
+      "critical_values": [],
+      "critical_dates": [],
+      "critical_units": [],
+      "value_mismatch_existed": false,
+      "entity_mismatch_existed": false,
+      "date_mismatch_existed": false,
+      "related_but_non_supporting": true,
+      "compound_claim": false,
+      "likely_failure_cause": "related_but_non_supporting"
+    },
+    {
+      "case_id": "fn-003",
+      "domain": "finance_insurance",
+      "difficulty": "easy",
+      "failure_type": "insufficient_missing_value",
+      "claim": "The annual interest rate on the checking account is 3.5%.",
+      "expected_label": "unsupported",
+      "predicted_label": "entailed",
+      "evidence_chunk_id": "chunk-fn-002",
+      "evidence_text": "Checking accounts offer standard online banking privileges.",
+      "llm_verdict": "supported",
+      "heuristic_verdict": "unknown",
+      "safety_gate_triggered": false,
+      "safety_gate_reason": null,
+      "critical_entities": [
+        "checking account"
+      ],
+      "critical_values": [
+        "3.5"
+      ],
+      "critical_dates": [],
+      "critical_units": [],
+      "value_mismatch_existed": false,
+      "entity_mismatch_existed": false,
+      "date_mismatch_existed": false,
+      "related_but_non_supporting": false,
+      "compound_claim": false,
+      "likely_failure_cause": "llm_overpermissive_no_deterministic_gate"
+    },
+    {
+      "case_id": "fn-007",
+      "domain": "finance_insurance",
+      "difficulty": "easy",
+      "failure_type": "insufficient_missing_entity",
+      "claim": "Routine dental cleanings are covered fully without a copay.",
+      "expected_label": "unsupported",
+      "predicted_label": "entailed",
+      "evidence_chunk_id": "chunk-fn-005",
+      "evidence_text": "Insurance covers standard pediatric dental hygiene visits.",
+      "llm_verdict": "supported",
+      "heuristic_verdict": "unknown",
+      "safety_gate_triggered": false,
+      "safety_gate_reason": null,
+      "critical_entities": [
+        "copay",
+        "routine dental"
+      ],
+      "critical_values": [],
+      "critical_dates": [],
+      "critical_units": [],
+      "value_mismatch_existed": false,
+      "entity_mismatch_existed": false,
+      "date_mismatch_existed": false,
+      "related_but_non_supporting": true,
+      "compound_claim": false,
+      "likely_failure_cause": "related_but_non_supporting"
+    },
+    {
+      "case_id": "fn-009",
+      "domain": "finance_insurance",
+      "difficulty": "hard",
+      "failure_type": "lexical_decoy",
+      "claim": "The premium savings account offers a 4.5% interest rate.",
+      "expected_label": "contradicted",
+      "predicted_label": "entailed",
+      "evidence_chunk_id": "chunk-fn-007",
+      "evidence_text": "We offer 4.5% interest on standard savings; premium account holders receive 5.5% interest.",
+      "llm_verdict": "supported",
+      "heuristic_verdict": "supported",
+      "safety_gate_triggered": false,
+      "safety_gate_reason": null,
+      "critical_entities": [
+        "premium savings"
+      ],
+      "critical_values": [
+        "4.5"
+      ],
+      "critical_dates": [],
+      "critical_units": [],
+      "value_mismatch_existed": false,
+      "entity_mismatch_existed": false,
+      "date_mismatch_existed": false,
+      "related_but_non_supporting": false,
+      "compound_claim": false,
+      "likely_failure_cause": "lexical_decoy"
+    },
+    {
+      "case_id": "pm-003",
+      "domain": "product_manuals",
+      "difficulty": "easy",
+      "failure_type": "insufficient_missing_value",
+      "claim": "The charging voltage of the device is 9V.",
+      "expected_label": "unsupported",
+      "predicted_label": "entailed",
+      "evidence_chunk_id": "chunk-pm-002",
+      "evidence_text": "The device features a USB-C input connector.",
+      "llm_verdict": "supported",
+      "heuristic_verdict": "unknown",
+      "safety_gate_triggered": false,
+      "safety_gate_reason": null,
+      "critical_entities": [
+        "charging voltage"
+      ],
+      "critical_values": [
+        "9"
+      ],
+      "critical_dates": [],
+      "critical_units": [
+        "v"
+      ],
+      "value_mismatch_existed": false,
+      "entity_mismatch_existed": false,
+      "date_mismatch_existed": false,
+      "related_but_non_supporting": false,
+      "compound_claim": false,
+      "likely_failure_cause": "llm_overpermissive_no_deterministic_gate"
+    },
+    {
+      "case_id": "pm-013",
+      "domain": "product_manuals",
+      "difficulty": "easy",
+      "failure_type": "insufficient_missing_entity",
+      "claim": "The phone features IP68 water resistance rating.",
+      "expected_label": "unsupported",
+      "predicted_label": "entailed",
+      "evidence_chunk_id": "chunk-pm-010",
+      "evidence_text": "Keep the phone away from direct exposure to water or heavy dampness.",
+      "llm_verdict": "supported",
+      "heuristic_verdict": "unknown",
+      "safety_gate_triggered": false,
+      "safety_gate_reason": null,
+      "critical_entities": [
+        "IP68"
+      ],
+      "critical_values": [],
+      "critical_dates": [],
+      "critical_units": [],
+      "value_mismatch_existed": false,
+      "entity_mismatch_existed": false,
+      "date_mismatch_existed": false,
+      "related_but_non_supporting": true,
+      "compound_claim": false,
+      "likely_failure_cause": "related_but_non_supporting"
+    },
+    {
+      "case_id": "sp-003",
+      "domain": "scientific_papers",
+      "difficulty": "easy",
+      "failure_type": "insufficient_missing_value",
+      "claim": "The trial experienced a withdrawal rate of 5%.",
+      "expected_label": "unsupported",
+      "predicted_label": "entailed",
+      "evidence_chunk_id": "chunk-sp-002",
+      "evidence_text": "We recorded primary endpoints for all enrolled members.",
+      "llm_verdict": "supported",
+      "heuristic_verdict": "unknown",
+      "safety_gate_triggered": false,
+      "safety_gate_reason": null,
+      "critical_entities": [
+        "withdrawal rate"
+      ],
+      "critical_values": [
+        "5"
+      ],
+      "critical_dates": [],
+      "critical_units": [],
+      "value_mismatch_existed": false,
+      "entity_mismatch_existed": false,
+      "date_mismatch_existed": false,
+      "related_but_non_supporting": false,
+      "compound_claim": false,
+      "likely_failure_cause": "llm_overpermissive_no_deterministic_gate"
+    },
+    {
+      "case_id": "sp-005",
+      "domain": "scientific_papers",
+      "difficulty": "easy",
+      "failure_type": "contradicted_value",
+      "claim": "The study achieved a statistically significant p-value of less than 0.001.",
+      "expected_label": "contradicted",
+      "predicted_label": "entailed",
+      "evidence_chunk_id": "chunk-sp-003",
+      "evidence_text": "Calculated outcomes achieved statistical significance with p < 0.05.",
+      "llm_verdict": "supported",
+      "heuristic_verdict": "insufficient_evidence",
+      "safety_gate_triggered": false,
+      "safety_gate_reason": null,
+      "critical_entities": [
+        "p-value"
+      ],
+      "critical_values": [
+        "0.001"
+      ],
+      "critical_dates": [],
+      "critical_units": [],
+      "value_mismatch_existed": true,
+      "entity_mismatch_existed": false,
+      "date_mismatch_existed": false,
+      "related_but_non_supporting": false,
+      "compound_claim": false,
+      "likely_failure_cause": "value_mismatch_missed"
+    },
+    {
+      "case_id": "sp-007",
+      "domain": "scientific_papers",
+      "difficulty": "easy",
+      "failure_type": "insufficient_missing_value",
+      "claim": "The drop-out rate of cohorts was 12%.",
+      "expected_label": "unsupported",
+      "predicted_label": "entailed",
+      "evidence_chunk_id": "chunk-sp-005",
+      "evidence_text": "Adherence scores remained high across all patient populations.",
+      "llm_verdict": "supported",
+      "heuristic_verdict": "unknown",
+      "safety_gate_triggered": false,
+      "safety_gate_reason": null,
+      "critical_entities": [
+        "drop-out"
+      ],
+      "critical_values": [
+        "12"
+      ],
+      "critical_dates": [],
+      "critical_units": [],
+      "value_mismatch_existed": false,
+      "entity_mismatch_existed": false,
+      "date_mismatch_existed": false,
+      "related_but_non_supporting": false,
+      "compound_claim": false,
+      "likely_failure_cause": "llm_overpermissive_no_deterministic_gate"
+    },
+    {
+      "case_id": "lr-009",
+      "domain": "legal_regulatory_general",
+      "difficulty": "hard",
+      "failure_type": "citation_like_mismatch",
+      "claim": "Corporate mergers are governed by Section 12.",
+      "expected_label": "contradicted",
+      "predicted_label": "entailed",
+      "evidence_chunk_id": "chunk-lr-008-a",
+      "evidence_text": "Section 12 regulates tax implications of corporate restructuring.",
+      "llm_verdict": "supported",
+      "heuristic_verdict": "insufficient_evidence",
+      "safety_gate_triggered": false,
+      "safety_gate_reason": null,
+      "critical_entities": [
+        "mergers"
+      ],
+      "critical_values": [
+        "12"
+      ],
+      "critical_dates": [],
+      "critical_units": [],
+      "value_mismatch_existed": false,
+      "entity_mismatch_existed": true,
+      "date_mismatch_existed": false,
+      "related_but_non_supporting": false,
+      "compound_claim": false,
+      "likely_failure_cause": "entity_mismatch_missed"
+    },
+    {
+      "case_id": "ed-007",
+      "domain": "education_general_kb",
+      "difficulty": "easy",
+      "failure_type": "insufficient_missing_value",
+      "claim": "The population of city Z is 250,000 citizens.",
+      "expected_label": "unsupported",
+      "predicted_label": "entailed",
+      "evidence_chunk_id": "chunk-ed-006",
+      "evidence_text": "City Z is an industrial center situated along the riverbank.",
+      "llm_verdict": "supported",
+      "heuristic_verdict": "unknown",
+      "safety_gate_triggered": false,
+      "safety_gate_reason": null,
+      "critical_entities": [
+        "population"
+      ],
+      "critical_values": [
+        "250,000"
+      ],
+      "critical_dates": [],
+      "critical_units": [],
+      "value_mismatch_existed": false,
+      "entity_mismatch_existed": false,
+      "date_mismatch_existed": false,
+      "related_but_non_supporting": false,
+      "compound_claim": false,
+      "likely_failure_cause": "llm_overpermissive_no_deterministic_gate"
+    },
+    {
+      "case_id": "ed-009",
+      "domain": "education_general_kb",
+      "difficulty": "hard",
+      "failure_type": "lexical_decoy",
+      "claim": "The population of City X is 2 million people.",
+      "expected_label": "unsupported",
+      "predicted_label": "entailed",
+      "evidence_chunk_id": "chunk-ed-007",
+      "evidence_text": "City X was established 2 centuries ago and spans 200 square kilometers.",
+      "llm_verdict": "supported",
+      "heuristic_verdict": "unknown",
+      "safety_gate_triggered": false,
+      "safety_gate_reason": null,
+      "critical_entities": [
+        "population"
+      ],
+      "critical_values": [
+        "2"
+      ],
+      "critical_dates": [],
+      "critical_units": [],
+      "value_mismatch_existed": false,
+      "entity_mismatch_existed": false,
+      "date_mismatch_existed": false,
+      "related_but_non_supporting": false,
+      "compound_claim": false,
+      "likely_failure_cause": "lexical_decoy"
+    },
+    {
+      "case_id": "gp-003",
+      "domain": "government_policy",
+      "difficulty": "easy",
+      "failure_type": "insufficient_missing_value",
+      "claim": "The maximum grant from the Chief Minister's Relief Fund is Rs. 5 lakhs per family.",
+      "expected_label": "unsupported",
+      "predicted_label": "entailed",
+      "evidence_chunk_id": "chunk-gp-002",
+      "evidence_text": "The Chief Minister's Relief Fund provides assistance to persons affected by natural calamities.",
+      "llm_verdict": "supported",
+      "heuristic_verdict": "unknown",
+      "safety_gate_triggered": false,
+      "safety_gate_reason": null,
+      "critical_entities": [
+        "CMRF"
+      ],
+      "critical_values": [
+        "5"
+      ],
+      "critical_dates": [],
+      "critical_units": [],
+      "value_mismatch_existed": false,
+      "entity_mismatch_existed": false,
+      "date_mismatch_existed": false,
+      "related_but_non_supporting": false,
+      "compound_claim": false,
+      "likely_failure_cause": "llm_overpermissive_no_deterministic_gate"
+    },
+    {
+      "case_id": "gp-007",
+      "domain": "government_policy",
+      "difficulty": "easy",
+      "failure_type": "insufficient_missing_value",
+      "claim": "The response time limit for RTI is 30 days.",
+      "expected_label": "unsupported",
+      "predicted_label": "entailed",
+      "evidence_chunk_id": "chunk-gp-005",
+      "evidence_text": "Public authorities must handle applications promptly upon receipt.",
+      "llm_verdict": "supported",
+      "heuristic_verdict": "unknown",
+      "safety_gate_triggered": false,
+      "safety_gate_reason": null,
+      "critical_entities": [
+        "RTI response"
+      ],
+      "critical_values": [
+        "30"
+      ],
+      "critical_dates": [],
+      "critical_units": [
+        "day"
+      ],
+      "value_mismatch_existed": false,
+      "entity_mismatch_existed": false,
+      "date_mismatch_existed": false,
+      "related_but_non_supporting": false,
+      "compound_claim": false,
+      "likely_failure_cause": "llm_overpermissive_no_deterministic_gate"
+    }
+  ]
+}

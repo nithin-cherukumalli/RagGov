@@ -56,7 +56,12 @@ _NUMBER_WORDS = {
 
 _NUMBER_WORD_PATTERN = r"(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|and)"
 
-_TIME_UNITS = frozenset({"year", "month", "day", "hour"})
+_TIME_UNITS = frozenset({"year", "month", "day", "hour", "minute", "second"})
+_GENERIC_UNIT_PATTERN = (
+    r"mg|g|kg|mcg|ml|l|kb|mb|gb|tb|mAh|mah|ms|s|sec(?:ond)?s?|"
+    r"min(?:ute)?s?|v|kv|w|kw|°c|celsius|°f|fahrenheit|"
+    r"patients?|participants?|users?"
+)
 
 _ATTRIBUTE_STOP_WORDS = frozenset({
     "the", "a", "an", "is", "are", "was", "were", "be", "been",
@@ -130,13 +135,13 @@ def extract_value_mentions(
                 _build_mention(text, match.start(), match.end(), _normalize_number(number), "money", "currency")
             )
 
-    for match in re.finditer(r"\b(\d+(?:\.\d+)?)\s+(days?|months?|years?|hours?)\b", lowered):
+    for match in re.finditer(r"\b(\d+(?:\.\d+)?)\s+(seconds?|secs?|minutes?|mins?|days?|months?|years?|hours?)\b", lowered):
         unit = _normalize_unit(match.group(2))
         mentions.append(
             _build_mention(text, match.start(), match.end(), match.group(1), "duration", unit)
         )
     for match in re.finditer(
-        rf"\b({_NUMBER_WORD_PATTERN}(?:[\s-]+{_NUMBER_WORD_PATTERN})*)\s+(days?|months?|years?|hours?)\b",
+        rf"\b({_NUMBER_WORD_PATTERN}(?:[\s-]+{_NUMBER_WORD_PATTERN})*)\s+(seconds?|secs?|minutes?|mins?|days?|months?|years?|hours?)\b",
         lowered,
     ):
         number = _words_to_number(match.group(1))
@@ -179,6 +184,39 @@ def extract_value_mentions(
                 f"{year:04d}-{month:02d}-{day:02d}",
                 "date",
                 "date",
+            )
+            )
+
+    for match in re.finditer(r"\b(\d{4})\b", lowered):
+        year = int(match.group(1))
+        if 1000 <= year <= 2999:
+            mentions.append(
+                _build_mention(
+                    text,
+                    match.start(),
+                    match.end(),
+                    f"{year:04d}",
+                    "date",
+                    "year",
+                )
+            )
+
+    for match in re.finditer(
+        rf"\b(\d+(?:\.\d+)?)\s*({_GENERIC_UNIT_PATTERN})\b",
+        text,
+        re.IGNORECASE,
+    ):
+        unit = _normalize_unit(match.group(2))
+        if unit in _TIME_UNITS:
+            continue
+        mentions.append(
+            _build_mention(
+                text,
+                match.start(),
+                match.end(),
+                match.group(1),
+                "quantity",
+                unit,
             )
         )
 
@@ -317,6 +355,10 @@ def _dedupe_mentions(mentions: list[ValueMention]) -> list[ValueMention]:
 
 def _normalize_unit(unit: str) -> str:
     lowered = unit.lower()
+    if lowered in {"sec", "secs", "second", "seconds", "s"}:
+        return "second"
+    if lowered in {"min", "mins", "minute", "minutes"}:
+        return "minute"
     if lowered.startswith("day"):
         return "day"
     if lowered.startswith("month"):
@@ -325,6 +367,12 @@ def _normalize_unit(unit: str) -> str:
         return "year"
     if lowered.startswith("hour"):
         return "hour"
+    if lowered in {"mah"}:
+        return "mah"
+    if lowered in {"°c", "celsius"}:
+        return "celsius"
+    if lowered in {"°f", "fahrenheit"}:
+        return "fahrenheit"
     return lowered
 
 
@@ -381,12 +429,14 @@ def _words_to_number(text: str) -> float | None:
 
 def _compatible_types(claim_value: ValueMention, evidence_value: ValueMention) -> bool:
     if claim_value.value_type == evidence_value.value_type:
-        if claim_value.value_type == "duration":
+        if claim_value.value_type in {"duration", "quantity"}:
             return claim_value.unit == evidence_value.unit
         return True
     if {claim_value.value_type, evidence_value.value_type} == {"number", "money"}:
         return True
     if {claim_value.value_type, evidence_value.value_type} == {"number", "duration"}:
+        return claim_value.unit == "number" or evidence_value.unit == "number"
+    if {claim_value.value_type, evidence_value.value_type} == {"number", "quantity"}:
         return claim_value.unit == "number" or evidence_value.unit == "number"
     if {claim_value.value_type, evidence_value.value_type} == {"number", "percentage"}:
         return True
@@ -400,7 +450,7 @@ def _values_match(claim_value: ValueMention, evidence_value: ValueMention) -> bo
     if claim_value.normalized_value != evidence_value.normalized_value:
         return False
 
-    if claim_value.value_type == evidence_value.value_type == "duration":
+    if claim_value.value_type == evidence_value.value_type and claim_value.value_type in {"duration", "quantity"}:
         return claim_value.unit == evidence_value.unit
 
     if "number" not in {claim_value.value_type, evidence_value.value_type}:

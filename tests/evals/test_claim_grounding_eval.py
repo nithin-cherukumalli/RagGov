@@ -82,13 +82,23 @@ def _make_result(
 ) -> VerificationResult:
     return VerificationResult(
         label=label,  # type: ignore[arg-type]
+        support_label=(
+            "supported"
+            if label == "entailed"
+            else "contradicted"
+            if label == "contradicted"
+            else "insufficient_evidence"
+        ),
         verifier_name="test_verifier",
         raw_score=0.8,
         evidence_chunk_id=None,
         evidence_span=None,
         rationale="test rationale",
         supporting_chunk_ids=supporting_chunk_ids or [],
+        candidate_chunk_ids=supporting_chunk_ids or [],
         contradicting_chunk_ids=[],
+        neutral_chunk_ids=[],
+        confidence_status="unavailable",
         value_matches=[],
         value_conflicts=[],
         fallback_used=fallback_used,
@@ -198,6 +208,10 @@ class TestLoadDataset:
         """All 25 seed cases must pass schema validation."""
         cases = load_dataset(_EVAL_DIR / "seed_cases.jsonl")
         assert len(cases) >= 20, f"Expected at least 20 seed cases, got {len(cases)}"
+
+    def test_structured_cases_load_without_error(self) -> None:
+        cases = load_dataset(_EVAL_DIR / "structured_cases.jsonl")
+        assert len(cases) >= 5
 
     def test_seed_cases_have_required_fields(self) -> None:
         cases = load_dataset(_EVAL_DIR / "seed_cases.jsonl")

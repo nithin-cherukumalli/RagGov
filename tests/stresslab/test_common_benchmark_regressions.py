@@ -61,6 +61,34 @@ def test_contradicted_claim_maps_to_claim_support() -> None:
     assert diagnosis.root_cause_stage == FailureStage.GROUNDING
 
 
+def test_grounding_unsupported_17_expected_label() -> None:
+    diagnosis = _diagnose_common_case("grounding_unsupported_17", mode="external-enhanced")
+
+    assert diagnosis.primary_failure == FailureType.UNSUPPORTED_CLAIM
+    assert diagnosis.root_cause_stage == FailureStage.GROUNDING
+
+
+def test_grounding_partial_support_22_expected_label() -> None:
+    diagnosis = _diagnose_common_case("grounding_partial_support_22", mode="external-enhanced")
+
+    assert diagnosis.primary_failure == FailureType.UNSUPPORTED_CLAIM
+    assert diagnosis.root_cause_stage == FailureStage.GROUNDING
+
+
+def test_grounding_date_hallucination_20_expected_label() -> None:
+    diagnosis = _diagnose_common_case("grounding_date_hallucination_20", mode="external-enhanced")
+
+    assert diagnosis.primary_failure == FailureType.UNSUPPORTED_CLAIM
+    assert diagnosis.root_cause_stage == FailureStage.GROUNDING
+
+
+def test_grounding_complex_claim_split_45_expected_label() -> None:
+    diagnosis = _diagnose_common_case("grounding_complex_claim_split_45", mode="external-enhanced")
+
+    assert diagnosis.primary_failure == FailureType.UNSUPPORTED_CLAIM
+    assert diagnosis.root_cause_stage == FailureStage.GROUNDING
+
+
 def test_ambiguous_query_blocks_clean_or_requires_human_review() -> None:
     diagnosis = _diagnose_common_case("quality_ambiguous_query_40")
 

@@ -29,7 +29,7 @@ def test_software_version_not_treated_as_go_number() -> None:
 
 def test_product_manual_section_not_government_order_section() -> None:
     assert detect_claim_type("Section 4.2 explains filter replacement.") != "go_number"
-    assert detect_claim_type("Section 4.2 explains filter replacement.") == "procedural_assertion"
+    assert detect_claim_type("Section 4.2 explains filter replacement.") == "policy_rule"
 
 
 def test_healthcare_effective_date_uses_generic_lifecycle_prompt() -> None:
@@ -56,7 +56,7 @@ def test_finance_expired_disclosure_uses_generic_expiry() -> None:
 
 
 def test_scientific_citation_not_government_citation() -> None:
-    assert detect_claim_type("Smith et al. 2024 reported a 12% improvement.") == "value_assertion"
+    assert detect_claim_type("Smith et al. 2024 reported a 12% improvement.") == "numeric"
 
 
 def test_generic_mode_does_not_emit_government_policy_triplets() -> None:

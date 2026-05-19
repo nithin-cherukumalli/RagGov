@@ -405,6 +405,16 @@ class DiagnosisEngine:
         else:
             root_cause_stage = FailureStage.UNKNOWN
 
+        # When context was adequate but LLM omitted/ignored supported content, the
+        # failure is in the generation step, not the grounding/retrieval step.
+        if (
+            root_cause_stage == FailureStage.GROUNDING
+            and primary_result is not None
+            and primary_result.failure_type == FailureType.UNSUPPORTED_CLAIM
+            and primary_result.analyzer_name == "ClaimGroundingAnalyzer"
+            and self._context_was_adequate(results)
+        ):
+            root_cause_stage = FailureStage.GENERATION
 
         # Extract A2P attribution fields if present
         root_cause_attribution = None
@@ -682,6 +692,15 @@ class DiagnosisEngine:
             return "Inspect the raw text chunks for layout/provenance metadata loss."
             
         return "Inspect the pinpoint findings and causal chains for detailed failure propagation."
+
+    def _context_was_adequate(self, results: list[AnalyzerResult]) -> bool:
+        """Return True when SufficiencyAnalyzer confirms context was sufficient."""
+        for result in results:
+            if result.sufficiency_result is not None:
+                sr = result.sufficiency_result
+                if sr.sufficient and sr.sufficiency_label != "insufficient":
+                    return True
+        return False
 
     def _should_use_a2p_stage_override(self, a2p_result: AnalyzerResult | None) -> bool:
         if a2p_result is None or a2p_result.attribution_stage is None:

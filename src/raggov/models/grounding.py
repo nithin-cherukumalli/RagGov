@@ -102,20 +102,70 @@ class ClaimEvidenceRecord(BaseModel):
     # Claim Identification
     claim_id: str
     claim_text: str
+    source_sentence: Optional[str] = None
     source_answer_span: Optional[Tuple[int, int]] = None
     source_answer_id: Optional[str] = None
+    atomicity_status: Optional[str] = None
+    claim_type: Optional[str] = None
+    entities: List[str] = Field(default_factory=list)
+    dates: List[str] = Field(default_factory=list)
+    numbers: List[str] = Field(default_factory=list)
+    extraction_method: Optional[str] = None
+    extraction_reason: Optional[str] = None
+    extraction_confidence: Optional[float] = None
+    extraction_warnings: List[str] = Field(default_factory=list)
+    skip_reason: Optional[str] = None
     
     # Evidence Linkages
+    cited_doc_ids: List[str] = Field(default_factory=list)
     cited_chunk_ids: List[str] = Field(default_factory=list)
+    candidate_evidence_chunks: List[Any] = Field(default_factory=list)
     candidate_evidence_chunk_ids: List[str] = Field(default_factory=list)
+    supporting_chunk_ids: List[str] = Field(default_factory=list)
+    contradicting_chunk_ids: List[str] = Field(default_factory=list)
+    best_candidate_id: Optional[str] = None
+    best_supporting_doc_id: Optional[str] = None
+    supporting_candidate_ids: List[str] = Field(default_factory=list)
+    contradicting_candidate_ids: List[str] = Field(default_factory=list)
+    neutral_candidate_ids: List[str] = Field(default_factory=list)
+    evidence_mode: Optional[str] = None
+    support_source_type: Optional[str] = None
     
     # Generic bucket for evidence references (can hold full objects or pointers)
     evidence_refs: Dict[str, Any] = Field(default_factory=dict)
     
     # Verification Metadata
     verification_label: ClaimVerificationLabel = ClaimVerificationLabel.UNVERIFIED
+    support_label: Optional[str] = None
+    support_reason: Optional[str] = None
     verifier_method: str = "unknown"
     verifier_score: float = 0.0
+    raw_support_score: float = 0.0
+    label_reason: str | None = None
+    calibrated_confidence: Optional[float] = None
+    confidence_status: Optional[str] = None
+    verifier_limitations: List[str] = Field(default_factory=list)
+    verifier_warnings: List[str] = Field(default_factory=list)
+    raw_entailment_response: Any = None
+    fallback_from: Optional[str] = None
+    fallback_to: Optional[str] = None
+    value_matches: List[Dict[str, str]] = Field(default_factory=list)
+    value_conflicts: List[Dict[str, str]] = Field(default_factory=list)
+    
+    # Safety Gate and Ensemble Fields
+    verifier_policy: Optional[str] = None
+    verifier_disagreement: bool = False
+    safety_gate_triggered: bool = False
+    safety_gate_reason: Optional[str] = None
+    safety_gate_category: Optional[str] = None
+    critical_fact_check_summary: Dict[str, Any] = Field(default_factory=dict)
+    llm_label: Optional[str] = None
+    heuristic_label: Optional[str] = None
+    deterministic_gate_labels: List[str] = Field(default_factory=list)
+    normalized_values_checked: List[Dict[str, Any]] = Field(default_factory=list)
+    normalized_dates_checked: List[Dict[str, Any]] = Field(default_factory=list)
+    normalized_units_checked: List[Dict[str, Any]] = Field(default_factory=list)
+    normalized_entities_checked: List[Dict[str, Any]] = Field(default_factory=list)
     
     # Calibration and Trust
     calibration_status: CalibrationStatus = CalibrationStatus.UNAVAILABLE

@@ -1,0 +1,44 @@
+{
+  "policy": "conservative_ensemble",
+  "status": "SAFE_RELEASE",
+  "note": "Uncalibrated practical ensemble. Not a faithful RefChecker implementation.",
+  "metrics": {
+    "false_pass_rate": 0.0,
+    "evidence_chunk_recall": 100.0,
+    "accuracy": 56.0,
+    "safety_gate_downgrade_count": 2,
+    "llm_supported_heuristic_contradicted_count": 0
+  },
+  "comparisons": [
+    {
+      "model": "Heuristic",
+      "accuracy": 32.0,
+      "evidence_chunk_recall": 25.0,
+      "false_pass_rate": 0.0
+    },
+    {
+      "model": "LLM 8B Standalone",
+      "accuracy": 64.0,
+      "evidence_chunk_recall": 93.8,
+      "false_pass_rate": 22.2
+    },
+    {
+      "model": "Ensemble 8B",
+      "accuracy": 56.0,
+      "evidence_chunk_recall": 93.8,
+      "false_pass_rate": 11.1
+    },
+    {
+      "model": "LLM 70B Standalone",
+      "accuracy": 64.0,
+      "evidence_chunk_recall": 100.0,
+      "false_pass_rate": 0.0
+    },
+    {
+      "model": "Ensemble 70B",
+      "accuracy": 56.0,
+      "evidence_chunk_recall": 100.0,
+      "false_pass_rate": 0.0
+    }
+  ]
+}

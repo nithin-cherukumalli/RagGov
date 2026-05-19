@@ -36,6 +36,8 @@ def claim_record(
     supporting_chunk_ids: list[str] | None = None,
     contradicting_chunk_ids: list[str] | None = None,
     candidate_evidence_chunk_ids: list[str] | None = None,
+    support_source_type: str | None = None,
+    best_supporting_doc_id: str | None = None,
 ) -> ClaimEvidenceRecord:
     return ClaimEvidenceRecord(
         claim_id=claim_id,
@@ -46,6 +48,8 @@ def claim_record(
         supporting_chunk_ids=supporting_chunk_ids or [],
         contradicting_chunk_ids=contradicting_chunk_ids or [],
         candidate_evidence_chunk_ids=candidate_evidence_chunk_ids or [],
+        support_source_type=support_source_type,
+        best_supporting_doc_id=best_supporting_doc_id,
     )
 
 
@@ -186,6 +190,51 @@ def test_detects_partially_supported_citation() -> None:
     assert result.status == "pass"
     assert record.citation_support_label == CitationSupportLabel.PARTIALLY_SUPPORTED
     assert record.faithfulness_risk == CitationFaithfulnessRisk.MEDIUM
+
+
+def test_same_document_wrong_chunk_is_not_fully_supported() -> None:
+    result, report = analyze(
+        run_with_records(
+            [
+                claim_record(
+                    "claim-1",
+                    cited_doc_ids=["doc-1"],
+                    cited_chunk_ids=["c1"],
+                    supporting_chunk_ids=["c2"],
+                    support_source_type="cited_doc_other_chunk",
+                    best_supporting_doc_id="doc-1",
+                )
+            ],
+            chunks=[chunk("c1", "doc-1"), chunk("c2", "doc-1")],
+        )
+    )
+
+    record = report.records[0]
+    assert result.status == "pass"
+    assert record.citation_support_label == CitationSupportLabel.PARTIALLY_SUPPORTED
+    assert record.explanation == "claim is supported by the cited document, but not by the exact cited chunk"
+
+
+def test_exact_cited_chunk_remains_fully_supported() -> None:
+    result, report = analyze(
+        run_with_records(
+            [
+                claim_record(
+                    "claim-1",
+                    cited_doc_ids=["doc-1"],
+                    cited_chunk_ids=["c1"],
+                    supporting_chunk_ids=["c1"],
+                    support_source_type="exact_cited_chunk",
+                    best_supporting_doc_id="doc-1",
+                )
+            ],
+            chunks=[chunk("c1", "doc-1"), chunk("c2", "doc-1")],
+        )
+    )
+
+    record = report.records[0]
+    assert result.status == "pass"
+    assert record.citation_support_label == CitationSupportLabel.FULLY_SUPPORTED
 
 
 def test_detects_unsupported_citation_from_claim_support_label() -> None:

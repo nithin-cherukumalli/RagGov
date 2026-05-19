@@ -80,12 +80,27 @@ class ClaimResult(BaseModel):
 
     claim_text: str
     label: Literal["entailed", "unsupported", "contradicted", "abstain"]
+    claim_id: str | None = None
+    source_sentence: str | None = None
+    source_start_char: int | None = None
+    source_end_char: int | None = None
+    atomicity_status: str | None = None
+    claim_type: str | None = None
+    extraction_method: str | None = None
+    extraction_warnings: list[str] = Field(default_factory=list)
+    skip_reason: str | None = None
+    support_label: Literal[
+        "supported", "contradicted", "insufficient_evidence", "unverifiable", "skipped"
+    ] | None = None
     supporting_chunk_ids: list[str] = Field(default_factory=list)
     candidate_chunk_ids: list[str] = Field(default_factory=list)
     contradicting_chunk_ids: list[str] = Field(default_factory=list)
+    neutral_chunk_ids: list[str] = Field(default_factory=list)
     confidence: float | None = None
+    confidence_status: Literal["calibrated", "uncalibrated_heuristic_proxy", "unavailable"] | None = None
     verification_method: str | None = None
     evidence_reason: str | None = None
+    label_reason: str | None = None
     calibration_status: Literal["uncalibrated", "calibrated"] | None = None
     fallback_used: bool = False
     value_conflicts: list[dict[str, str]] | None = None

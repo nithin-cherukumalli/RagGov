@@ -13,6 +13,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
+from raggov.analyzers.grounding.claims import ExtractedClaim
 from raggov.analyzers.grounding.value_extraction import (
     ValueMention,
     extract_value_mentions,
@@ -26,7 +27,7 @@ from raggov.models.grounding import (
     StructuredClaimRepresentation,
 )
 from raggov.analyzers.grounding.candidate_selection import EvidenceCandidate, EvidenceCandidateSelector
-from raggov.analyzers.grounding.verifiers import EvidenceVerifier, VerificationResult
+from raggov.analyzers.grounding.verifiers import EvidenceVerifier, TripletVerifier, VerificationResult
 from raggov.analyzers.grounding.triplets import ClaimTriplet, TripletExtractor
 from raggov.calibration.claim_calibration import ClaimCalibrationModel, CalibratedClaimConfidence, CalibrationMode
 
@@ -103,21 +104,34 @@ def detect_claim_type(claim: str) -> str:
     Priority: value/date/version > definition > requirement/procedure >
     relationship/comparison > general factual.
     """
+    lowered = claim.lower()
     if _PROCEDURAL_PATTERN.search(claim):
-        return "procedural_assertion"
+        return "policy_rule"
+    if re.search(r"\bsection\s+\d+(?:\.\d+)*\b", lowered):
+        return "policy_rule"
     if _VERSION_PATTERN.search(claim):
-        return "value_assertion"
+        return "version_validity"
     if _NUMERIC_PATTERN.search(claim):
-        return "value_assertion"
+        return "numeric"
     if _DATE_PATTERN.search(claim):
-        return "date_time_assertion"
+        return "temporal"
     if _DEFINITION_PATTERN.search(claim):
         return "definition"
+    if re.search(r"\bmust\b|\bshall\b", lowered):
+        return "obligation"
+    if re.search(r"\bmust not\b|\bmay not\b|\bprohibit", lowered):
+        return "prohibition"
     if _REQUIREMENT_PATTERN.search(claim):
-        return "requirement_or_condition"
+        return "eligibility"
+    if re.search(r"\bcaus|because|due to|leads to\b", lowered):
+        return "causal"
     if _RELATIONSHIP_PATTERN.search(claim):
-        return "relationship_or_comparison"
-    return "general_factual"
+        return "comparison"
+    if re.search(r"\bpolicy\b|\bregulation\b|\border\b|\brule\b", lowered):
+        return "policy_rule"
+    if re.search(r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b", claim):
+        return "entity_attribute"
+    return "other"
 
 
 def detect_atomicity(claim: str) -> str:
@@ -162,7 +176,7 @@ class ClaimEvidenceBuilder:
 
     def build(
         self,
-        claims: list[str],
+        claims: list[ExtractedClaim | str],
         query: str,
         chunks: list[RetrievedChunk],
     ) -> list[ClaimEvidenceRecord]:
@@ -173,20 +187,100 @@ class ClaimEvidenceBuilder:
 
     def _build_single(
         self,
-        claim: str,
+        claim: ExtractedClaim | str,
         index: int,
         query: str,
         chunks: list[RetrievedChunk],
     ) -> ClaimEvidenceRecord:
-        candidates = self._selector.select_candidates(claim, query, chunks)
-        claim_id = f"claim_{index:03d}"
+        structured_claim = claim if isinstance(claim, ExtractedClaim) else None
+        claim_text = structured_claim.claim_text if structured_claim is not None else claim
+        claim_id = structured_claim.claim_id if structured_claim is not None else f"claim_{index:03d}"
+        candidates = self._selector.select_candidates(claim_text, query, chunks)
+        chunks_by_id = {chunk.chunk_id: chunk for chunk in chunks}
+
+        citation_text = (
+            structured_claim.source_sentence
+            if structured_claim is not None and structured_claim.source_sentence
+            else claim_text
+        )
+        cited_ids = []
+        for match in _CITATION_REGEX.finditer(citation_text):
+            cited_ids.append(f"c{match.group(1)}")
+        cited_doc_ids = [
+            chunks_by_id[chunk_id].source_doc_id
+            for chunk_id in cited_ids
+            if chunk_id in chunks_by_id
+        ]
+
+        if structured_claim is not None and not structured_claim.should_verify:
+            return ClaimEvidenceRecord(
+                claim_id=claim_id,
+                claim_text=claim_text,
+                source_sentence=structured_claim.source_sentence,
+                source_answer_span=(structured_claim.source_start_char, structured_claim.source_end_char),
+                claim_type=structured_claim.claim_type,
+                atomicity_status=structured_claim.atomicity_status,
+                entities=list(structured_claim.entities),
+                dates=list(structured_claim.dates),
+                numbers=list(structured_claim.numbers),
+                extraction_method=structured_claim.extraction_method,
+                extraction_reason=structured_claim.extraction_reason,
+                extraction_confidence=structured_claim.extraction_confidence,
+                extraction_warnings=list(structured_claim.extraction_warnings),
+                skip_reason=structured_claim.skip_reason,
+                extracted_values=extract_value_mentions(claim_text),
+                cited_doc_ids=list(dict.fromkeys(cited_doc_ids)),
+                cited_chunk_ids=cited_ids,
+                candidate_evidence_chunks=[],
+                candidate_evidence_chunk_ids=[],
+                verification_label=ClaimVerificationLabel.UNVERIFIED,
+                support_label="skipped",
+                support_reason=structured_claim.skip_reason or "claim skipped before verification",
+                verifier_method="claim_extractor_skip",
+                verifier_score=0.0,
+                raw_support_score=0.0,
+                calibrated_confidence=None,
+                confidence_status="unavailable",
+                calibration_status="uncalibrated",
+                evidence_reason=structured_claim.skip_reason or "claim skipped before verification",
+                supporting_candidate_ids=[],
+                contradicting_candidate_ids=[],
+                neutral_candidate_ids=[],
+                best_candidate_id=None,
+                best_supporting_doc_id=None,
+                evidence_mode="no_support",
+                support_source_type="no_support",
+                verifier_limitations=["Claim was not grounded because extraction marked it as non-verifiable."],
+                external_signal_records=[],
+                fallback_used=False,
+                provenance={"analyzer": "ClaimEvidenceBuilder_v1"},
+            )
         
         # Default claim-level verification
         output = self._verifier.verify(
-            claim,
+            claim_text,
             query,
             candidates,
-            metadata={"claim_id": claim_id},
+            metadata={
+                "claim_id": claim_id,
+                "source_sentence": (
+                    structured_claim.source_sentence if structured_claim is not None else claim_text
+                ),
+                "cited_doc_ids": list(dict.fromkeys(cited_doc_ids)),
+                "cited_chunk_ids": cited_ids,
+                "claim_type": (
+                    structured_claim.claim_type if structured_claim is not None else detect_claim_type(claim_text)
+                ),
+                "numbers": list(structured_claim.numbers) if structured_claim is not None else [],
+                "critical_values": list(structured_claim.numbers) if structured_claim is not None else [],
+                "dates": list(structured_claim.dates) if structured_claim is not None else [],
+                "critical_dates": list(structured_claim.dates) if structured_claim is not None else [],
+                "entities": list(structured_claim.entities) if structured_claim is not None else [],
+                "critical_entities": list(structured_claim.entities) if structured_claim is not None else [],
+                "atomicity_status": (
+                    structured_claim.atomicity_status if structured_claim is not None else detect_atomicity(claim_text)
+                ),
+            },
         )
         
         triplets: list[ClaimTriplet] | None = None
@@ -194,31 +288,26 @@ class ClaimEvidenceBuilder:
         # Triplet verification path (optional)
         if self._triplet_extractor is not None and self._triplet_verifier is not None:
             try:
-                triplets = self._triplet_extractor.extract(claim, source_claim_id=claim_id)
+                triplets = self._triplet_extractor.extract(claim_text, source_claim_id=claim_id)
                 if triplets:
                     triplet_results = self._triplet_verifier.verify_triplets(triplets, candidates)
                     output = self._aggregate_triplet_results(triplet_results, output)
             except Exception as exc:
-                logger.warning("Triplet analysis failed for claim '%s': %s", claim[:60], exc)
+                logger.warning("Triplet analysis failed for claim '%s': %s", claim_text[:60], exc)
                 # Fall back to claim-level output already computed
         elif self._triplet_extractor is not None:
             # Extraction only path
             try:
-                triplets = self._triplet_extractor.extract(claim, source_claim_id=claim_id)
+                triplets = self._triplet_extractor.extract(claim_text, source_claim_id=claim_id)
             except Exception as exc:
-                logger.warning("Triplet extraction failed for claim '%s': %s", claim[:60], exc)
+                logger.warning("Triplet extraction failed for claim '%s': %s", claim_text[:60], exc)
                 triplets = []
-
-        # Parse citations from claim text
-        cited_ids = []
-        for match in _CITATION_REGEX.finditer(claim):
-            cited_ids.append(f"c{match.group(1)}")
             
         # Apply calibration if available
         calib_features = {
             "raw_score": output.raw_score,
             "label": output.label,
-            "claim_type": detect_claim_type(claim),
+            "claim_type": structured_claim.claim_type if structured_claim is not None else detect_claim_type(claim_text),
             "candidate_count": len(candidates),
             "value_match_count": len(output.value_matches),
             "value_conflict_count": len(output.value_conflicts),
@@ -226,28 +315,90 @@ class ClaimEvidenceBuilder:
             "verifier_mode": output.verifier_name,
         }
         calibrated = self._calibrator.calibrate(calib_features)
+        confidence_status = (
+            "calibrated"
+            if calibrated.confidence is not None and calibrated.status == "calibrated"
+            else output.confidence_status
+        )
+        supporting_ids = list(dict.fromkeys(output.supporting_chunk_ids))
+        best_supporting_doc_id = None
+        if supporting_ids and supporting_ids[0] in chunks_by_id:
+            best_supporting_doc_id = chunks_by_id[supporting_ids[0]].source_doc_id
+        support_source_type = "no_support"
+        if supporting_ids:
+            if set(supporting_ids) & set(cited_ids):
+                support_source_type = "exact_cited_chunk"
+            elif best_supporting_doc_id is not None and best_supporting_doc_id in cited_doc_ids:
+                support_source_type = "cited_doc_other_chunk"
+            else:
+                support_source_type = "retrieved_uncited_chunk"
         
         return ClaimEvidenceRecord(
             claim_id=claim_id,
-            claim_text=claim,
-            claim_type=detect_claim_type(claim),
-            atomicity_status=detect_atomicity(claim),
-            extracted_values=extract_value_mentions(claim),
+            claim_text=claim_text,
+            source_sentence=structured_claim.source_sentence if structured_claim is not None else claim_text,
+            source_answer_span=(
+                (structured_claim.source_start_char, structured_claim.source_end_char)
+                if structured_claim is not None
+                else None
+            ),
+            claim_type=structured_claim.claim_type if structured_claim is not None else detect_claim_type(claim_text),
+            atomicity_status=structured_claim.atomicity_status if structured_claim is not None else detect_atomicity(claim_text),
+            entities=list(structured_claim.entities) if structured_claim is not None else [],
+            dates=list(structured_claim.dates) if structured_claim is not None else [],
+            numbers=list(structured_claim.numbers) if structured_claim is not None else [],
+            extraction_method=structured_claim.extraction_method if structured_claim is not None else "legacy_string_claim",
+            extraction_reason=structured_claim.extraction_reason if structured_claim is not None else "legacy_string_claim",
+            extraction_confidence=structured_claim.extraction_confidence if structured_claim is not None else None,
+            extraction_warnings=list(structured_claim.extraction_warnings) if structured_claim is not None else [],
+            skip_reason=structured_claim.skip_reason if structured_claim is not None else None,
+            extracted_values=extract_value_mentions(claim_text),
             candidate_evidence_chunks=candidates,
             candidate_evidence_chunk_ids=[c.chunk_id for c in candidates],
+            cited_doc_ids=list(dict.fromkeys(cited_doc_ids)),
             cited_chunk_ids=cited_ids,
             supporting_chunk_ids=output.supporting_chunk_ids,
             contradicting_chunk_ids=output.contradicting_chunk_ids,
+            supporting_candidate_ids=output.supporting_chunk_ids,
+            contradicting_candidate_ids=output.contradicting_chunk_ids,
+            neutral_candidate_ids=output.neutral_chunk_ids,
+            best_candidate_id=output.best_candidate_id,
+            best_supporting_doc_id=best_supporting_doc_id,
+            evidence_mode=output.evidence_mode,
+            support_label=output.support_label,
+            support_reason=output.rationale,
+            raw_support_score=output.raw_score,
+            support_source_type=support_source_type,
             verification_label=output.label,
             verifier_method=output.verifier_name,
             verifier_score=output.raw_score,
+            label_reason=output.label_reason,
             calibrated_confidence=calibrated.confidence,
+            confidence_status=confidence_status,
             calibration_status=calibrated.status,
             evidence_reason=output.rationale + (f" [Calibrated via {calibrated.source}]" if calibrated.source else ""),
+            verifier_limitations=list(output.verifier_limitations),
+            verifier_warnings=list(output.verifier_warnings),
+            raw_entailment_response=output.raw_entailment_response,
+            fallback_from=output.fallback_from,
+            fallback_to=output.fallback_to,
             value_matches=output.value_matches,
             value_conflicts=output.value_conflicts,
             external_signal_records=list(output.external_signal_records),
             fallback_used=output.fallback_used,
+            verifier_policy=output.verifier_policy,
+            verifier_disagreement=output.verifier_disagreement,
+            safety_gate_triggered=output.safety_gate_triggered,
+            safety_gate_reason=output.safety_gate_reason,
+            safety_gate_category=output.safety_gate_category,
+            critical_fact_check_summary=output.critical_fact_check_summary,
+            llm_label=output.llm_label,
+            heuristic_label=output.heuristic_label,
+            deterministic_gate_labels=output.deterministic_gate_labels,
+            normalized_values_checked=output.normalized_values_checked,
+            normalized_dates_checked=output.normalized_dates_checked,
+            normalized_units_checked=output.normalized_units_checked,
+            normalized_entities_checked=output.normalized_entities_checked,
             provenance={"analyzer": "ClaimEvidenceBuilder_v1"},
             structured_representation=StructuredClaimRepresentation(triplets=triplets) if triplets else None
         )
@@ -294,6 +445,15 @@ class ClaimEvidenceBuilder:
                 
         return VerificationResult(
             label=label,
+            support_label=(
+                "supported"
+                if label == "entailed"
+                else "contradicted"
+                if label == "contradicted"
+                else "unverifiable"
+                if label == "abstain"
+                else "insufficient_evidence"
+            ),
             raw_score=sum(r.raw_score for r in triplet_results) / len(triplet_results),
             evidence_chunk_id=supporting_ids[0] if supporting_ids else (contradicting_ids[0] if contradicting_ids else None),
             evidence_span=None,
@@ -301,5 +461,19 @@ class ClaimEvidenceBuilder:
             verifier_name=triplet_results[0].method if triplet_results else "triplet_aggregator",
             supporting_chunk_ids=list(set(supporting_ids)),
             contradicting_chunk_ids=list(set(contradicting_ids)),
+            best_candidate_id=supporting_ids[0] if supporting_ids else (contradicting_ids[0] if contradicting_ids else None),
+            evidence_mode=(
+                "multi_chunk"
+                if len(set(supporting_ids)) > 1
+                else "single_chunk"
+                if supporting_ids
+                else "no_support"
+            ),
+            aggregate_support_score=sum(r.raw_score for r in triplet_results) / len(triplet_results),
+            aggregate_contradiction_score=max(
+                (r.raw_score for r in triplet_results if r.label == "contradicted"),
+                default=0.0,
+            ),
+            confidence_status="uncalibrated_heuristic_proxy",
             triplet_results=triplet_results,
         )

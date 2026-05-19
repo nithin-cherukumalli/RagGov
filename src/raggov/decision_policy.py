@@ -35,6 +35,8 @@ class DecisionCandidate:
     sufficiency_markers: tuple[str, ...] = ()
     version_severity: str | None = None
     version_doc_ids: tuple[str, ...] = ()
+    citation_reason: str | None = None
+    citation_markers: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -53,6 +55,8 @@ class DecisionCandidate:
             "sufficiency_markers": list(self.sufficiency_markers),
             "version_severity": self.version_severity,
             "version_doc_ids": list(self.version_doc_ids),
+            "citation_reason": self.citation_reason,
+            "citation_markers": list(self.citation_markers),
         }
 
 
@@ -94,6 +98,7 @@ _STRUCTURED_FAILURES = {
     FailureType.CONTRADICTED_CLAIM,
     FailureType.UNSUPPORTED_CLAIM,
     FailureType.CITATION_MISMATCH,
+    FailureType.POST_RATIONALIZED_CITATION,
 }
 _HEURISTIC_FAILURES = {
     FailureType.RETRIEVAL_ANOMALY,
@@ -155,7 +160,11 @@ def classify_evidence_tier(result: AnalyzerResult) -> EvidenceTier:
     if (
         result.analyzer_name == "SemanticEntropyAnalyzer"
         and result.failure_type == FailureType.LOW_CONFIDENCE
-        and any("query_understanding ambiguity" in evidence for evidence in result.evidence)
+        and any(
+            "query_understanding ambiguity" in evidence
+            or "text-only uncertainty" in evidence
+            for evidence in result.evidence
+        )
     ):
         return EvidenceTier.STRUCTURED_DIAGNOSTIC
     if result.failure_type in _HEURISTIC_FAILURES:
@@ -226,6 +235,100 @@ def select_primary_failure_with_policy(
         key=lambda candidate: _candidate_sort_key(candidate, failure_priority),
     )
     winner = ranked_status_pool[0]
+    if winner.failure_type == FailureType.POST_RATIONALIZED_CITATION:
+        explicit_phantom = next(
+            (
+                candidate
+                for candidate in ranked_status_pool
+                if candidate.failure_type == FailureType.CITATION_MISMATCH
+                and candidate.citation_reason == "phantom_citation"
+            ),
+            None,
+        )
+        if explicit_phantom is not None:
+            winner = explicit_phantom
+    if winner.failure_type == FailureType.CONTRADICTED_CLAIM:
+        explicit_phantom = next(
+            (
+                candidate
+                for candidate in ranked_status_pool
+                if candidate.failure_type == FailureType.CITATION_MISMATCH
+                and candidate.citation_reason == "phantom_citation"
+            ),
+            None,
+        )
+        if explicit_phantom is not None:
+            winner = explicit_phantom
+    if (
+        winner.failure_type == FailureType.CITATION_MISMATCH
+        and winner.analyzer_name == "CitationMismatchAnalyzer"
+    ):
+        explicit_citation = next(
+            (
+                candidate
+                for candidate in ranked_status_pool
+                if candidate.failure_type in {FailureType.CITATION_MISMATCH, FailureType.POST_RATIONALIZED_CITATION}
+                and candidate.analyzer_name == "CitationFaithfulnessAnalyzerV0"
+            ),
+            None,
+        )
+        if explicit_citation is not None:
+            winner = explicit_citation
+        elif winner.citation_reason != "phantom_citation":
+            post_rationalized = next(
+                (
+                    candidate
+                    for candidate in ranked_status_pool
+                    if candidate.failure_type == FailureType.POST_RATIONALIZED_CITATION
+                    and candidate.analyzer_name == "CitationFaithfulnessProbe"
+                ),
+                None,
+            )
+            if post_rationalized is not None:
+                winner = post_rationalized
+    if (
+        winner.failure_type == FailureType.INSUFFICIENT_CONTEXT
+        and winner.analyzer_name == "SufficiencyAnalyzer"
+    ):
+        grounding_unsupported = next(
+            (
+                candidate
+                for candidate in ranked_status_pool
+                if candidate.failure_type == FailureType.UNSUPPORTED_CLAIM
+                and candidate.analyzer_name == "ClaimGroundingAnalyzer"
+            ),
+            None,
+        )
+        if grounding_unsupported is not None:
+            grounding_result = results[grounding_unsupported.original_index]
+            claim_results = grounding_result.claim_results or []
+            if any(getattr(claim, "label_reason", None) == "partial_support" for claim in claim_results):
+                winner = grounding_unsupported
+            elif (
+                winner.sufficiency_reason == "missing_temporal_or_freshness_requirement"
+                and any(getattr(claim, "label_reason", None) == "unsupported_no_evidence" for claim in claim_results)
+            ):
+                winner = grounding_unsupported
+    if (
+        winner.failure_type == FailureType.INSUFFICIENT_CONTEXT
+        and winner.analyzer_name == "RetrievalDiagnosisAnalyzerV0"
+    ):
+        grounding_unsupported = next(
+            (
+                candidate
+                for candidate in ranked_status_pool
+                if candidate.failure_type == FailureType.UNSUPPORTED_CLAIM
+                and candidate.analyzer_name == "ClaimGroundingAnalyzer"
+            ),
+            None,
+        )
+        if grounding_unsupported is not None:
+            grounding_result = results[grounding_unsupported.original_index]
+            if any(
+                getattr(claim, "label_reason", None) == "partial_support"
+                for claim in (grounding_result.claim_results or [])
+            ):
+                winner = grounding_unsupported
     primary_result = results[winner.original_index]
 
     alternatives: list[DecisionCandidate] = []
@@ -293,6 +396,8 @@ def _build_candidates(
                 ),
                 version_severity=_version_severity(result),
                 version_doc_ids=tuple(_version_doc_ids(result)),
+                citation_reason=_citation_reason(result),
+                citation_markers=tuple(_citation_markers(result)),
             )
         )
     return candidates
@@ -358,6 +463,30 @@ def _specificity_rank(candidate: DecisionCandidate) -> int:
         return 100
     if candidate.failure_type in {FailureType.PROMPT_INJECTION, FailureType.PRIVACY_VIOLATION}:
         return 95
+    if candidate.failure_type == FailureType.CONTRADICTED_CLAIM:
+        return 95
+    if (
+        candidate.failure_type == FailureType.CITATION_MISMATCH
+        and candidate.citation_reason == "phantom_citation"
+    ):
+        return 89
+    if (
+        candidate.failure_type == FailureType.CITATION_MISMATCH
+        and candidate.analyzer_name == "CitationFaithfulnessAnalyzerV0"
+    ):
+        return 91
+    if candidate.failure_type == FailureType.POST_RATIONALIZED_CITATION:
+        return 92
+    if (
+        candidate.failure_type == FailureType.POST_RATIONALIZED_CITATION
+        and _candidate_has_explicit_citation_root_cause(candidate)
+    ):
+        return 92
+    if (
+        candidate.failure_type == FailureType.CITATION_MISMATCH
+        and _candidate_has_explicit_citation_root_cause(candidate)
+    ):
+        return 93
     if candidate.failure_type == FailureType.INCOMPLETE_DIAGNOSIS:
         return 90
     if (
@@ -376,6 +505,12 @@ def _specificity_rank(candidate: DecisionCandidate) -> int:
         and "query_understanding ambiguity" in candidate.evidence_summary
     ):
         return 93
+    if (
+        candidate.failure_type == FailureType.LOW_CONFIDENCE
+        and candidate.analyzer_name == "SemanticEntropyAnalyzer"
+        and "text-only uncertainty" in candidate.evidence_summary
+    ):
+        return 91
     if (
         candidate.failure_type == FailureType.INSUFFICIENT_CONTEXT
         and candidate.analyzer_name == "SufficiencyAnalyzer"
@@ -487,6 +622,14 @@ def _selection_reason(
             f"Selected STALE_RETRIEVAL from {candidate.analyzer_name} because cited or answer-bearing invalid sources "
             "make downstream unsupported-claim signals secondary."
         )
+    if (
+        candidate.failure_type in {FailureType.CITATION_MISMATCH, FailureType.POST_RATIONALIZED_CITATION}
+        and _candidate_has_explicit_citation_root_cause(candidate)
+    ):
+        return (
+            "Citation failure selected because the answer cited a source that was absent/non-supporting/post-rationalized; "
+            "unsupported claim is downstream."
+        )
     return (
         f"Selected {candidate.failure_type.value} from {candidate.analyzer_name} because "
         "fail before warn, then evidence tier, specificity, calibration status, analyzer weight, "
@@ -526,6 +669,20 @@ def _should_suppress_candidate(candidate: DecisionCandidate, winner: DecisionCan
         and not _citation_mismatch_is_strong(candidate)
     ):
         return True
+    if (
+        candidate.failure_type == FailureType.UNSUPPORTED_CLAIM
+        and winner.failure_type in {FailureType.CITATION_MISMATCH, FailureType.POST_RATIONALIZED_CITATION}
+        and _candidate_has_explicit_citation_root_cause(winner)
+    ):
+        return True
+    if (
+        candidate.failure_type == FailureType.CITATION_MISMATCH
+        and candidate.stage == FailureStage.RETRIEVAL
+        and winner.stage == FailureStage.GROUNDING
+        and winner.failure_type in {FailureType.CITATION_MISMATCH, FailureType.POST_RATIONALIZED_CITATION}
+        and _candidate_has_explicit_citation_root_cause(winner)
+    ):
+        return True
     return False
 
 
@@ -538,6 +695,15 @@ def _candidate_has_explicit_sufficiency_root_cause(candidate: DecisionCandidate)
 
 
 def _citation_mismatch_is_strong(candidate: DecisionCandidate) -> bool:
+    if candidate.citation_reason in {
+        "phantom_citation",
+        "related_non_supporting_citation",
+        "post_rationalized_citation",
+        "cited_source_contradicts_claim",
+    }:
+        return True
+    if any(marker != "[citation:citation_missing]" for marker in candidate.citation_markers):
+        return True
     evidence = candidate.evidence_summary.lower()
     strong_markers = (
         "phantom citation",
@@ -549,12 +715,59 @@ def _citation_mismatch_is_strong(candidate: DecisionCandidate) -> bool:
     return any(marker in evidence for marker in strong_markers)
 
 
+def _candidate_has_explicit_citation_root_cause(candidate: DecisionCandidate) -> bool:
+    if candidate.citation_reason and candidate.citation_reason != "citation_missing":
+        return True
+    return any(marker != "[citation:citation_missing]" for marker in candidate.citation_markers)
+
+
 def _candidate_has_strong_version_root_cause(candidate: DecisionCandidate) -> bool:
     return candidate.version_severity in {"cited_invalid_source", "answer_bearing_invalid_source"}
 
 
 def _candidate_has_retrieval_quality_stale_root_cause(candidate: DecisionCandidate) -> bool:
     return candidate.version_severity == "retrieved_only_stale_source"
+
+
+def _citation_reason(result: AnalyzerResult) -> str | None:
+    evidence_text = " ".join(result.evidence)
+    lowered = evidence_text.lower()
+    if "phantom citation" in lowered:
+        return "phantom_citation"
+    if "post-rationalized" in lowered or "post rationalized" in lowered:
+        return "post_rationalized_citation"
+    if "[citation:post_rationalized_citation]" in evidence_text:
+        return "post_rationalized_citation"
+    if "[citation:phantom_citation]" in evidence_text:
+        return "phantom_citation"
+    if "[citation:related_non_supporting_citation]" in evidence_text:
+        return "related_non_supporting_citation"
+    if "[citation:citation_missing]" in evidence_text:
+        return "citation_missing"
+    if "[citation:cited_source_contradicts_claim]" in evidence_text:
+        return "cited_source_contradicts_claim"
+    report = result.citation_faithfulness_report
+    if report is not None and getattr(report, "structured_failure_reason", None):
+        return str(report.structured_failure_reason)
+    return None
+
+
+def _citation_markers(result: AnalyzerResult) -> list[str]:
+    report = result.citation_faithfulness_report
+    if report is not None and getattr(report, "evidence_markers", None):
+        return list(report.evidence_markers)
+    markers: list[str] = []
+    evidence_text = " ".join(result.evidence)
+    for marker in (
+        "[citation:phantom_citation]",
+        "[citation:related_non_supporting_citation]",
+        "[citation:citation_missing]",
+        "[citation:cited_source_contradicts_claim]",
+        "[citation:post_rationalized_citation]",
+    ):
+        if marker in evidence_text:
+            markers.append(marker)
+    return list(dict.fromkeys(markers))
 
 
 def _version_severity(result: AnalyzerResult) -> str | None:

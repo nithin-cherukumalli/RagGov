@@ -1,0 +1,162 @@
+{
+  "total_cases": 110,
+  "overall_accuracy": 0.5909,
+  "label_metrics": {
+    "entailed": {
+      "precision": 1.0,
+      "recall": 0.7778,
+      "f1": 0.875,
+      "true_positives": 35,
+      "false_positives": 0,
+      "false_negatives": 10
+    },
+    "unsupported": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "true_positives": 0,
+      "false_positives": 0,
+      "false_negatives": 25
+    },
+    "contradicted": {
+      "precision": 0.8571,
+      "recall": 0.75,
+      "f1": 0.8,
+      "true_positives": 30,
+      "false_positives": 5,
+      "false_negatives": 10
+    }
+  },
+  "false_pass_rate": 0.0,
+  "false_fail_rate": 0.0,
+  "contradiction_detection_rate": 0.75,
+  "evidence_chunk_recall": 0.7778,
+  "fallback_rate": 0.0,
+  "safety_gate_precision": 0.0,
+  "raw_counts": {
+    "correct": 65,
+    "false_pass": 0,
+    "false_fail": 0,
+    "contradiction_detected": 30,
+    "fallback_used": 0,
+    "llm_supported_heuristic_unsupported_count": 0,
+    "llm_supported_heuristic_contradicted_count": 0,
+    "safety_gate_downgrade_count": 0,
+    "safety_gate_true_positive_count": 0
+  },
+  "false_pass_cases": [],
+  "false_fail_cases": [],
+  "contradiction_missed_cases": [
+    {
+      "case_id": "cgc-100-076",
+      "claim_text": "The deadline is March 15, 2024.",
+      "predicted_label": "insufficient",
+      "expected_label": "contradicted",
+      "verifier_reason": "Claim evidence is related but insufficient across the available top-k chunks."
+    },
+    {
+      "case_id": "cgc-100-077",
+      "claim_text": "The deadline is March 15, 2024.",
+      "predicted_label": "insufficient",
+      "expected_label": "contradicted",
+      "verifier_reason": "Claim evidence is related but insufficient across the available top-k chunks."
+    },
+    {
+      "case_id": "cgc-100-078",
+      "claim_text": "The deadline is March 15, 2024.",
+      "predicted_label": "insufficient",
+      "expected_label": "contradicted",
+      "verifier_reason": "Claim evidence is related but insufficient across the available top-k chunks."
+    },
+    {
+      "case_id": "cgc-100-079",
+      "claim_text": "The deadline is March 15, 2024.",
+      "predicted_label": "insufficient",
+      "expected_label": "contradicted",
+      "verifier_reason": "Claim evidence is related but insufficient across the available top-k chunks."
+    },
+    {
+      "case_id": "cgc-100-080",
+      "claim_text": "The deadline is March 15, 2024.",
+      "predicted_label": "insufficient",
+      "expected_label": "contradicted",
+      "verifier_reason": "Claim evidence is related but insufficient across the available top-k chunks."
+    },
+    {
+      "case_id": "cgc-100-081",
+      "claim_text": "The deadline is March 15, 2024.",
+      "predicted_label": "insufficient",
+      "expected_label": "contradicted",
+      "verifier_reason": "Claim evidence is related but insufficient across the available top-k chunks."
+    },
+    {
+      "case_id": "cgc-100-082",
+      "claim_text": "The deadline is March 15, 2024.",
+      "predicted_label": "insufficient",
+      "expected_label": "contradicted",
+      "verifier_reason": "Claim evidence is related but insufficient across the available top-k chunks."
+    },
+    {
+      "case_id": "cgc-100-083",
+      "claim_text": "The deadline is March 15, 2024.",
+      "predicted_label": "insufficient",
+      "expected_label": "contradicted",
+      "verifier_reason": "Claim evidence is related but insufficient across the available top-k chunks."
+    },
+    {
+      "case_id": "cgc-100-084",
+      "claim_text": "The deadline is March 15, 2024.",
+      "predicted_label": "insufficient",
+      "expected_label": "contradicted",
+      "verifier_reason": "Claim evidence is related but insufficient across the available top-k chunks."
+    },
+    {
+      "case_id": "cgc-100-085",
+      "claim_text": "The deadline is March 15, 2024.",
+      "predicted_label": "insufficient",
+      "expected_label": "contradicted",
+      "verifier_reason": "Claim evidence is related but insufficient across the available top-k chunks."
+    }
+  ],
+  "domain_breakdown": {
+    "government": {
+      "total": 22,
+      "accuracy": 0.5909,
+      "false_pass_rate": 0.0
+    },
+    "healthcare": {
+      "total": 21,
+      "accuracy": 0.5714,
+      "false_pass_rate": 0.0
+    },
+    "finance": {
+      "total": 18,
+      "accuracy": 0.5556,
+      "false_pass_rate": 0.0
+    },
+    "product_manuals": {
+      "total": 16,
+      "accuracy": 0.5625,
+      "false_pass_rate": 0.0
+    },
+    "science": {
+      "total": 12,
+      "accuracy": 0.5833,
+      "false_pass_rate": 0.0
+    },
+    "software": {
+      "total": 14,
+      "accuracy": 0.6429,
+      "false_pass_rate": 0.0
+    },
+    "education": {
+      "total": 7,
+      "accuracy": 0.7143,
+      "false_pass_rate": 0.0
+    }
+  },
+  "provider": null,
+  "model": null,
+  "call_count": 0,
+  "rate_limited": false
+}

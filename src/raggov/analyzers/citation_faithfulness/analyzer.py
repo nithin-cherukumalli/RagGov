@@ -223,8 +223,15 @@ class CitationFaithfulnessAnalyzerV0(BaseAnalyzer):
             dict.fromkeys(contradicted_chunk_ids + profile_contradictions)
         )
         neutral_chunk_ids = list(dict.fromkeys(neutral_chunk_ids + profile_neutral))
+        if not cited_chunk_ids and self._doc_level_citation_is_precise(
+            run, cited_doc_ids, supporting_chunk_ids
+        ):
+            cited_chunk_ids = [
+                chunk_id
+                for chunk_id in supporting_chunk_ids
+                if self._doc_ids_for_chunks(run, [chunk_id]) & set(cited_doc_ids)
+            ]
 
-        cited_chunk_ids = self._expand_cited_chunks(run, cited_doc_ids, cited_chunk_ids)
         label, explanation = self._support_label(
             run=run,
             claim=claim,
@@ -392,11 +399,34 @@ class CitationFaithfulnessAnalyzerV0(BaseAnalyzer):
         ):
             return CitationSupportLabel.CONTRADICTED, "cited source contradicts the claim"
 
+        support_source_type = getattr(claim, "support_source_type", None)
+        if support_source_type == "exact_cited_chunk":
+            return CitationSupportLabel.FULLY_SUPPORTED, "exact cited chunk supports the claim"
+        if support_source_type == "cited_doc_other_chunk":
+            return (
+                CitationSupportLabel.PARTIALLY_SUPPORTED,
+                "claim is supported by the cited document, but not by the exact cited chunk",
+            )
+        if support_source_type == "retrieved_uncited_chunk" and self._is_supported_claim(claim):
+            return (
+                CitationSupportLabel.UNSUPPORTED,
+                "claim appears supported by retrieved context, but only by uncited chunks",
+            )
+
         support_overlap = set(supporting_chunk_ids) & set(cited_chunk_ids)
         if supporting_chunk_ids and support_overlap:
             if support_overlap == set(supporting_chunk_ids):
                 return CitationSupportLabel.FULLY_SUPPORTED, "cited source overlaps all supporting chunks"
             return CitationSupportLabel.PARTIALLY_SUPPORTED, "cited source overlaps some supporting chunks"
+
+        supporting_doc_ids = self._doc_ids_for_chunks(run, supporting_chunk_ids)
+        if self._is_supported_claim(claim) and supporting_chunk_ids and set(cited_doc_ids) & supporting_doc_ids:
+            if self._doc_level_citation_is_precise(run, cited_doc_ids, supporting_chunk_ids):
+                return CitationSupportLabel.FULLY_SUPPORTED, "single cited document chunk supports the claim"
+            return (
+                CitationSupportLabel.PARTIALLY_SUPPORTED,
+                "claim is supported within the cited document, but citation is only document-level",
+            )
 
         if self._is_supported_claim(claim) and supporting_chunk_ids:
             return (
@@ -428,18 +458,6 @@ class CitationFaithfulnessAnalyzerV0(BaseAnalyzer):
 
         return [], [], CitationEvidenceSource.UNAVAILABLE
 
-    def _expand_cited_chunks(
-        self,
-        run: RAGRun,
-        cited_doc_ids: list[str],
-        cited_chunk_ids: list[str],
-    ) -> list[str]:
-        expanded = list(cited_chunk_ids)
-        for chunk in run.retrieved_chunks:
-            if chunk.source_doc_id in cited_doc_ids:
-                expanded.append(chunk.chunk_id)
-        return list(dict.fromkeys(expanded))
-
     def _has_cited_contradiction(
         self,
         run: RAGRun,
@@ -450,6 +468,8 @@ class CitationFaithfulnessAnalyzerV0(BaseAnalyzer):
     ) -> bool:
         cited_chunk_set = set(cited_chunk_ids)
         if cited_chunk_set & set(contradicted_chunk_ids):
+            return True
+        if set(cited_doc_ids) & self._doc_ids_for_chunks(run, contradicted_chunk_ids):
             return True
 
         profile = run.retrieval_evidence_profile
@@ -518,6 +538,33 @@ class CitationFaithfulnessAnalyzerV0(BaseAnalyzer):
 
     def _retrieved_doc_ids(self, run: RAGRun) -> set[str]:
         return {chunk.source_doc_id for chunk in run.retrieved_chunks}
+
+    def _doc_ids_for_chunks(self, run: RAGRun, chunk_ids: list[str]) -> set[str]:
+        chunks_by_id = {chunk.chunk_id: chunk for chunk in run.retrieved_chunks}
+        return {
+            chunks_by_id[chunk_id].source_doc_id
+            for chunk_id in chunk_ids
+            if chunk_id in chunks_by_id
+        }
+
+    def _doc_level_citation_is_precise(
+        self,
+        run: RAGRun,
+        cited_doc_ids: list[str],
+        supporting_chunk_ids: list[str],
+    ) -> bool:
+        chunks_by_doc: dict[str, list[str]] = {}
+        chunks_by_id: dict[str, RetrievedChunk] = {}
+        for chunk in run.retrieved_chunks:
+            chunks_by_doc.setdefault(chunk.source_doc_id, []).append(chunk.chunk_id)
+            chunks_by_id[chunk.chunk_id] = chunk
+        for chunk_id in supporting_chunk_ids:
+            supporting_chunk = chunks_by_id.get(chunk_id)
+            if supporting_chunk is None or supporting_chunk.source_doc_id not in cited_doc_ids:
+                return False
+            if len(chunks_by_doc.get(supporting_chunk.source_doc_id, [])) != 1:
+                return False
+        return bool(supporting_chunk_ids)
 
     def _answer_has_explicit_citation_marker(self, run: RAGRun) -> bool:
         return "[" in run.final_answer and "]" in run.final_answer

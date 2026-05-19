@@ -28,6 +28,7 @@ raggov = "raggov.cli:app"
 llm = [
     "openai>=1.0",
     "anthropic>=0.20",
+    "groq>=0.11",
 ]
 claim = [
     "refchecker",
@@ -70,6 +71,9 @@ dev = [
 
 [tool.pytest.ini_options]
 addopts = "-p no:asyncio"
+markers = [
+    "live: tests that call live external providers and should only run when explicitly selected",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/raggov", "stresslab"]

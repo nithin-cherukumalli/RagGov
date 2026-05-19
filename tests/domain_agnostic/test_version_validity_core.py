@@ -44,7 +44,7 @@ def test_healthcare_outdated_guideline() -> None:
         run_for({"publication_date": "2020-01-01"})
     )
 
-    assert result.status == "warn"
+    assert result.status == "fail"
     assert result.version_validity_report.document_records[0].validity_status == DocumentValidityStatus.STALE_BY_AGE
 
 
@@ -63,7 +63,7 @@ def test_product_manual_old_version_by_age() -> None:
         run_for({"updated_at": "2023-01-01", "version": "1.0"})
     )
 
-    assert result.status == "warn"
+    assert result.status == "fail"
     assert result.version_validity_report.document_records[0].validity_status == DocumentValidityStatus.STALE_BY_AGE
 
 
