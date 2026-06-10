@@ -1,0 +1,170 @@
+{
+  "schema_version": 1,
+  "failure_modes": [
+    {
+      "id": "retrieval_depth_or_scope_regression",
+      "category": "retrieval",
+      "description": "Retrieval ownership evidence is missing, weak, or displaced by downstream grounding symptoms.",
+      "symptoms": ["top-k truncation misdiagnosed as grounding", "scope drift selected as citation or grounding failure"],
+      "protected_files": ["src/raggov/analyzers/retrieval/**", "src/raggov/analyzers/retrieval_quality/**", "tests/stresslab/**"],
+      "likely_owner": "retrieval evidence emission",
+      "recommended_first_diagnostic_command": "python scripts/evaluate_common_failures.py",
+      "safe_action": "Add explicit retrieval-stage evidence and targeted tests without changing benchmark labels.",
+      "unsafe_action": "Raise global retrieval priority or edit golden expected failures to match current output."
+    },
+    {
+      "id": "grounding_claim_support_regression",
+      "category": "grounding",
+      "description": "Claim-to-context evidence no longer preserves unsupported or contradicted claim diagnostics.",
+      "symptoms": ["unsupported claims become CLEAN", "contradictions lose cited evidence"],
+      "protected_files": ["src/raggov/analyzers/grounding/**", "tests/test_analyzers/**"],
+      "likely_owner": "claim grounding analyzer",
+      "recommended_first_diagnostic_command": "PYTHONPATH=src:. pytest -q tests/analyzers/grounding tests/test_analyzers/test_grounding_integration.py",
+      "safe_action": "Strengthen evidence metadata and add narrow regression tests.",
+      "unsafe_action": "Treat token overlap as final faithfulness or suppress low confidence findings."
+    },
+    {
+      "id": "citation_evidence_regression",
+      "category": "citation",
+      "description": "Citation mismatch or faithfulness evidence is missing, mislabeled, or overruled incorrectly.",
+      "symptoms": ["citation benchmark drops", "citation findings lack provenance"],
+      "protected_files": ["src/raggov/analyzers/citation/**", "tests/fixtures/citation_faithfulness_v0.jsonl"],
+      "likely_owner": "citation analyzer",
+      "recommended_first_diagnostic_command": "PYTHONPATH=src:. pytest -q tests/test_analyzers/test_citation_faithfulness_v0.py",
+      "safe_action": "Make citation evidence explicit and preserve heuristic labels.",
+      "unsafe_action": "Change citation fixture labels or silently accept missing citations."
+    },
+    {
+      "id": "sufficiency_context_regression",
+      "category": "sufficiency",
+      "description": "Insufficient-context detection regresses or leaks domain-specific assumptions.",
+      "symptoms": ["false incomplete count increases", "sufficiency suite drops"],
+      "protected_files": ["src/raggov/analyzers/sufficiency/**", "tests/domain_agnostic/**"],
+      "likely_owner": "sufficiency analyzer",
+      "recommended_first_diagnostic_command": "PYTHONPATH=src:. pytest -q tests/domain_agnostic/test_sufficiency_core.py",
+      "safe_action": "Add domain-agnostic evidence checks and visible degradation metadata.",
+      "unsafe_action": "Mask missing context as CLEAN or tune thresholds without calibration hooks."
+    },
+    {
+      "id": "version_validity_staleness_regression",
+      "category": "version_validity",
+      "description": "Stale retrieval or source-validity evidence is missing or mislabeled.",
+      "symptoms": ["stale retrieval cases become unsupported claims", "source recency metadata is absent"],
+      "protected_files": ["src/raggov/analyzers/version/**", "tests/fixtures/version_validity_v1.jsonl"],
+      "likely_owner": "version validity analyzer",
+      "recommended_first_diagnostic_command": "PYTHONPATH=src:. pytest -q tests/domain_agnostic/test_version_validity_core.py",
+      "safe_action": "Expose source-date evidence and preserve advisory status where uncalibrated.",
+      "unsafe_action": "Invent calibrated recency confidence or rewrite version fixtures."
+    },
+    {
+      "id": "parser_chunking_contract_regression",
+      "category": "parser_chunking",
+      "description": "Parser or chunking behavior changes damage downstream retrieval evidence.",
+      "symptoms": ["retrieval anomalies increase", "chunks lose source provenance"],
+      "protected_files": ["src/raggov/parsers/**", "stresslab/**"],
+      "likely_owner": "parser/chunking pipeline",
+      "recommended_first_diagnostic_command": "PYTHONPATH=src:. pytest -q tests/stresslab/test_chunking.py tests/stresslab/test_ingest.py",
+      "safe_action": "Add provenance-preserving parsing tests.",
+      "unsafe_action": "Normalize away source boundaries or delete fixture PDFs."
+    },
+    {
+      "id": "answer_quality_metadata_regression",
+      "category": "answer_quality",
+      "description": "Answer-quality signals become opaque or override claim-level evidence.",
+      "symptoms": ["quality metadata missing", "quality score selected as root cause without evidence"],
+      "protected_files": ["src/raggov/analyzers/answer_quality/**", "src/raggov/models/signals.py"],
+      "likely_owner": "answer quality analyzer",
+      "recommended_first_diagnostic_command": "PYTHONPATH=src:. pytest -q tests/test_analyzers/test_answer_quality_confidence_metadata.py",
+      "safe_action": "Keep quality as a signal with explicit evidence status.",
+      "unsafe_action": "Use answer quality as a diagnosis source of truth."
+    },
+    {
+      "id": "confidence_calibration_regression",
+      "category": "confidence",
+      "description": "Confidence claims become uncalibrated, hidden, or overstated.",
+      "symptoms": ["heuristic confidence appears calibrated", "fallbacks are silent"],
+      "protected_files": ["src/raggov/analyzers/confidence/**", "src/raggov/models/diagnosis.py"],
+      "likely_owner": "confidence analyzer",
+      "recommended_first_diagnostic_command": "PYTHONPATH=src:. pytest -q tests/test_analyzers/test_confidence.py tests/models",
+      "safe_action": "Label heuristic confidence and surface degradation metadata.",
+      "unsafe_action": "Invent confidence scores or mark semantic entropy research-faithful without the mechanism."
+    },
+    {
+      "id": "security_prompt_or_retrieval_anomaly_regression",
+      "category": "security",
+      "description": "Security or retrieval anomaly evidence is lost, mislabeled, or downgraded to generic grounding.",
+      "symptoms": ["false security count increases", "duplicate retrieved chunks are only warnings"],
+      "protected_files": ["src/raggov/analyzers/security/**", "tests/stresslab/**"],
+      "likely_owner": "security analyzer",
+      "recommended_first_diagnostic_command": "PYTHONPATH=src:. pytest -q tests -k \"security or anomaly\"",
+      "safe_action": "Emit structured anomaly evidence with heuristic status.",
+      "unsafe_action": "Use regex-only prompt injection as a final calibrated security diagnosis."
+    },
+    {
+      "id": "decision_policy_selection_regression",
+      "category": "decision_policy",
+      "description": "Primary failure selection changes without explicit evidence or targeted tests.",
+      "symptoms": ["structured evidence loses to weak generic findings", "benchmark primary labels shift"],
+      "protected_files": ["src/raggov/decision_policy_support.py", "tests/decision_policy/**"],
+      "likely_owner": "decision policy",
+      "recommended_first_diagnostic_command": "PYTHONPATH=src:. pytest -q tests/decision_policy tests/engine tests/test_engine.py",
+      "safe_action": "Add narrow recognition for explicit structured diagnostics with regression tests.",
+      "unsafe_action": "Change global priorities or expected benchmark outputs."
+    },
+    {
+      "id": "external_provider_runtime_degradation",
+      "category": "external_provider_runtime",
+      "description": "Optional provider calls fail or degrade without visible metadata.",
+      "symptoms": ["external-enhanced runtime errors", "missing degradation records"],
+      "protected_files": ["src/raggov/evaluators/**", "tests/evaluators/**"],
+      "likely_owner": "external provider bridge",
+      "recommended_first_diagnostic_command": "PYTHONPATH=src:. pytest -q tests/evaluators tests/engine/test_external_signal_bridge.py",
+      "safe_action": "Surface provider failures as degraded optional signals.",
+      "unsafe_action": "Make external providers required for native mode."
+    },
+    {
+      "id": "calibration_overclaim",
+      "category": "calibration",
+      "description": "Uncalibrated heuristics are presented as calibrated production signals.",
+      "symptoms": ["production gating becomes eligible", "calibration status is overstated"],
+      "protected_files": ["reports/govrag_calib_readiness.*", "scripts/validate_govrag_calib.py", "evals/**"],
+      "likely_owner": "calibration readiness",
+      "recommended_first_diagnostic_command": "PYTHONPATH=src:. python scripts/launch_readiness.py",
+      "safe_action": "Report readiness gaps and keep production gating disabled.",
+      "unsafe_action": "Enable production gating or edit readiness reports to hide blockers."
+    },
+    {
+      "id": "benchmark_integrity_damage",
+      "category": "benchmark_integrity",
+      "description": "Protected benchmark cases, labels, expected stages, or fixtures changed casually.",
+      "symptoms": ["common baseline shifts", "golden files are dirty"],
+      "protected_files": ["stresslab/cases/golden/**", "tests/fixtures/**", "evals/**"],
+      "likely_owner": "benchmark governance",
+      "recommended_first_diagnostic_command": "python scripts/harness_preflight.py --strict",
+      "safe_action": "Stop and get explicit user approval before fixture or label changes.",
+      "unsafe_action": "Edit expected_primary_failure, expected_stage, or expected_fix_category to pass tests."
+    },
+    {
+      "id": "workspace_integrity_risk",
+      "category": "workspace_integrity",
+      "description": "The worktree contains deleted tracked files, unknown generated artifacts, or unrelated dirty state.",
+      "symptoms": ["many untracked outputs", "deleted tracked files"],
+      "protected_files": ["*"],
+      "likely_owner": "coding agent workspace",
+      "recommended_first_diagnostic_command": "python scripts/workspace_audit.py",
+      "safe_action": "List dirty state, isolate your patch, and avoid reverting user changes.",
+      "unsafe_action": "Run destructive cleanup or reset unrelated files."
+    },
+    {
+      "id": "report_integrity_regression",
+      "category": "report_integrity",
+      "description": "Reports are rewritten to obscure failures, regressions, or degraded providers.",
+      "symptoms": ["reports changed without commands", "failure counts disappear"],
+      "protected_files": ["reports/**"],
+      "likely_owner": "reporting harness",
+      "recommended_first_diagnostic_command": "python scripts/workspace_audit.py",
+      "safe_action": "Generate additive reports that preserve warnings and command provenance.",
+      "unsafe_action": "Edit reports to hide Not Ready, degraded runtime, or baseline regressions."
+    }
+  ]
+}

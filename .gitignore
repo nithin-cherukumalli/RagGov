@@ -202,6 +202,17 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
+# Local agent/debug scratch files
+debug_*.py
+run_test*.py
+test_debug.py
+test_guard.py
+test_logic.py
+test_override*.py
+test_rank*.py
+*_diagnosis.json
+diff.txt
+
 # Marimo
 marimo/_static/
 marimo/_lsp/

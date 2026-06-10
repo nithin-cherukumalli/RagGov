@@ -6,8 +6,9 @@ grounding records and retrieval evidence. It does not run an LLM judge,
 counterfactual probe, RefChecker, RAGChecker, or Wallat-style citation
 faithfulness method.
 """
-
 from __future__ import annotations
+
+from raggov.models.chunk import RetrievedChunk
 
 from raggov.analyzers.base import BaseAnalyzer
 from raggov.evaluators.base import ExternalSignalRecord

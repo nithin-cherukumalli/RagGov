@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "description": "Path and content patterns used by harness scripts to flag protected GovRAG changes.",
+  "protected_patterns": [
+    "stresslab/cases/golden/**",
+    "tests/fixtures/**",
+    "fixtures/**",
+    "evals/**",
+    "reports/launch_readiness_report.*",
+    "reports/common_failure_triage.*",
+    "scripts/launch_readiness.py",
+    "scripts/evaluate_common_failures.py",
+    "stresslab/runners/rag_failure_runner.py"
+  ],
+  "threshold_or_gate_patterns": [
+    "**/*threshold*",
+    "**/*gate*",
+    "**/*gating*",
+    "**/*readiness*",
+    "config/**",
+    "configs/**",
+    "scripts/launch_readiness.py",
+    "scripts/evaluate_common_failures.py"
+  ],
+  "generated_report_patterns": [
+    "reports/*.json",
+    "reports/*.md"
+  ],
+  "protected_content_tokens": [
+    "golden label",
+    "expected_primary_failure",
+    "expected_stage",
+    "expected_root_cause",
+    "expected_fix_category",
+    "production_gating_eligible",
+    "false_clean_count",
+    "false_security_count",
+    "false_incomplete_count"
+  ],
+  "risk_classes": {
+    "low": [
+      "docs/**",
+      "reports/**",
+      "tests/**",
+      "harness/**"
+    ],
+    "medium": [
+      "src/raggov/models/**",
+      "scripts/harness_*.py",
+      "scripts/workspace_audit.py"
+    ],
+    "high": [
+      "src/raggov/analyzers/**",
+      "src/raggov/decision_policy_support.py",
+      "src/raggov/engine.py"
+    ],
+    "critical": [
+      "stresslab/cases/golden/**",
+      "tests/fixtures/**",
+      "fixtures/**",
+      "evals/**",
+      "scripts/launch_readiness.py",
+      "scripts/evaluate_common_failures.py",
+      "reports/launch_readiness_report.*",
+      "reports/common_failure_triage.*"
+    ]
+  }
+}

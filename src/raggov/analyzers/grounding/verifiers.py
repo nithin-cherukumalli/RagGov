@@ -383,13 +383,31 @@ class LLMClaimEntailmentVerifierV1(ClaimEntailmentVerifierV1):
             entities=entities,
             atomicity_status=atomicity_status,
         )
-        raw_response = self._invoke(prompt)
+        try:
+            raw_response = self._invoke(prompt)
+        except Exception as invoke_exc:
+            logger.warning("LLM entailment invoke failed, falling back to heuristic: %s", invoke_exc)
+            fallback = self._fallback_verifier.verify(
+                claim_text,
+                query,
+                top_k_candidates,
+                metadata=metadata,
+            )
+            fallback.fallback_used = True
+            fallback.fallback_from = "llm_entailment_verifier"
+            fallback.fallback_to = "heuristic_top_k_verifier"
+            fallback.verifier_warnings = [
+                *fallback.verifier_warnings,
+                f"llm_entailment_invoke_failed:{type(invoke_exc).__name__}",
+            ]
+            return fallback
+
         try:
             parsed = self._parse_response(raw_response)
         except Exception as exc:
             logger.warning("LLM entailment parse failed, attempting repair: %s", exc)
-            repair_response = self._invoke(self._repair_prompt(prompt, raw_response))
             try:
+                repair_response = self._invoke(self._repair_prompt(prompt, raw_response))
                 parsed = self._parse_response(repair_response)
                 raw_response = repair_response
             except Exception as repair_exc:
@@ -410,7 +428,7 @@ class LLMClaimEntailmentVerifierV1(ClaimEntailmentVerifierV1):
                 ]
                 fallback.raw_entailment_response = {
                     "initial_response": str(raw_response),
-                    "repair_response": str(repair_response),
+                    "repair_response": str(repair_response) if 'repair_response' in locals() else None,
                 }
                 return fallback
 
@@ -443,7 +461,7 @@ class LLMClaimEntailmentVerifierV1(ClaimEntailmentVerifierV1):
         atomicity_status: str,
     ) -> str:
         candidate_block = "\n\n".join(
-            f"[{candidate.chunk_id}] doc={candidate.source_doc_id} score={candidate.retrieval_score:.3f}\n{candidate.chunk_text}"
+            f"[{candidate.chunk_id}] doc={candidate.source_doc_id} score={f'{candidate.retrieval_score:.3f}' if candidate.retrieval_score is not None else 'None'}\n{candidate.chunk_text}"
             for candidate in candidates
         )
         return (
@@ -664,6 +682,12 @@ def _first_claim_value_snippet(claim_text: str) -> str | None:
         claim_text.lower(),
     )
     return match.group(0) if match else None
+
+
+def _value_conflict_reason(conflict: dict[str, str]) -> str:
+    claim_value = conflict.get("claim_value") or "claim value"
+    evidence_value = conflict.get("evidence_value") or "evidence value"
+    return f"Evidence states {evidence_value}, conflicting with claim value {claim_value}."
 
 
 def _default_label_reason(
@@ -897,7 +921,7 @@ class HeuristicValueOverlapVerifier(EvidenceVerifier):
                 self._contains_negation_of_terms(candidate.chunk_text, claim_terms) or candidate_reason
             )
             contextually_aligned_value_conflict = bool(
-                value_conflicts and non_numeric_term_coverage >= 0.5
+                value_conflicts and non_numeric_term_coverage >= 0.25
             )
             if explicit_contradiction or contextually_aligned_value_conflict:
                 aggregate.contradicting_candidate_ids.append(candidate.chunk_id)
@@ -907,6 +931,10 @@ class HeuristicValueOverlapVerifier(EvidenceVerifier):
                 )
                 if candidate_reason:
                     aggregate.evidence_coverage_notes.append(candidate_reason)
+                elif value_conflicts:
+                    aggregate.evidence_coverage_notes.append(
+                        _value_conflict_reason(value_conflicts[0])
+                    )
                 continue
             if value_conflicts:
                 aggregate.neutral_candidate_ids.append(candidate.chunk_id)
@@ -962,8 +990,12 @@ class HeuristicValueOverlapVerifier(EvidenceVerifier):
             if non_numeric_claim_terms
             else aggregate_term_coverage
         )
-        if aggregate_value_conflicts and aggregate_non_numeric_term_coverage >= 0.5:
+        if aggregate_value_conflicts and aggregate_non_numeric_term_coverage >= 0.25:
             value_conflicts_all.extend(aggregate_value_conflicts)
+            if not aggregate.evidence_coverage_notes:
+                aggregate.evidence_coverage_notes.append(
+                    _value_conflict_reason(aggregate_value_conflicts[0])
+                )
             aggregate.contradicting_candidate_ids = list(
                 dict.fromkeys(
                     [*aggregate.contradicting_candidate_ids, *[c.chunk_id for c in candidates]]
@@ -976,11 +1008,14 @@ class HeuristicValueOverlapVerifier(EvidenceVerifier):
 
         if aggregate.contradicting_candidate_ids:
             best_contradiction = aggregate.contradicting_candidate_ids[0]
+            raw_score = max(aggregate.aggregate_contradiction_score, aggregate.best_candidate_score)
+            if value_conflicts_all:
+                raw_score = min(raw_score, 0.49)
             return VerificationResult(
                 label="contradicted",
                 support_label="contradicted",
                 label_reason="value_conflict" if value_conflicts_all else "explicit_contradiction",
-                raw_score=max(aggregate.aggregate_contradiction_score, aggregate.best_candidate_score),
+                raw_score=raw_score,
                 evidence_chunk_id=best_contradiction,
                 evidence_span=None,
                 rationale=(
@@ -1009,7 +1044,11 @@ class HeuristicValueOverlapVerifier(EvidenceVerifier):
             )
 
         aggregate_anchor_hits = len(claim_anchors & set(self._extract_anchors(aggregate_text))) if claim_anchors else 0
-        enough_anchor_support = not claim_anchors or aggregate_anchor_hits > 0
+        enough_anchor_support = (
+            not claim_anchors
+            or aggregate_anchor_hits > 0
+            or bool(aggregate_value_matches or value_matches_all)
+        )
         contributing_ids = list(dict.fromkeys([*aggregate.supporting_candidate_ids, *aggregate_support_contributors]))
         has_multi_chunk_support = len(contributing_ids) >= 2 and (
             aggregate_term_coverage >= self._support_threshold or aggregate_value_matches

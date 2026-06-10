@@ -20,6 +20,7 @@ from pydantic import ValidationError
 from raggov.analyzers.base import BaseAnalyzer
 from raggov.models.diagnosis import AnalyzerResult, ClaimResult, FailureStage, FailureType
 from raggov.models.run import RAGRun
+from raggov.models.signals import EvidenceSignalMetadata
 
 CLAIM_LABELS = ("entailed", "unsupported", "contradicted")
 LOW_ENTROPY_THRESHOLD = 0.5
@@ -329,23 +330,52 @@ class SemanticEntropyAnalyzer(BaseAnalyzer):
 
         if entropy < low_entropy_threshold:
             evidence.append("LOW uncertainty — claim labels are semantically consistent")
+            sig = EvidenceSignalMetadata(
+                signal_name="semantic_entropy_proxy_low",
+                source_analyzer=self.name(),
+                method="semantic_entropy_proxy",
+                method_status="heuristic_baseline",
+                calibration_status="uncalibrated",
+                evidence_strength="advisory",
+                evidence_tier="proxy",
+            )
             return AnalyzerResult(
                 analyzer_name=self.name(),
                 status="pass",
                 score=entropy,
                 evidence=evidence,
+                signal_metadata=[sig],
             )
         if entropy <= high_entropy_threshold:
             evidence.append("MEDIUM uncertainty — claim labels split across meaning-groups")
+            sig = EvidenceSignalMetadata(
+                signal_name="semantic_entropy_proxy_medium",
+                source_analyzer=self.name(),
+                method="semantic_entropy_proxy",
+                method_status="heuristic_baseline",
+                calibration_status="uncalibrated",
+                evidence_strength="weak",
+                evidence_tier="proxy",
+            )
             return AnalyzerResult(
                 analyzer_name=self.name(),
                 status="warn",
                 score=entropy,
                 evidence=evidence,
                 remediation="Moderate uncertainty detected. Consider additional verification.",
+                signal_metadata=[sig],
             )
 
         evidence.append("HIGH uncertainty — claim labels strongly disagree, confabulation likely")
+        sig = EvidenceSignalMetadata(
+            signal_name="semantic_entropy_proxy_high",
+            source_analyzer=self.name(),
+            method="semantic_entropy_proxy",
+            method_status="heuristic_baseline",
+            calibration_status="uncalibrated",
+            evidence_strength="weak",
+            evidence_tier="proxy",
+        )
         result = self._fail(
             failure_type=FailureType.LOW_CONFIDENCE,
             stage=FailureStage.CONFIDENCE,
@@ -353,6 +383,7 @@ class SemanticEntropyAnalyzer(BaseAnalyzer):
             remediation="High response variance detected. Do not serve this answer. Consider retrieval expansion or abstention.",
         )
         result.score = entropy
+        result.signal_metadata = [sig]
         return result
 
     def _analyze_with_llm(self, run: RAGRun) -> AnalyzerResult:
@@ -360,7 +391,18 @@ class SemanticEntropyAnalyzer(BaseAnalyzer):
         # Get LLM function
         llm_fn: Callable[[str], str] | None = self.config.get("llm_fn")
         if llm_fn is None:
-            return self.skip("llm_fn not provided")
+            sig = EvidenceSignalMetadata(
+                signal_name="semantic_entropy_unavailable",
+                source_analyzer=self.name(),
+                method="semantic_entropy_unavailable",
+                method_status="external_advisory",
+                calibration_status="unknown",
+                evidence_strength="advisory",
+                evidence_tier="proxy",
+            )
+            res = self.skip("llm_fn not provided")
+            res.signal_metadata = [sig]
+            return res
 
         # Get config
         n_samples = int(self.config.get("n_samples", 5))
@@ -422,24 +464,53 @@ class SemanticEntropyAnalyzer(BaseAnalyzer):
         # Step 4: Interpret
         if entropy < 0.5:
             evidence.append("LOW uncertainty — all samples agree")
+            sig = EvidenceSignalMetadata(
+                signal_name="semantic_entropy_sampling_low",
+                source_analyzer=self.name(),
+                method="semantic_entropy_sampling",
+                method_status="practical_approximation",
+                calibration_status="uncalibrated",
+                evidence_strength="advisory",
+                evidence_tier="proxy",
+            )
             return AnalyzerResult(
                 analyzer_name=self.name(),
                 status="pass",
                 score=entropy,
                 evidence=evidence,
+                signal_metadata=[sig],
             )
         elif entropy <= entropy_threshold:
             evidence.append("MEDIUM uncertainty — some response variance")
+            sig = EvidenceSignalMetadata(
+                signal_name="semantic_entropy_sampling_medium",
+                source_analyzer=self.name(),
+                method="semantic_entropy_sampling",
+                method_status="practical_approximation",
+                calibration_status="uncalibrated",
+                evidence_strength="weak",
+                evidence_tier="proxy",
+            )
             return AnalyzerResult(
                 analyzer_name=self.name(),
                 status="warn",
                 score=entropy,
                 evidence=evidence,
                 remediation="Moderate response variance detected. Consider additional verification.",
+                signal_metadata=[sig],
             )
         else:
             evidence.append(
                 f"HIGH uncertainty (entropy {entropy:.2f}) — model responses are inconsistent, confabulation likely"
+            )
+            sig = EvidenceSignalMetadata(
+                signal_name="semantic_entropy_sampling_high",
+                source_analyzer=self.name(),
+                method="semantic_entropy_sampling",
+                method_status="practical_approximation",
+                calibration_status="uncalibrated",
+                evidence_strength="weak",
+                evidence_tier="proxy",
             )
             result = self._fail(
                 failure_type=FailureType.LOW_CONFIDENCE,
@@ -448,6 +519,7 @@ class SemanticEntropyAnalyzer(BaseAnalyzer):
                 remediation="High response variance detected. Do not serve this answer. Consider retrieval expansion or abstention.",
             )
             result.score = entropy
+            result.signal_metadata = [sig]
             return result
 
     def _get_claim_results(self, run: RAGRun) -> list[ClaimResult]:

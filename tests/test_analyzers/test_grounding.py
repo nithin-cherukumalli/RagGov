@@ -108,7 +108,9 @@ def test_claim_extractor_llm_mode_parses_json_array() -> None:
     claims = extractor.extract("Refunds last thirty days. Warranty requires service.")
 
     assert claims == ["Refunds last thirty days.", "Warranty requires service."]
-    assert "Return only a JSON array of objects" in client.prompts[0]
+    assert "Return only strict JSON matching the schema below" in client.prompts[0]
+    assert "schema" in client.prompts[0].lower()
+    assert "claims" in client.prompts[0]
 
 
 def test_claim_extractor_structured_llm_mode_returns_extracted_claims() -> None:
@@ -123,7 +125,7 @@ def test_claim_extractor_structured_llm_mode_returns_extracted_claims() -> None:
     assert len(claims) == 2
     assert claims[0].claim_text == "Refunds last thirty days."
     assert claims[0].atomicity_status == "atomic"
-    assert claims[0].extraction_method == "llm"
+    assert claims[0].extraction_method == "llm_atomic_claim_extractor_v1"
 
 
 def test_claim_extractor_structured_deterministic_detects_compound() -> None:
@@ -147,6 +149,38 @@ def test_claim_extractor_structured_deterministic_skips_non_factual() -> None:
     assert claims[1].should_verify is False
     assert claims[1].skip_reason == "lacks_substantive_terms"
     assert claims[2].should_verify is True
+
+
+def test_generic_instruction_not_extracted_as_claim() -> None:
+    claims = ClaimExtractor().extract("Please read this carefully.")
+
+    assert claims == []
+
+
+def test_modal_word_alone_does_not_make_claim() -> None:
+    extractor = ClaimExtractor()
+
+    claims = extractor.extract_structured("Users can proceed. Teams should coordinate.")
+
+    assert [claim.should_verify for claim in claims] == [False, False]
+    assert [claim.skip_reason for claim in claims] == [
+        "short_non_substantive",
+        "short_non_substantive",
+    ]
+
+
+def test_factual_obligation_with_entity_can_still_be_claim() -> None:
+    claims = ClaimExtractor().extract("Applicants must obtain approval.")
+
+    assert claims == ["Applicants must obtain approval."]
+
+
+def test_short_instruction_skip_reason_is_short_non_substantive() -> None:
+    claims = ClaimExtractor().extract_structured("Please read this carefully.")
+
+    assert len(claims) == 1
+    assert claims[0].should_verify is False
+    assert claims[0].skip_reason == "short_non_substantive"
 
 
 def test_claim_extractor_llm_fallback_is_visible_in_structured_claims() -> None:

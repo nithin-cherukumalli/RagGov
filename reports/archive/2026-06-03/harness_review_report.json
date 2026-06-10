@@ -1,0 +1,161 @@
+{
+  "benchmark_labels_changed": false,
+  "code_changed": false,
+  "commands_run": [
+    {
+      "command": "python scripts/workspace_audit.py",
+      "notes": "Generated reports/workspace_audit.json and .md",
+      "result": "warn"
+    },
+    {
+      "command": "python scripts/harness_preflight.py",
+      "notes": "Generated reports/harness_preflight_report.json and .md",
+      "result": "warn"
+    },
+    {
+      "command": "python scripts/harness_post_edit_validation.py",
+      "notes": "Generated reports/harness_post_edit_validation.json and .md",
+      "result": "warn"
+    },
+    {
+      "command": "pytest -q tests/harness",
+      "notes": "Harness unit tests passed",
+      "result": "8 passed"
+    },
+    {
+      "command": "python scripts/harness_preflight.py --run-common",
+      "notes": "Optional common benchmark flag completed",
+      "result": "warn"
+    },
+    {
+      "command": "python scripts/harness_post_edit_validation.py --run-common",
+      "notes": "Optional common benchmark flag completed",
+      "result": "warn"
+    }
+  ],
+  "false_positives_false_negatives": {
+    "false_negatives": [
+      "Common benchmark pass-count regressions are missed if false counts remain zero.",
+      "Native-only or external-enhanced-only regressions can be missed because counts are not mode-scoped.",
+      "External provider degradation is documented but not detected as a structured post-edit regression."
+    ],
+    "false_positives": [
+      "Content-token scanning marks many reports/docs as threshold_or_gate_changes when they merely mention production_gating_eligible or threshold.",
+      "Generated report changes are included in protected_changes when they contain protected tokens, producing noisy preflight/post-edit output."
+    ]
+  },
+  "files_inspected": [
+    "AGENTS.md",
+    "harness/README.md",
+    "harness/failure_mode_registry.json",
+    "harness/failure_mode_registry.md",
+    "harness/protected_paths.json",
+    "harness/protected_baseline.json",
+    "scripts/harness_common.py",
+    "scripts/harness_preflight.py",
+    "scripts/harness_post_edit_validation.py",
+    "scripts/workspace_audit.py",
+    "tests/harness/test_harness_scripts.py",
+    "reports/harness_preflight_report.json",
+    "reports/harness_preflight_report.md",
+    "reports/harness_post_edit_validation.json",
+    "reports/harness_post_edit_validation.md",
+    "reports/workspace_audit.json",
+    "reports/workspace_audit.md"
+  ],
+  "final_recommendation": "DO_NOT_ACCEPT_PROTECTED_GUARDRAILS_WEAK",
+  "generated_at": "2026-06-01T09:29:57.703292+00:00",
+  "issues_found": [
+    {
+      "details": "The baseline has common_native_passed/total and common_external_passed/total, but _baseline_regressions only checks false_clean_count, false_security_count, false_incomplete_count, and production_gating_eligible. A drop from 41/46 to a lower pass count can be missed if false counts stay at zero.",
+      "file": "scripts/harness_post_edit_validation.py",
+      "impact": "The harness should not yet block future coding-agent PRs because it can miss the primary protected common-suite regression it is meant to guard.",
+      "line": 48,
+      "severity": "high",
+      "title": "Common benchmark pass totals are not compared against the protected baseline."
+    },
+    {
+      "details": "find_key returns the first matching false-count key found in a nested report. For reports with modes.native and modes.external-enhanced, the selected count depends on JSON traversal order. Post-edit validation reports only one aggregate false_clean/security/incomplete value and does not verify both modes or either mode's pass total.",
+      "file": "scripts/harness_common.py",
+      "impact": "External-enhanced regressions can be hidden by native values, and vice versa.",
+      "line": 175,
+      "severity": "high",
+      "title": "Native and external-enhanced mode results are not validated separately."
+    },
+    {
+      "details": "It combines filename globs with content tokens, which correctly catches production_gating_eligible but also marks many generated reports and docs as threshold/gate changes. It does not explicitly protect common threshold/config locations beyond config/configs and filename matches.",
+      "file": "harness/protected_paths.json",
+      "impact": "High false positives reduce signal in dirty worktrees, while some threshold constants in ordinary source filenames may still be missed.",
+      "line": 15,
+      "severity": "medium",
+      "title": "Threshold/gate detection is useful but noisy and incomplete."
+    },
+    {
+      "details": "workspace_audit sets safe_to_continue false when protected files changed, but status remains warn unless there are deleted tracked files. This is acceptable for advisory use, but too weak for a blocking harness mode.",
+      "file": "scripts/workspace_audit.py",
+      "impact": "Future agents may treat a protected-file warning as non-blocking unless they also inspect safe_to_continue.",
+      "line": 35,
+      "severity": "medium",
+      "title": "Protected changes are warnings even when safe_to_continue is false."
+    },
+    {
+      "details": "The classifier checks critical first, so tests/fixtures is protected, but ordinary tests under tests/stresslab and decision-policy regression tests fall to low unless separately matched by another critical pattern. This is acceptable for general tests, but benchmark-integrity tests deserve a higher risk class.",
+      "file": "harness/protected_paths.json",
+      "impact": "Benchmark test changes can be under-emphasized in post-edit reports.",
+      "line": 57,
+      "severity": "medium",
+      "title": "Risk classification treats all tests as low risk before critical matching can distinguish benchmark tests."
+    },
+    {
+      "details": "Tests are meaningful and fast, but they do not assert native/external-enhanced pass-total regression detection or degraded provider reporting because that logic is not implemented yet.",
+      "file": "tests/harness/test_harness_scripts.py",
+      "impact": "The current guardrail gap can regress silently.",
+      "line": 1,
+      "severity": "low",
+      "title": "Tests cover core checks but not mode-separated benchmark regression parsing."
+    }
+  ],
+  "missing_guardrails": [
+    "Compare native and external-enhanced common benchmark pass totals against protected_baseline.json.",
+    "Report false_clean_count, false_security_count, and false_incomplete_count per mode rather than via first-key recursive lookup.",
+    "Represent external-enhanced provider degradation from benchmark or launch reports explicitly in post-edit output.",
+    "Add stricter blocking semantics for protected changes under --strict or for future CI usage."
+  ],
+  "overengineering_concerns": [
+    "The harness is not over-engineered: it is standard-library only, small, and audit-oriented.",
+    "The failure-mode registry is broad but still project-specific and acceptable as reference documentation."
+  ],
+  "production_gating_changed": false,
+  "protected_files_changed_by_review": [
+    "reports/workspace_audit.json",
+    "reports/workspace_audit.md",
+    "reports/harness_preflight_report.json",
+    "reports/harness_preflight_report.md",
+    "reports/harness_post_edit_validation.json",
+    "reports/harness_post_edit_validation.md",
+    "reports/harness_review_report.json",
+    "reports/harness_review_report.md"
+  ],
+  "recommended_next_smallest_improvement": "Add mode-aware common benchmark parsing in harness_post_edit_validation.py and tests that fail on native or external-enhanced pass-count regressions below 41/46.",
+  "review_answers": {
+    "agents_md_protects_benchmarks_readiness_gating": true,
+    "avoids_expensive_commands_by_default": true,
+    "avoids_modifying_source_code": true,
+    "baseline_reference_not_production_logic": true,
+    "checks_common_and_false_counts_and_gating": "partially; false counts and gating yes, common pass totals no",
+    "core_logic_modified_by_review": false,
+    "degraded_external_providers_honest": "documented in AGENTS/registry, not validated in reports",
+    "detects_deleted_tracked_files": true,
+    "detects_protected_fixture_golden_changes": true,
+    "detects_threshold_gating_changes": "partially; noisy and incomplete",
+    "harness_too_complex": false,
+    "json_markdown_reports_useful": "yes, but noisy in dirty worktrees",
+    "native_external_separate": false,
+    "project_specific": true,
+    "tests_meaningful_not_brittle": "mostly; missing mode-separated benchmark cases"
+  },
+  "safe_to_keep": true,
+  "should_block_future_coding_agent_prs": false,
+  "status": "fail",
+  "thresholds_changed": false
+}

@@ -1,0 +1,45 @@
+{
+  "counts_by_bucket": {
+    "DELETE_SCRATCH_SAFE": 2
+  },
+  "entries": [
+    {
+      "bucket": "DELETE_SCRATCH_SAFE",
+      "path": "<MagicMock name='_load_run().run_id' id='14246834512'>_diagnosis.json",
+      "reason": "Obvious scratch/debug generated artifact by name.",
+      "recommended_action": "delete later with approval",
+      "size": 2
+    },
+    {
+      "bucket": "DELETE_SCRATCH_SAFE",
+      "path": "<MagicMock name='_load_run().run_id' id='14303303248'>_diagnosis.json",
+      "reason": "Obvious scratch/debug generated artifact by name.",
+      "recommended_action": "delete later with approval",
+      "size": 2
+    }
+  ],
+  "excluded_prefixes": [
+    ".git/",
+    ".venv/",
+    "venv/",
+    "env/",
+    "node_modules/",
+    "__pycache__/"
+  ],
+  "generated_at": "2026-06-03T07:46:56.393121+00:00",
+  "patterns": [
+    "debug_*.py",
+    "run_test*.py",
+    "test_debug.py",
+    "test_guard.py",
+    "test_logic.py",
+    "test_override*.py",
+    "test_rank*.py",
+    "patch_*.py",
+    "diff.txt",
+    "*_diagnosis.json",
+    "tmp_*.json",
+    "local_*.json",
+    "scratch_*.py"
+  ]
+}

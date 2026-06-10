@@ -344,6 +344,8 @@ class AnalyzerResult(BaseModel):
     pinpoint_findings: list[PinpointFinding] = Field(default_factory=list)
     causal_chains: list[CausalChain] = Field(default_factory=list)
     trust_decision: TrustDecision | None = None
+    signal_metadata: list[Any] = Field(default_factory=list)
+    analyzer_report: Any | None = None
 
 
 

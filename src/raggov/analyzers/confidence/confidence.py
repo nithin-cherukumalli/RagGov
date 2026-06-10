@@ -5,6 +5,8 @@ from __future__ import annotations
 from raggov.analyzers.base import BaseAnalyzer
 from raggov.models.diagnosis import AnalyzerResult, FailureStage, FailureType
 from raggov.models.run import RAGRun
+from raggov.models.signals import EvidenceSignalMetadata
+from raggov.models.findings import AnalyzerReport
 
 
 REMEDIATION = (
@@ -58,31 +60,44 @@ class ConfidenceAnalyzer(BaseAnalyzer):
         low_threshold = float(self.config.get("low_confidence_threshold", 0.4))
         warn_threshold = float(self.config.get("warn_confidence_threshold", 0.6))
 
+        sig = EvidenceSignalMetadata(
+            signal_name="overall_confidence_score",
+            source_analyzer=self.name(),
+            method="aggregate_confidence_heuristics",
+            method_status="heuristic_baseline",
+            calibration_status="uncalibrated",
+            evidence_strength="advisory",
+            evidence_tier="proxy",
+        )
+
+        status = "pass"
+        failure_type = None
+        remediation = None
         if final_score < low_threshold:
-            return AnalyzerResult(
-                analyzer_name=self.name(),
-                status="fail",
-                failure_type=FailureType.LOW_CONFIDENCE,
-                stage=FailureStage.CONFIDENCE,
-                score=final_score,
-                evidence=evidence,
-                remediation=REMEDIATION,
-            )
-        if final_score < warn_threshold:
-            return AnalyzerResult(
-                analyzer_name=self.name(),
-                status="warn",
-                failure_type=FailureType.LOW_CONFIDENCE,
-                stage=FailureStage.CONFIDENCE,
-                score=final_score,
-                evidence=evidence,
-            )
+            status = "fail"
+            failure_type = FailureType.LOW_CONFIDENCE
+            remediation = REMEDIATION
+        elif final_score < warn_threshold:
+            status = "warn"
+            failure_type = FailureType.LOW_CONFIDENCE
+
+        report = AnalyzerReport(
+            analyzer_name=self.name(),
+            overall_status=status,
+            findings=[],
+            notes=["This analyzer uses heuristics and does not emit calibrated confidence."]
+        )
 
         return AnalyzerResult(
             analyzer_name=self.name(),
-            status="pass",
+            status=status,
+            failure_type=failure_type,
+            stage=FailureStage.CONFIDENCE if status != "pass" else None,
             score=final_score,
             evidence=evidence,
+            remediation=remediation,
+            signal_metadata=[sig],
+            analyzer_report=report,
         )
 
     def _status_penalty(self, status: str) -> float:

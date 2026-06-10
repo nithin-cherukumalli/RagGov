@@ -405,17 +405,6 @@ class DiagnosisEngine:
         else:
             root_cause_stage = FailureStage.UNKNOWN
 
-        # When context was adequate but LLM omitted/ignored supported content, the
-        # failure is in the generation step, not the grounding/retrieval step.
-        if (
-            root_cause_stage == FailureStage.GROUNDING
-            and primary_result is not None
-            and primary_result.failure_type == FailureType.UNSUPPORTED_CLAIM
-            and primary_result.analyzer_name == "ClaimGroundingAnalyzer"
-            and self._context_was_adequate(results)
-        ):
-            root_cause_stage = FailureStage.GENERATION
-
         # Extract A2P attribution fields if present
         root_cause_attribution = None
         proposed_fix = None

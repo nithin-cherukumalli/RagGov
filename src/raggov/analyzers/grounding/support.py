@@ -145,6 +145,8 @@ class ClaimGroundingAnalyzer(BaseAnalyzer):
             self._verifier = HeuristicValueOverlapVerifier(self.config)
         elif mode == "structured_llm" and has_llm_client:
             self._verifier = StructuredLLMClaimVerifier(self.config)
+        elif self.config.get("use_llm", False) and has_llm_client:
+            self._verifier = StructuredLLMClaimVerifier(self.config)
         elif requested_verifier == "conservative_ensemble" or mode == "conservative_ensemble":
             if has_llm_client:
                 self._verifier = ConservativeEnsembleVerifier(self.config)
@@ -153,9 +155,6 @@ class ClaimGroundingAnalyzer(BaseAnalyzer):
                     "conservative_ensemble: no LLM client configured; heuristic top-k verifier used."
                 )
                 self._verifier = HeuristicValueOverlapVerifier(self.config)
-        elif self.config.get("use_llm", False) and has_llm_client:
-            # Prefer the entailment verifier when an actual llm_client is provided.
-            self._verifier = LLMClaimEntailmentVerifierV1(self.config)
         elif requested_verifier == "refchecker":
             rc = RefCheckerClaimSignalProvider(self.config)
             if rc.is_available():
@@ -203,6 +202,11 @@ class ClaimGroundingAnalyzer(BaseAnalyzer):
         )
         claims = extractor.extract_structured(run.final_answer)
         if not claims:
+            return self.skip("no claims extracted from final answer")
+
+        verifiable_claims = [c for c in claims if c.should_verify]
+        has_abstention = any(c.skip_reason == "answer_abstention" for c in claims)
+        if not verifiable_claims and not has_abstention:
             return self.skip("no claims extracted from final answer")
 
         # Build ClaimEvidenceRecords (richer than ClaimResult — needed for rollup)
@@ -289,6 +293,22 @@ class ClaimGroundingAnalyzer(BaseAnalyzer):
 
         remediation = REMEDIATION.format(failed=len(failed_results), total=len(claim_results))
         stage = self._failure_stage(run, failed_results)
+
+        if claim_results and all(result.skip_reason == "answer_abstention" for result in claim_results):
+            return AnalyzerResult(
+                analyzer_name=self.name(),
+                status="fail",
+                failure_type=FailureType.INSUFFICIENT_CONTEXT,
+                stage=FailureStage.RETRIEVAL,
+                evidence=[
+                    "Answer abstained because requested information was not available in retrieved context.",
+                    *evidence,
+                ],
+                claim_results=claim_results,
+                remediation="Expand retrieval for the missing query-specific information before answering.",
+                diagnostic_rollup=rollup.as_dict(),
+                grounding_evidence_bundle=bundle,
+            )
 
         if failed_fraction >= float(self.config.get("fail_threshold", 0.3)):
             failure_type = FailureType.UNSUPPORTED_CLAIM

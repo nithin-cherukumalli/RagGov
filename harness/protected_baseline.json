@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "description": "Harness reference baseline only. Production logic must not depend on this file.",
+  "common_native_passed": 41,
+  "common_native_total": 46,
+  "common_external_passed": 41,
+  "common_external_total": 46,
+  "false_clean_count": 0,
+  "false_security_count": 0,
+  "false_incomplete_count": 0,
+  "citation": "5/5",
+  "grounding": "7/7",
+  "sufficiency": "5/5",
+  "version_validity": "5/5",
+  "production_gating_eligible": false,
+  "calibration_status": "not_production_calibrated"
+}

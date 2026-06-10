@@ -1,0 +1,24 @@
+# Same policy as .rooignore for Cline-compatible tools.
+.git/
+.venv/
+.pytest_cache/
+__pycache__/
+.coverage
+
+artifacts/
+benchmarks/
+evals/
+reports/
+stresslab/archive/
+stresslab/reports/
+llm_wiki/
+
+*_eval.txt
+*_diagnosis.json
+failures_summary.json
+
+scratch/
+test_script*.py
+summarize_failures.py
+generate_triage*.py
+inspect_policy.py

@@ -179,12 +179,13 @@ def select_primary_failure_with_policy(
     result_weights: dict[str, float],
     failure_priority: list[FailureType],
 ) -> tuple[FailureType, AnalyzerResult | None, dict[str, Any]]:
-    candidates = _build_candidates(results, result_weights)
+    import raggov.decision_policy_support as support
+    candidates = support.build_candidates(results, result_weights)
     if not candidates:
         return (
             FailureType.CLEAN,
             None,
-            DiagnosisDecisionTrace(
+            support.DiagnosisDecisionTrace(
                 selected_primary_failure=FailureType.CLEAN.value,
                 selected_analyzer=None,
                 selected_tier=None,
@@ -195,13 +196,13 @@ def select_primary_failure_with_policy(
             ).to_dict(),
         )
 
-    eligible, suppressed, warnings = _split_candidates(candidates)
+    eligible, suppressed, warnings = support.split_candidates(candidates)
     if not eligible:
         warnings.append("No eligible non-advisory candidate remained after policy suppression.")
         return (
             FailureType.CLEAN,
             None,
-            DiagnosisDecisionTrace(
+            support.DiagnosisDecisionTrace(
                 selected_primary_failure=FailureType.CLEAN.value,
                 selected_analyzer=None,
                 selected_tier=None,
@@ -217,149 +218,60 @@ def select_primary_failure_with_policy(
         return (
             FailureType.CLEAN,
             None,
-            DiagnosisDecisionTrace(
+            support.DiagnosisDecisionTrace(
                 selected_primary_failure=FailureType.CLEAN.value,
                 selected_analyzer=None,
                 selected_tier=None,
                 selection_reason="No fail-level diagnosis candidate survived policy selection.",
                 alternatives_considered=[candidate.to_dict() for candidate in sorted(
                     eligible,
-                    key=lambda candidate: _candidate_sort_key(candidate, failure_priority),
+                    key=lambda candidate: support.candidate_sort_key(candidate, failure_priority),
                 )],
                 suppressed_candidates=[candidate.to_dict() for candidate in suppressed],
                 warnings=warnings,
             ).to_dict(),
         )
+
     ranked_status_pool = sorted(
         status_pool,
-        key=lambda candidate: _candidate_sort_key(candidate, failure_priority),
+        key=lambda candidate: support.candidate_sort_key(candidate, failure_priority),
     )
     winner = ranked_status_pool[0]
-    if winner.failure_type == FailureType.POST_RATIONALIZED_CITATION:
-        explicit_phantom = next(
-            (
-                candidate
-                for candidate in ranked_status_pool
-                if candidate.failure_type == FailureType.CITATION_MISMATCH
-                and candidate.citation_reason == "phantom_citation"
-            ),
-            None,
-        )
-        if explicit_phantom is not None:
-            winner = explicit_phantom
-    if winner.failure_type == FailureType.CONTRADICTED_CLAIM:
-        explicit_phantom = next(
-            (
-                candidate
-                for candidate in ranked_status_pool
-                if candidate.failure_type == FailureType.CITATION_MISMATCH
-                and candidate.citation_reason == "phantom_citation"
-            ),
-            None,
-        )
-        if explicit_phantom is not None:
-            winner = explicit_phantom
-    if (
-        winner.failure_type == FailureType.CITATION_MISMATCH
-        and winner.analyzer_name == "CitationMismatchAnalyzer"
-    ):
-        explicit_citation = next(
-            (
-                candidate
-                for candidate in ranked_status_pool
-                if candidate.failure_type in {FailureType.CITATION_MISMATCH, FailureType.POST_RATIONALIZED_CITATION}
-                and candidate.analyzer_name == "CitationFaithfulnessAnalyzerV0"
-            ),
-            None,
-        )
-        if explicit_citation is not None:
-            winner = explicit_citation
-        elif winner.citation_reason != "phantom_citation":
-            post_rationalized = next(
-                (
-                    candidate
-                    for candidate in ranked_status_pool
-                    if candidate.failure_type == FailureType.POST_RATIONALIZED_CITATION
-                    and candidate.analyzer_name == "CitationFaithfulnessProbe"
-                ),
-                None,
-            )
-            if post_rationalized is not None:
-                winner = post_rationalized
-    if (
-        winner.failure_type == FailureType.INSUFFICIENT_CONTEXT
-        and winner.analyzer_name == "SufficiencyAnalyzer"
-    ):
-        grounding_unsupported = next(
-            (
-                candidate
-                for candidate in ranked_status_pool
-                if candidate.failure_type == FailureType.UNSUPPORTED_CLAIM
-                and candidate.analyzer_name == "ClaimGroundingAnalyzer"
-            ),
-            None,
-        )
-        if grounding_unsupported is not None:
-            grounding_result = results[grounding_unsupported.original_index]
-            claim_results = grounding_result.claim_results or []
-            if any(getattr(claim, "label_reason", None) == "partial_support" for claim in claim_results):
-                winner = grounding_unsupported
-            elif (
-                winner.sufficiency_reason == "missing_temporal_or_freshness_requirement"
-                and any(getattr(claim, "label_reason", None) == "unsupported_no_evidence" for claim in claim_results)
-            ):
-                winner = grounding_unsupported
-    if (
-        winner.failure_type == FailureType.INSUFFICIENT_CONTEXT
-        and winner.analyzer_name == "RetrievalDiagnosisAnalyzerV0"
-    ):
-        grounding_unsupported = next(
-            (
-                candidate
-                for candidate in ranked_status_pool
-                if candidate.failure_type == FailureType.UNSUPPORTED_CLAIM
-                and candidate.analyzer_name == "ClaimGroundingAnalyzer"
-            ),
-            None,
-        )
-        if grounding_unsupported is not None:
-            grounding_result = results[grounding_unsupported.original_index]
-            if any(
-                getattr(claim, "label_reason", None) == "partial_support"
-                for claim in (grounding_result.claim_results or [])
-            ):
-                winner = grounding_unsupported
+    
+    winner, rule_applied = support.apply_named_exception_rules(winner, ranked_status_pool, results)
+    
     primary_result = results[winner.original_index]
+    if primary_result.stage != winner.stage:
+        primary_result.stage = winner.stage
 
-    alternatives: list[DecisionCandidate] = []
-    final_suppressed = list(suppressed)
-    all_other_candidates = sorted(
-        [candidate for candidate in eligible if candidate is not winner],
-        key=lambda candidate: (
-            0 if candidate.status == winner.status else 1,
-            *_candidate_sort_key(candidate, failure_priority),
-        ),
+    final_alternatives, final_suppressed = support.suppress_alternatives(
+        winner=winner,
+        eligible=eligible,
+        initially_suppressed=suppressed,
+        failure_priority=failure_priority,
     )
-    for candidate in all_other_candidates:
-        if _should_suppress_candidate(candidate, winner):
-            final_suppressed.append(candidate)
-        else:
-            alternatives.append(candidate)
+
+    selection_reason = support.build_selection_reason(
+        winner=winner,
+        alternatives=final_alternatives,
+        suppressed=final_suppressed,
+        applied_rule=rule_applied,
+        warnings=warnings,
+    )
 
     return (
         winner.failure_type,
         primary_result,
-        DiagnosisDecisionTrace(
+        support.DiagnosisDecisionTrace(
             selected_primary_failure=winner.failure_type.value,
             selected_analyzer=winner.analyzer_name,
             selected_tier=winner.evidence_tier.value,
-            selection_reason=_selection_reason(winner, alternatives, final_suppressed),
-            alternatives_considered=[candidate.to_dict() for candidate in alternatives],
+            selection_reason=selection_reason,
+            alternatives_considered=[candidate.to_dict() for candidate in final_alternatives],
             suppressed_candidates=[candidate.to_dict() for candidate in final_suppressed],
             warnings=warnings,
         ).to_dict(),
     )
-
 
 def _build_candidates(
     results: list[AnalyzerResult],

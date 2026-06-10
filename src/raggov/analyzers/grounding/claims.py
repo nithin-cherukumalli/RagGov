@@ -14,7 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 logger = logging.getLogger(__name__)
 
-_ABBREV_CHAIN_RE = re.compile(r"^[A-Z](?:\.[A-Z0-9]\w*)+\.$")
+_ABBREV_CHAIN_RE = re.compile(r"^[A-Z](?:\.[A-Za-z0-9]\w*)+\.$")
 _ENTITY_RE = re.compile(r"\b(?:[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b")
 _NUMBER_RE = re.compile(r"(?:[$€£₹])?\d[\d,]*(?:\.\d+)?%?")
 _DATE_RE = re.compile(
@@ -26,18 +26,25 @@ _DATE_RE = re.compile(
 _SUBSTANTIVE_RE = re.compile(
     r"\d"
     r"|\$|€|£|₹|%"
-    r"|\b(?:must|shall|should|can|may|require(?:s|d)?|mandated?|prohibit(?:ed)?|exempt|approv(?:al|ed)|"
-    r"authoriz(?:ed)?|allow(?:ed|s)?|eligib(?:le|ility)|current|won|started|provided|done|"
-    r"apply|applies|support(?:s|ed)?|deprecat(?:e|es|ed)?|capital|benefits?|"
-    r"found(?:ed|er)?|headquarter(?:ed|s)?|manager|strategy|innovation|sustainability|"
-    r"customer|focus|visa|income|health|insurance|project|complete|finish|ahead|schedule|"
-    r"profit|revenue|expenses|grant|citizens?|salary|interest|account|"
-    r"smoking|race|team|cfo|ceo|comply|compliance|permit(?:ted)?|regulations?|rules?|act|polic(?:y|ies)|"
+    r"|G\.O\b"
+    r"|\b(?:shall|may|require(?:s|d)?|mandated?|prohibit(?:ed)?|exempt|approv(?:al|ed)|"
+    r"authoriz(?:ed)?|allow(?:ed|s)?|eligib(?:le|ility)|"
+    r"apply|applies|deprecat(?:e|es|ed)?|capital|benefits?|"
+    r"found(?:ed|er)|headquarter(?:ed|s)?|visa|income|health|insurance|"
+    r"profit|revenue|expenses|grant|citizens?|salary|"
+    r"smoking|carpet|blue|team|race|won|winner|definitely|comply|compliance|"
+    r"permit(?:ted)?|regulations?|rules?|act|polic(?:y|ies)|"
     r"deadline|threshold|applicable|effective|enforce(?:d)?|"
     r"mandatory|optional|waive(?:r)?|refund(?:s|able)?|renewal(?:s)?|"
     r"downgrade(?:s)?|credit(?:s)?|billing|subscriber(?:s)?|version|sdk|api|guideline|"
     r"dose|dosage|contraindicat(?:ion|ed)?|disclosure|manual|baseline|exception|"
-    r"procedure|step|caus(?:e|al|es)|compar(?:e|ed|ison)|higher|lower|increase|decrease)\b",
+    r"procedure|caus(?:e|al|es)|compar(?:e|ed|ison)|higher|lower|increase|decrease|"
+    r"design|development|start(?:ed|s)?|done|complete(?:d)?)\b",
+    re.IGNORECASE,
+)
+_ABSTENTION_RE = re.compile(
+    r"\b(?:i\s+don'?t\s+have|i\s+do\s+not\s+have|not\s+provided|not\s+specified|"
+    r"cannot\s+determine|unable\s+to\s+determine|no\s+information)\b",
     re.IGNORECASE,
 )
 _SHORT_ENTITY_RE = re.compile(
@@ -259,10 +266,13 @@ class HeuristicClaimExtractorV0(BaseClaimExtractor):
                 "compound" if conjunctions > 0 or substantive_matches > 1 else "atomic"
             )
             is_substantive = substantive_matches > 0
-            is_long_enough = len(sentence.split()) >= 4
+            is_long_enough = len(sentence.split()) > 4
             should_verify = True
             skip_reason = None
-            if not is_substantive and not is_long_enough:
+            if _ABSTENTION_RE.search(sentence):
+                should_verify = False
+                skip_reason = "answer_abstention"
+            elif not is_substantive and not is_long_enough:
                 should_verify = False
                 skip_reason = "short_non_substantive"
             elif not is_substantive:
