@@ -10,6 +10,7 @@ from raggov.models.citation_faithfulness import (
     CitationMethodType,
     CitationSupportLabel,
 )
+from raggov.models.diagnosis import FailureType
 from raggov.models.grounding import ClaimEvidenceRecord, ClaimVerificationLabel
 from raggov.models.retrieval_evidence import (
     ChunkEvidenceProfile,
@@ -172,6 +173,27 @@ def test_detects_fully_supported_citation_from_retrieval_profile() -> None:
     assert report.records[0].citation_support_label == CitationSupportLabel.FULLY_SUPPORTED
 
 
+def test_run_level_doc_citation_can_support_retrieved_uncited_claim_record() -> None:
+    result, report = analyze(
+        run_with_records(
+            [
+                claim_record(
+                    "claim-1",
+                    supporting_chunk_ids=["c1"],
+                    support_source_type="retrieved_uncited_chunk",
+                    best_supporting_doc_id="doc-1",
+                )
+            ],
+            cited_doc_ids=["doc-1"],
+            chunks=[chunk("c1", "doc-1")],
+        )
+    )
+
+    assert result.status == "pass"
+    assert report.records[0].cited_chunk_ids == ["c1"]
+    assert report.records[0].citation_support_label == CitationSupportLabel.FULLY_SUPPORTED
+
+
 def test_detects_partially_supported_citation() -> None:
     result, report = analyze(
         run_with_records(
@@ -213,6 +235,47 @@ def test_same_document_wrong_chunk_is_not_fully_supported() -> None:
     assert result.status == "pass"
     assert record.citation_support_label == CitationSupportLabel.PARTIALLY_SUPPORTED
     assert record.explanation == "claim is supported by the cited document, but not by the exact cited chunk"
+
+
+def test_wrong_cited_document_is_unsupported_even_if_claim_is_grounded() -> None:
+    result, report = analyze(
+        run_with_records(
+            [
+                claim_record(
+                    "claim-1",
+                    cited_doc_ids=["doc-2"],
+                    supporting_chunk_ids=["c1"],
+                    support_source_type="cited_doc_other_chunk",
+                    best_supporting_doc_id="doc-1",
+                )
+            ],
+            chunks=[chunk("c1", "doc-1"), chunk("c2", "doc-2")],
+        )
+    )
+
+    record = report.records[0]
+    assert result.status == "warn"
+    assert record.citation_support_label == CitationSupportLabel.UNSUPPORTED
+    assert record.explanation == "claim appears supported by retrieved context, but not by cited source"
+
+
+def test_legacy_doc_level_partial_support_blocks_clean() -> None:
+    result, report = analyze(
+        run_with_records(
+            [
+                claim_record(
+                    "claim-1",
+                    supporting_chunk_ids=["c1", "c2"],
+                )
+            ],
+            cited_doc_ids=["doc-2"],
+            chunks=[chunk("c1", "doc-1"), chunk("c2", "doc-2")],
+        )
+    )
+
+    assert result.status == "fail"
+    assert result.failure_type == FailureType.CITATION_MISMATCH
+    assert report.records[0].citation_support_label == CitationSupportLabel.PARTIALLY_SUPPORTED
 
 
 def test_exact_cited_chunk_remains_fully_supported() -> None:

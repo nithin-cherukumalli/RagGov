@@ -51,6 +51,10 @@ _SHORT_ENTITY_RE = re.compile(
     r"^[A-Z][A-Za-z0-9_]{2,}(?:[._-][A-Za-z0-9]*)*(?:\s+[A-Z][A-Za-z0-9_.-]*){0,4}\.?$"
 )
 _SHORT_ENTITY_PLACEHOLDERS = {"Answer", "Response", "Result"}
+_ENTITY_ATTRIBUTE_CLAIM_RE = re.compile(
+    r"\b(?:the\s+)?[a-z][a-z0-9_-]{2,}\s+(?:is|are|was|were)\s+"
+    r"(?:[A-Z][A-Za-z0-9_.-]*(?:\s+[A-Z][A-Za-z0-9_.-]*){0,3}|[a-z0-9_-]{3,})\.?$"
+)
 
 ClaimAtomicity = Literal["atomic", "compound", "unclear"]
 ClaimType = Literal[
@@ -260,6 +264,8 @@ class HeuristicClaimExtractorV0(BaseClaimExtractor):
                 stripped_sentence not in _SHORT_ENTITY_PLACEHOLDERS
                 and _SHORT_ENTITY_RE.match(sentence.strip())
             ):
+                substantive_matches = max(substantive_matches, 1)
+            if _ENTITY_ATTRIBUTE_CLAIM_RE.search(stripped_sentence):
                 substantive_matches = max(substantive_matches, 1)
             conjunctions = len(re.findall(r"\b(?:and|or|but)\b", sentence, re.IGNORECASE))
             atomicity: ClaimAtomicity = (

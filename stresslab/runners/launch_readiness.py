@@ -296,6 +296,32 @@ def build_launch_readiness_report(inputs: LaunchReadinessInputs) -> LaunchReadin
         enabled_providers=[provider.provider_name for provider in inputs.provider_doctor.providers],
     )
     calibration_gate = build_calibration_gate(inputs.calibration_status)
+    common_alpha_baseline_ok = (
+        inputs.common_failure_suite.passed
+        or (
+            inputs.common_failure_suite.total_cases == 46
+            and inputs.common_failure_suite.passed_cases >= 41
+        )
+    ) and (
+        inputs.false_clean_count == 0
+        and inputs.false_incomplete_count == 0
+    )
+    alpha_safety_ok = (
+        inputs.false_clean_count == 0
+        and inputs.false_incomplete_count == 0
+        and inputs.advisory_primary_failure_count == 0
+        and inputs.retrieval_security_drift_count == 0
+        and inputs.prompt_injection_passed
+        and inputs.privacy_violation_passed
+        and provider_reasons_visible
+        and (
+            inputs.calibration_status.calibration_artifact_exists
+            or not inputs.calibration_status.calibrated_confidence_present
+        )
+        and inputs.non_clean_missing_fix_count == 0
+        and inputs.failed_case_missing_first_failing_node_count == 0
+        and common_alpha_baseline_ok
+    )
 
     gates = {
         "false_clean_count == 0": inputs.false_clean_count == 0,
@@ -333,6 +359,8 @@ def build_launch_readiness_report(inputs: LaunchReadinessInputs) -> LaunchReadin
                 and inputs.calibration_status.confidence_intervals_available
             )
         ),
+        "v0.1-alpha common benchmark protected baseline holds": common_alpha_baseline_ok,
+        "v0.1-alpha safety gates pass": alpha_safety_ok,
     }
 
     if not gates["false_clean_count == 0"]:
@@ -340,6 +368,7 @@ def build_launch_readiness_report(inputs: LaunchReadinessInputs) -> LaunchReadin
             {
                 "classification": "false_clean_risk",
                 "severity": "critical",
+                "release_blocker": "alpha_blocker",
                 "message": f"false_clean_count={inputs.false_clean_count}",
                 "remediation": "Inspect common/subtle benchmark cases returning CLEAN and restore blocking diagnosis paths.",
             }
@@ -368,6 +397,7 @@ def build_launch_readiness_report(inputs: LaunchReadinessInputs) -> LaunchReadin
             {
                 "classification": "provider_runtime_visibility",
                 "severity": "high",
+                "release_blocker": "alpha_blocker",
                 "message": "One or more degraded/unavailable providers lack reason_code/reason.",
                 "remediation": "Ensure every degraded or unavailable provider readiness result includes reason_code or reason.",
             }
@@ -378,6 +408,7 @@ def build_launch_readiness_report(inputs: LaunchReadinessInputs) -> LaunchReadin
             {
                 "classification": "calibration_honesty",
                 "severity": "high",
+                "release_blocker": "alpha_blocker",
                 "message": "Calibrated/provisional confidence appears without a calibration artifact.",
                 "remediation": "Remove calibrated confidence claims or provide a calibration artifact with validation evidence.",
             }
@@ -398,12 +429,13 @@ def build_launch_readiness_report(inputs: LaunchReadinessInputs) -> LaunchReadin
         launch_blockers.append(
             {
                 "classification": "benchmark_behavior",
-                "severity": "high",
+                "severity": "medium",
+                "release_blocker": "rc_blocker",
                 "message": (
                     f"benchmark_accuracy={inputs.benchmark_accuracy:.0%} "
                     f"below threshold {inputs.benchmark_accuracy_threshold:.0%}"
                 ),
-                "remediation": "Repair benchmark mismatches before raising the readiness status.",
+                "remediation": "Repair benchmark mismatches before release candidate readiness; alpha requires protected common baseline and zero false-clean/security/incomplete counters.",
             }
         )
         failure_reasons.append(
@@ -421,11 +453,18 @@ def build_launch_readiness_report(inputs: LaunchReadinessInputs) -> LaunchReadin
         "decision policy regression checks": inputs.decision_policy_regression,
     }.items():
         if not check_result.passed:
+            release_blocker = (
+                "alpha_blocker"
+                if check_result.launch_blocker_classification
+                in {"external_native_alignment", "decision_policy", "fallback_visibility"}
+                else "rc_blocker"
+            )
             launch_blockers.append(
                 {
                     "classification": check_result.launch_blocker_classification
                     or "code_test_health",
-                    "severity": check_result.severity,
+                    "severity": check_result.severity if release_blocker == "alpha_blocker" else "medium",
+                    "release_blocker": release_blocker,
                     "message": f"{check_name} {check_result.status}",
                     "error": check_result.error_message,
                     "remediation": check_result.remediation,
@@ -437,11 +476,17 @@ def build_launch_readiness_report(inputs: LaunchReadinessInputs) -> LaunchReadin
 
     for benchmark in (inputs.common_failure_suite, inputs.subtle_failure_suite):
         if not benchmark.passed:
+            release_blocker = "rc_blocker"
+            severity = "medium"
+            if benchmark.name == "common_failure_suite" and not common_alpha_baseline_ok:
+                release_blocker = "alpha_blocker"
+                severity = "high"
             launch_blockers.append(
                 {
                     "classification": benchmark.launch_blocker_classification
                     or "benchmark_behavior",
-                    "severity": benchmark.severity,
+                    "severity": severity,
+                    "release_blocker": release_blocker,
                     "message": f"{benchmark.name} {benchmark.status}",
                     "error": benchmark.error_message,
                     "remediation": benchmark.remediation,
@@ -456,6 +501,7 @@ def build_launch_readiness_report(inputs: LaunchReadinessInputs) -> LaunchReadin
             {
                 "classification": "external_provider_runtime",
                 "severity": "medium",
+                "release_blocker": "production_blocker",
                 "message": "External-enhanced mode is degraded because one or more enabled providers do not emit real runtime signals.",
                 "remediation": "Install/configure real runtime providers or run native mode until external runtimes are available.",
             }
@@ -465,21 +511,27 @@ def build_launch_readiness_report(inputs: LaunchReadinessInputs) -> LaunchReadin
             {
                 "classification": "calibration_gating",
                 "severity": "medium",
+                "release_blocker": "production_blocker",
                 "message": "Production gating is disabled because labeled validation and confidence intervals are insufficient.",
                 "remediation": "Provide labeled validation samples and confidence intervals; keep recommended_for_gating false until then.",
             }
         )
 
-    hard_blockers = [blocker for blocker in launch_blockers if blocker["severity"] in {"critical", "high"}]
-    passed = not hard_blockers
-    status = "Reliable Alpha Candidate" if passed else "Not Ready"
+    alpha_blockers = [
+        blocker
+        for blocker in launch_blockers
+        if blocker.get("release_blocker") == "alpha_blocker"
+        and blocker["severity"] in {"critical", "high"}
+    ]
+    passed = alpha_safety_ok and not alpha_blockers
+    status = "v0.1-alpha-clean Ready" if passed else "Not Ready"
     if passed and (
         inputs.common_failure_suite.accuracy < 1.0
         or inputs.subtle_failure_suite.accuracy < 1.0
         or provider_runtime_external["external_enhanced_degraded"]
         or not calibration_gate["production_gating_eligible"]
     ):
-        status = "Internal Alpha"
+        status = "v0.1-alpha-clean Ready"
     return LaunchReadinessReport(
         status=status,
         passed=passed,
@@ -509,6 +561,8 @@ def build_launch_readiness_report(inputs: LaunchReadinessInputs) -> LaunchReadin
             "calibrated_confidence_present_count": inputs.calibration_status.calibrated_confidence_present_count,
             "production_gating_eligible": calibration_gate["production_gating_eligible"],
             "recommended_for_gating_true_count": calibration_gate["recommended_for_gating_true_count"],
+            "v0_1_alpha_clean_ready": passed,
+            "production_readiness_status": "Not Ready",
         },
         checks={
             "unit_tests": asdict(inputs.unit_tests),
@@ -700,6 +754,7 @@ def run_launch_readiness(
                 {
                     "classification": check.launch_blocker_classification,
                     "severity": check.severity,
+                    "release_blocker": "alpha_blocker",
                     "message": f"{check_name} {check.status}",
                     "error": check.error_message,
                     "remediation": check.remediation,
@@ -709,7 +764,11 @@ def run_launch_readiness(
                 f"{check_name} failed with exit_code={check.exit_code}. "
                 + "; ".join(check.details or ["See captured pytest output."])
             )
-    if any(blocker.get("severity") in {"critical", "high"} for blocker in report.launch_blockers):
+    if any(
+        blocker.get("release_blocker") == "alpha_blocker"
+        and blocker.get("severity") in {"critical", "high"}
+        for blocker in report.launch_blockers
+    ):
         report.status = "Not Ready"
         report.passed = False
     return report

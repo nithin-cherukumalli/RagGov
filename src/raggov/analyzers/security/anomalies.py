@@ -8,6 +8,7 @@ import re
 from raggov.analyzers.base import BaseAnalyzer
 from raggov.models.chunk import RetrievedChunk
 from raggov.models.diagnosis import AnalyzerResult, FailureStage, FailureType
+from raggov.models.retrieval_evidence import QueryRelevanceLabel, RetrievalEvidenceProfile
 from raggov.models.run import RAGRun
 
 
@@ -25,6 +26,15 @@ class RetrievalAnomalyAnalyzer(BaseAnalyzer):
     def analyze(self, run: RAGRun) -> AnalyzerResult:
         if not run.retrieved_chunks:
             return self.skip("no retrieved chunks available")
+
+        profile_anomalies = self._profile_relevance_noise(run.retrieval_evidence_profile)
+        if profile_anomalies:
+            return self._fail(
+                FailureType.RETRIEVAL_ANOMALY,
+                FailureStage.RETRIEVAL,
+                profile_anomalies,
+                REMEDIATION,
+            )
 
         scored_chunks = [chunk for chunk in run.retrieved_chunks if chunk.score is not None]
         if not scored_chunks:
@@ -44,6 +54,28 @@ class RetrievalAnomalyAnalyzer(BaseAnalyzer):
             )
 
         return self._pass()
+
+    def _profile_relevance_noise(
+        self, profile: RetrievalEvidenceProfile | None
+    ) -> list[str]:
+        if profile is None or not profile.chunks:
+            return []
+        relevant = [
+            chunk.chunk_id
+            for chunk in profile.chunks
+            if chunk.query_relevance_label == QueryRelevanceLabel.RELEVANT
+        ]
+        irrelevant = [
+            chunk.chunk_id
+            for chunk in profile.chunks
+            if chunk.query_relevance_label == QueryRelevanceLabel.IRRELEVANT
+        ]
+        if relevant and len(irrelevant) > len(relevant):
+            return [
+                "retrieval relevance profile shows noisy ranking: "
+                f"irrelevant={len(irrelevant)} relevant={len(relevant)}"
+            ]
+        return []
 
     def _score_outliers(self, chunks: list[RetrievedChunk]) -> list[str]:
         if len(chunks) < 2:

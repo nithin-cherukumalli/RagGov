@@ -111,6 +111,19 @@ class CitationFaithfulnessAnalyzerV0(BaseAnalyzer):
                 citation_faithfulness_report=report,
             )
 
+        if self._legacy_partial_citation_support(report):
+            return AnalyzerResult(
+                analyzer_name=self.name(),
+                status="fail",
+                failure_type=FailureType.CITATION_MISMATCH,
+                stage=FailureStage.GROUNDING,
+                evidence=evidence + [
+                    "Legacy doc-level citation only partially supports a claim; provide claim-level citation support."
+                ],
+                remediation=_REMEDIATION,
+                citation_faithfulness_report=report,
+            )
+
         if report.unsupported_claim_ids and self._answer_has_explicit_citation_marker(run) and self._answer_has_specific_value(run):
             return AnalyzerResult(
                 analyzer_name=self.name(),
@@ -403,12 +416,20 @@ class CitationFaithfulnessAnalyzerV0(BaseAnalyzer):
         support_source_type = getattr(claim, "support_source_type", None)
         if support_source_type == "exact_cited_chunk":
             return CitationSupportLabel.FULLY_SUPPORTED, "exact cited chunk supports the claim"
-        if support_source_type == "cited_doc_other_chunk":
+        if (
+            support_source_type == "cited_doc_other_chunk"
+            and set(cited_doc_ids) & self._doc_ids_for_chunks(run, supporting_chunk_ids)
+        ):
             return (
                 CitationSupportLabel.PARTIALLY_SUPPORTED,
                 "claim is supported by the cited document, but not by the exact cited chunk",
             )
-        if support_source_type == "retrieved_uncited_chunk" and self._is_supported_claim(claim):
+        if (
+            support_source_type == "retrieved_uncited_chunk"
+            and self._is_supported_claim(claim)
+            and not (set(supporting_chunk_ids) & set(cited_chunk_ids))
+            and not (set(cited_doc_ids) & self._doc_ids_for_chunks(run, supporting_chunk_ids))
+        ):
             return (
                 CitationSupportLabel.UNSUPPORTED,
                 "claim appears supported by retrieved context, but only by uncited chunks",
@@ -630,6 +651,13 @@ class CitationFaithfulnessAnalyzerV0(BaseAnalyzer):
         }:
             return CitationFaithfulnessRisk.HIGH
         return CitationFaithfulnessRisk.UNKNOWN
+
+    def _legacy_partial_citation_support(self, report: CitationFaithfulnessReport) -> bool:
+        return any(
+            record.citation_support_label == CitationSupportLabel.PARTIALLY_SUPPORTED
+            and record.evidence_source == CitationEvidenceSource.LEGACY_CITATION_IDS
+            for record in report.records
+        )
 
     def _evidence(self, report: CitationFaithfulnessReport) -> list[str]:
         counts: dict[str, int] = {}

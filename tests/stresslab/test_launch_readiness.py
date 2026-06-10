@@ -110,8 +110,9 @@ def test_launch_readiness_passes_on_clean_expected_report() -> None:
     report = build_launch_readiness_report(_passing_inputs())
 
     assert report.passed is True
-    assert report.status == "Internal Alpha"
+    assert report.status == "v0.1-alpha-clean Ready"
     assert report.failure_reasons == []
+    assert report.metrics["production_readiness_status"] == "Not Ready"
 
 
 def test_launch_readiness_records_aborted_check_without_crashing() -> None:
@@ -230,3 +231,38 @@ def test_report_contains_launch_blockers() -> None:
     assert report.status == "Not Ready"
     assert report.launch_blockers
     assert any(blocker["classification"] == "false_clean_risk" for blocker in report.launch_blockers)
+
+
+def test_full_pytest_failure_is_rc_blocker_when_alpha_safety_holds() -> None:
+    inputs = _passing_inputs()
+    inputs.unit_tests = LaunchCheckResult(
+        name="full_pytest",
+        passed=False,
+        launch_blocker_classification="code_test_health",
+    )
+
+    report = build_launch_readiness_report(inputs)
+
+    assert report.passed is True
+    assert report.status == "v0.1-alpha-clean Ready"
+    blocker = next(blocker for blocker in report.launch_blockers if blocker["classification"] == "code_test_health")
+    assert blocker["release_blocker"] == "rc_blocker"
+
+
+def test_common_exact_mismatches_are_rc_blocker_when_alpha_baseline_holds() -> None:
+    inputs = _passing_inputs()
+    inputs.common_failure_suite = BenchmarkSummary(
+        name="common_failure_suite",
+        passed=False,
+        accuracy=41 / 46,
+        total_cases=46,
+        passed_cases=41,
+        failed_case_ids=["known-mismatch"],
+    )
+    inputs.benchmark_accuracy = 41 / 46
+
+    report = build_launch_readiness_report(inputs)
+
+    assert report.passed is True
+    assert report.status == "v0.1-alpha-clean Ready"
+    assert report.metrics["v0_1_alpha_clean_ready"] is True

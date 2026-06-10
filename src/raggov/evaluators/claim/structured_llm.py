@@ -37,6 +37,13 @@ _LABEL_TO_VERIFICATION_RESULT: dict[str, str] = {
     "unclear": "abstain",
 }
 
+_LABEL_TO_SUPPORT_LABEL: dict[str, str] = {
+    "entailed": "supported",
+    "contradicted": "contradicted",
+    "unsupported": "insufficient_evidence",
+    "unclear": "unverifiable",
+}
+
 
 class StructuredLLMClaimVerifierAdapter(EvidenceVerifier):
     """Verify one claim against candidate chunks using a structured LLM call."""
@@ -263,6 +270,7 @@ class StructuredLLMClaimVerifierAdapter(EvidenceVerifier):
         if not result.succeeded or not result.signals:
             return VerificationResult(
                 label="abstain",
+                support_label="unverifiable",
                 raw_score=0.0,
                 evidence_chunk_id=None,
                 evidence_span=None,
@@ -275,11 +283,13 @@ class StructuredLLMClaimVerifierAdapter(EvidenceVerifier):
 
         signal = result.signals[0]
         label = _LABEL_TO_VERIFICATION_RESULT[str(signal.label)]
+        support_label = _LABEL_TO_SUPPORT_LABEL[str(signal.label)]
         supporting = list(signal.raw_payload.get("supporting_chunk_ids", [])) if signal.raw_payload else []
         contradicting = list(signal.raw_payload.get("contradicting_chunk_ids", [])) if signal.raw_payload else []
         evidence_ids = supporting or contradicting or list(signal.affected_chunk_ids)
         return VerificationResult(
             label=label,  # type: ignore[arg-type]
+            support_label=support_label,  # type: ignore[arg-type]
             raw_score=0.0,
             evidence_chunk_id=evidence_ids[0] if evidence_ids else None,
             evidence_span=None,

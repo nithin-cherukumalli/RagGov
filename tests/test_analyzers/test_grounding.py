@@ -175,6 +175,14 @@ def test_factual_obligation_with_entity_can_still_be_claim() -> None:
     assert claims == ["Applicants must obtain approval."]
 
 
+def test_short_entity_attribute_statement_is_claim() -> None:
+    claims = ClaimExtractor().extract_structured("The manager is John.")
+
+    assert len(claims) == 1
+    assert claims[0].should_verify is True
+    assert claims[0].claim_type == "entity_attribute"
+
+
 def test_short_instruction_skip_reason_is_short_non_substantive() -> None:
     claims = ClaimExtractor().extract_structured("Please read this carefully.")
 

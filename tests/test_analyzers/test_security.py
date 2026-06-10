@@ -7,6 +7,11 @@ from raggov.analyzers.security.injection import PromptInjectionAnalyzer
 from raggov.analyzers.security.poisoning import PoisoningHeuristicAnalyzer
 from raggov.models.chunk import RetrievedChunk
 from raggov.models.diagnosis import FailureStage, FailureType, SecurityRisk
+from raggov.models.retrieval_evidence import (
+    ChunkEvidenceProfile,
+    QueryRelevanceLabel,
+    RetrievalEvidenceProfile,
+)
 from raggov.models.run import RAGRun
 
 
@@ -101,6 +106,42 @@ def test_retrieval_anomaly_alone_does_not_create_security_risk() -> None:
         )
     )
 
+    assert getattr(result, "security_risk", None) in (None, SecurityRisk.NONE)
+
+
+def test_retrieval_anomaly_uses_profile_when_irrelevant_chunks_outnumber_relevant() -> None:
+    run = run_with_chunks(
+        [
+            chunk("chunk-1", "Lunch menu."),
+            chunk("chunk-2", "Parking rules."),
+            chunk("chunk-3", "HR contact is Jane Doe."),
+        ]
+    )
+    run.retrieval_evidence_profile = RetrievalEvidenceProfile(
+        chunks=[
+            ChunkEvidenceProfile(
+                chunk_id="chunk-1",
+                source_doc_id="doc-chunk-1",
+                query_relevance_label=QueryRelevanceLabel.IRRELEVANT,
+            ),
+            ChunkEvidenceProfile(
+                chunk_id="chunk-2",
+                source_doc_id="doc-chunk-2",
+                query_relevance_label=QueryRelevanceLabel.IRRELEVANT,
+            ),
+            ChunkEvidenceProfile(
+                chunk_id="chunk-3",
+                source_doc_id="doc-chunk-3",
+                query_relevance_label=QueryRelevanceLabel.RELEVANT,
+            ),
+        ]
+    )
+
+    result = RetrievalAnomalyAnalyzer().analyze(run)
+
+    assert result.status == "fail"
+    assert result.failure_type == FailureType.RETRIEVAL_ANOMALY
+    assert result.stage == FailureStage.RETRIEVAL
     assert getattr(result, "security_risk", None) in (None, SecurityRisk.NONE)
 
 

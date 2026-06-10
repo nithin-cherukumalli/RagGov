@@ -9,7 +9,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 from raggov.analyzers.base import BaseAnalyzer
-from raggov.analyzers.grounding.claims import ClaimExtractor
+from raggov.analyzers.grounding.claims import ClaimExtractor, ExtractedClaim
 from raggov.analyzers.grounding.diagnostic_rollups import ClaimDiagnosticRollupBuilder, ClaimDiagnosticSummary
 from raggov.analyzers.grounding.evidence_layer import ClaimEvidenceBuilder, ClaimEvidenceRecord
 from raggov.models.grounding import GroundingEvidenceBundle
@@ -47,6 +47,40 @@ REMEDIATION = (
 _CALIBRATION_NOTE = (
     "[Uncalibrated heuristic support score, not calibrated confidence.]"
 )
+
+
+def _legacy_claims_to_structured(answer: str, claims: list[Any]) -> list[ExtractedClaim]:
+    """Normalize legacy extractor outputs without hiding that extraction was heuristic."""
+    structured: list[ExtractedClaim] = []
+    search_start = 0
+    for index, claim in enumerate(claims, start=1):
+        claim_text = str(claim).strip()
+        if not claim_text:
+            continue
+        start_char = answer.find(claim_text, search_start)
+        if start_char == -1:
+            start_char = answer.find(claim_text)
+        if start_char == -1:
+            start_char = 0
+        end_char = start_char + len(claim_text)
+        search_start = end_char
+        structured.append(
+            ExtractedClaim(
+                claim_id=f"claim_{index:03d}",
+                claim_text=claim_text,
+                source_sentence=claim_text,
+                source_start_char=start_char,
+                source_end_char=end_char,
+                atomicity_status="unclear",
+                claim_type="other",
+                extraction_method="legacy_claim_extractor",
+                extraction_reason="legacy extractor returned unstructured claim text",
+                extraction_confidence=None,
+                extraction_warnings=["legacy_unstructured_claim_output"],
+                should_verify=True,
+            )
+        )
+    return structured
 
 
 def _claim_result_label(record: ClaimEvidenceRecord) -> str:
@@ -200,7 +234,13 @@ class ClaimGroundingAnalyzer(BaseAnalyzer):
             use_llm=claim_extractor_client is not None,
             llm_client=claim_extractor_client,
         )
-        claims = extractor.extract_structured(run.final_answer)
+        if hasattr(extractor, "extract_structured"):
+            claims = extractor.extract_structured(run.final_answer)
+        else:
+            claims = _legacy_claims_to_structured(
+                run.final_answer,
+                list(extractor.extract(run.final_answer)),
+            )
         if not claims:
             return self.skip("no claims extracted from final answer")
 
