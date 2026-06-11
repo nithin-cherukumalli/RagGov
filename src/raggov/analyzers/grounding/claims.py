@@ -27,9 +27,9 @@ _SUBSTANTIVE_RE = re.compile(
     r"\d"
     r"|\$|€|£|₹|%"
     r"|G\.O\b"
-    r"|\b(?:shall|may|require(?:s|d)?|mandated?|prohibit(?:ed)?|exempt|approv(?:al|ed)|"
+    r"|\b(?:must|shall|may|require(?:s|d)?|mandated?|prohibit(?:ed)?|exempt|approv(?:al|ed)|"
     r"authoriz(?:ed)?|allow(?:ed|s)?|eligib(?:le|ility)|"
-    r"apply|applies|deprecat(?:e|es|ed)?|capital|benefits?|"
+    r"apply|applies|cover(?:s|ed|age)?|retain(?:s|ed)?|deprecat(?:e|es|ed)?|capital|benefits?|"
     r"found(?:ed|er)|headquarter(?:ed|s)?|visa|income|health|insurance|"
     r"profit|revenue|expenses|grant|citizens?|salary|"
     r"smoking|carpet|blue|team|race|won|winner|definitely|comply|compliance|"
@@ -38,7 +38,9 @@ _SUBSTANTIVE_RE = re.compile(
     r"mandatory|optional|waive(?:r)?|refund(?:s|able)?|renewal(?:s)?|"
     r"downgrade(?:s)?|credit(?:s)?|billing|subscriber(?:s)?|version|sdk|api|guideline|"
     r"dose|dosage|contraindicat(?:ion|ed)?|disclosure|manual|baseline|exception|"
-    r"procedure|caus(?:e|al|es)|compar(?:e|ed|ison)|higher|lower|increase|decrease|"
+    r"procedure|steps?|stipend|fees?|storage|training|hiring|feedback|"
+    r"condition|treatment|employee|customer|data|export(?:ed)?|mixed|stored|"
+    r"caus(?:e|al|es)|compar(?:e|ed|ison)|higher|lower|increase|decrease|"
     r"design|development|start(?:ed|s)?|done|complete(?:d)?)\b",
     re.IGNORECASE,
 )

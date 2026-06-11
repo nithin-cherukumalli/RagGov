@@ -14,12 +14,13 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+import json
 
 import pytest
 
 # Path setup
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-for p in [str(PROJECT_ROOT / "src"), str(PROJECT_ROOT / "evals")]:
+for p in [str(PROJECT_ROOT / "src"), str(PROJECT_ROOT / "evals"), str(PROJECT_ROOT / "scripts")]:
     if p not in sys.path:
         sys.path.insert(0, p)
 
@@ -29,6 +30,8 @@ from govrag_calib.schema import (
     GovRAGCalibCase,
     RetrievedChunk,
 )
+
+import validate_govrag_calib
 
 
 # ---------------------------------------------------------------------------
@@ -378,3 +381,156 @@ class TestCitationLabelIdsMustReferenceDocsOrChunks:
             )
             case = GovRAGCalibCase(**data)
             assert case.expected_citation_labels[0].expected_label == label
+
+
+# ---------------------------------------------------------------------------
+# GovRAG-Calib-150 JSONL validator
+# ---------------------------------------------------------------------------
+
+CALIB_ROOT = PROJECT_ROOT / "evals" / "govrag_calib"
+
+
+def _load_seed_records() -> list[dict]:
+    return [
+        json.loads(line)
+        for line in (CALIB_ROOT / "calib_150_seed.jsonl").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+
+
+class TestGovRAGCalib150Validator:
+    def test_schema_json_exists(self):
+        schema_path = CALIB_ROOT / "schema.json"
+        assert schema_path.exists()
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        assert "case_id" in schema["required"]
+        assert "calibration_status" in schema["required"]
+
+    def test_seed_dataset_has_at_least_ten_valid_cases(self):
+        records = _load_seed_records()
+        assert len(records) >= 10
+        result = validate_govrag_calib.validate_dataset(CALIB_ROOT / "calib_150_seed.jsonl")
+        assert result.ok, result.errors
+        assert result.total_cases >= 10
+        assert any("target is 150" in warning for warning in result.warnings)
+
+    def test_validator_rejects_duplicate_case_id(self, tmp_path):
+        records = _load_seed_records()[:2]
+        records[1]["case_id"] = records[0]["case_id"]
+        dataset = tmp_path / "dupe.jsonl"
+        dataset.write_text("\n".join(json.dumps(record) for record in records) + "\n", encoding="utf-8")
+
+        result = validate_govrag_calib.validate_dataset(dataset)
+
+        assert not result.ok
+        assert any("duplicate case_id" in error for error in result.errors)
+
+    def test_validator_rejects_unknown_affected_claim_id(self, tmp_path):
+        record = _load_seed_records()[0]
+        record["expected_affected_claim_ids"] = ["missing-claim"]
+        dataset = tmp_path / "bad_claim_ref.jsonl"
+        dataset.write_text(json.dumps(record) + "\n", encoding="utf-8")
+
+        result = validate_govrag_calib.validate_dataset(dataset)
+
+        assert not result.ok
+        assert any("affected claim_id" in error for error in result.errors)
+
+    def test_validator_rejects_invalid_alternative_failure(self, tmp_path):
+        record = _load_seed_records()[0]
+        record["acceptable_alternative_failures"] = ["NOT_A_FAILURE"]
+        dataset = tmp_path / "bad_alt.jsonl"
+        dataset.write_text(json.dumps(record) + "\n", encoding="utf-8")
+
+        result = validate_govrag_calib.validate_dataset(dataset)
+
+        assert not result.ok
+        assert any("acceptable_alternative_failures" in error for error in result.errors)
+
+    def test_validator_rejects_unlocked_heldout_case(self, tmp_path):
+        record = _load_seed_records()[0]
+        record["calibration_split"] = "heldout"
+        record["calibration_status"] = "reviewed"
+        dataset = tmp_path / "bad_heldout.jsonl"
+        dataset.write_text(json.dumps(record) + "\n", encoding="utf-8")
+
+        result = validate_govrag_calib.validate_dataset(dataset)
+
+        assert not result.ok
+        assert any("heldout cases require" in error for error in result.errors)
+
+    def test_validator_rejects_production_gating_field(self, tmp_path):
+        record = _load_seed_records()[0]
+        record["metadata"] = {"production_gating_eligible": False}
+        dataset = tmp_path / "bad_gating.jsonl"
+        dataset.write_text(json.dumps(record) + "\n", encoding="utf-8")
+
+        result = validate_govrag_calib.validate_dataset(dataset)
+
+        assert not result.ok
+        assert any("production_gating_eligible" in error for error in result.errors)
+
+    def test_validator_warns_for_citation_family_without_citations(self, tmp_path):
+        record = _load_seed_records()[0]
+        record.update(
+            {
+                "case_id": "gc-warning-citation",
+                "failure_family": "citation",
+                "expected_primary_failure": "CITATION_MISMATCH",
+                "expected_stage": "CITATION",
+                "citations": [],
+                "expected_affected_claim_ids": ["claim-1"],
+                "expected_affected_doc_ids": ["doc1"],
+            }
+        )
+        dataset = tmp_path / "citation_warning.jsonl"
+        dataset.write_text(json.dumps(record) + "\n", encoding="utf-8")
+
+        result = validate_govrag_calib.validate_dataset(dataset)
+
+        assert result.ok, result.errors
+        assert any("citation-family case has no citations" in warning for warning in result.warnings)
+
+    def test_validator_warns_for_non_clean_empty_affected_ids(self, tmp_path):
+        record = _load_seed_records()[0]
+        record.update(
+            {
+                "case_id": "gc-warning-affected",
+                "failure_family": "grounding",
+                "expected_primary_failure": "UNSUPPORTED_CLAIM",
+                "expected_stage": "GROUNDING",
+                "expected_affected_claim_ids": [],
+                "expected_affected_doc_ids": [],
+            }
+        )
+        dataset = tmp_path / "affected_warning.jsonl"
+        dataset.write_text(json.dumps(record) + "\n", encoding="utf-8")
+
+        result = validate_govrag_calib.validate_dataset(dataset)
+
+        assert result.ok, result.errors
+        assert any("empty expected_affected_claim_ids" in warning for warning in result.warnings)
+        assert any("empty expected_affected_doc_ids" in warning for warning in result.warnings)
+
+    def test_validator_warns_without_implying_production_gating(self, tmp_path):
+        record = _load_seed_records()[0]
+        record.update(
+            {
+                "case_id": "gc-warning-security-review",
+                "failure_family": "security_privacy",
+                "expected_primary_failure": "PROMPT_INJECTION",
+                "expected_stage": "SECURITY",
+                "difficulty": "high",
+                "adversarial": True,
+                "security_relevant": True,
+                "expected_human_review_required": False,
+            }
+        )
+        dataset = tmp_path / "security_warning.jsonl"
+        dataset.write_text(json.dumps(record) + "\n", encoding="utf-8")
+
+        result = validate_govrag_calib.validate_dataset(dataset)
+
+        assert result.ok, result.errors
+        assert any("does not require human review" in warning for warning in result.warnings)
+        assert not any("production_gating_eligible" in warning for warning in result.warnings)

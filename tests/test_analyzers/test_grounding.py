@@ -175,6 +175,22 @@ def test_factual_obligation_with_entity_can_still_be_claim() -> None:
     assert claims == ["Applicants must obtain approval."]
 
 
+def test_claim_extractor_keeps_calib_safety_factual_terms() -> None:
+    answers = [
+        "The closing steps are lock dock doors and arm alarms.",
+        "Executed NDAs must be retained for five years after termination.",
+        "The Dental Plus plan covers orthodontics for dependents.",
+        "Solvent A can be mixed with Cleaner B if stored away from heat.",
+        "Customer data can be exported to the vendor sandbox for testing.",
+        "The relocation stipend covers storage fees.",
+        "Manager training includes hiring and feedback.",
+    ]
+
+    for answer in answers:
+        claims = ClaimExtractor().extract(answer)
+        assert claims == [answer]
+
+
 def test_short_entity_attribute_statement_is_claim() -> None:
     claims = ClaimExtractor().extract_structured("The manager is John.")
 
@@ -719,7 +735,54 @@ def test_candidate_selector_heuristic_anchor_match_paraphrase() -> None:
 
 def test_candidate_selector_empty_chunks_returns_empty() -> None:
     from raggov.analyzers.grounding.candidate_selection import EvidenceCandidateSelector
-    
+
     selector = EvidenceCandidateSelector()
     candidates = selector.select_candidates("Some claim.", "", [])
     assert candidates == []
+
+
+def test_claim_grounding_fails_loudly_when_substantive_answer_yields_no_claims() -> None:
+    """Step 1: close the silent-CLEAN hole.
+
+    When the answer has substantive content but the extractor returns zero
+    verifiable claims, the analyzer must emit CLAIM_EXTRACTION_FAILED
+    instead of skipping silently. Silent skips upstream of decision
+    policy become CLEAN diagnoses, which is the worst failure mode for a
+    diagnostic tool — a confident wrong answer.
+    """
+    empty_llm_client = ClaimClient('{"claims": []}')
+    substantive_answer = (
+        "The refund policy covers hardware returns for thirty days "
+        "and warranty support requires an active service plan with "
+        "an approved customer account in good standing."
+    )
+    run = run_with_answer(
+        substantive_answer,
+        [chunk("chunk-1", "Refund policy covers hardware returns for thirty days.")],
+    )
+
+    result = ClaimGroundingAnalyzer(
+        {"claim_extractor_client": empty_llm_client}
+    ).analyze(run)
+
+    assert result.status == "fail", (
+        f"expected fail when extractor returns no claims for substantive answer, "
+        f"got status={result.status}"
+    )
+    assert result.failure_type == FailureType.CLAIM_EXTRACTION_FAILED
+    assert result.stage == FailureStage.GROUNDING
+    assert any("claim extract" in line.lower() for line in result.evidence), (
+        f"evidence must explain the extraction failure; got {result.evidence}"
+    )
+
+
+def test_claim_grounding_still_skips_for_trivially_short_answers() -> None:
+    """Counter-test: short non-substantive answers must keep the existing
+    skip behavior. Only substantive answers escalate to CLAIM_EXTRACTION_FAILED.
+    """
+    result = ClaimGroundingAnalyzer().analyze(
+        run_with_answer("Too short.", [chunk("chunk-1", "text")])
+    )
+
+    assert result.status == "skip"
+    assert result.evidence == ["no claims extracted from final answer"]

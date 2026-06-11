@@ -1,0 +1,63 @@
+{
+  "case_id": "govrag-calib-seed-XXX",
+  "domain": "example_domain",
+  "source_suite": "manual",
+  "source_case_id": "source-case-id",
+  "query": "Question asked by the RAG user.",
+  "retrieved_chunks": [
+    {
+      "chunk_id": "chunk-1",
+      "doc_id": "doc-1",
+      "text": "Retrieved context text.",
+      "rank": 1,
+      "score": 0.9,
+      "metadata": {
+        "effective_date": "YYYY-MM-DD"
+      }
+    }
+  ],
+  "answer": "Generated answer to evaluate.",
+  "claims": [
+    {
+      "claim_id": "claim-1",
+      "text": "Atomic answer claim."
+    }
+  ],
+  "citations": [
+    {
+      "citation_id": "cit-1",
+      "doc_id": "doc-1",
+      "chunk_id": "chunk-1"
+    }
+  ],
+  "expected_primary_failure": "UNSUPPORTED_CLAIM",
+  "expected_stage": "GROUNDING",
+  "expected_first_failing_node": null,
+  "expected_root_cause": "Short explanation of the evidence-backed root cause.",
+  "expected_fix_category": "FIX_CATEGORY",
+  "expected_affected_claim_ids": [
+    "claim-1"
+  ],
+  "expected_affected_doc_ids": [
+    "doc-1"
+  ],
+  "expected_human_review_required": true,
+  "acceptable_alternative_failures": [],
+  "failure_family": "grounding",
+  "difficulty": "medium",
+  "adversarial": false,
+  "security_relevant": false,
+  "metadata_requirements": [],
+  "labeler": "labeler-name",
+  "label_status": "seed",
+  "label_confidence": "medium",
+  "notes": "Explain ambiguity, evidence assumptions, and review needs.",
+  "calibration_split": "unset",
+  "calibration_status": "seed",
+  "provenance": {
+    "source": "manual",
+    "created_at": "YYYY-MM-DD",
+    "derived_from": "source-case-id",
+    "transformation_notes": "Describe how the case was created. Do not claim calibration."
+  }
+}

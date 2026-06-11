@@ -1,14 +1,12 @@
-# GovRAG-Calib Dataset Splits
+# GovRAG-Calib-150 Splits
 
-This directory holds split-specific subsets of `govrag_calib_150.jsonl`.
+Split values:
 
-Splits are extracted by `scripts/validate_govrag_calib.py` when `--write-splits` is passed.
+- `train`: development and exploratory model/threshold work.
+- `calibration`: calibration fitting and confidence interval estimation.
+- `heldout`: locked final evaluation split.
+- `unset`: seed records that are not assigned yet.
 
-| File | Contents |
-|---|---|
-| `train.jsonl` | Cases with `split=train` |
-| `dev.jsonl` | Cases with `split=dev` |
-| `heldout.jsonl` | Cases with `split=heldout` (do not inspect during development) |
-| `unset.jsonl` | Placeholder cases with `split=unset` |
+Heldout records must use `calibration_status = heldout_locked`.
 
-**Warning:** `heldout.jsonl` must not be used during active development or threshold tuning.
+The seed file intentionally uses `unset` until the dataset is reviewed and split policy is finalized.

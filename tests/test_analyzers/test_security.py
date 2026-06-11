@@ -5,6 +5,7 @@ from __future__ import annotations
 from raggov.analyzers.security.anomalies import RetrievalAnomalyAnalyzer
 from raggov.analyzers.security.injection import PromptInjectionAnalyzer
 from raggov.analyzers.security.poisoning import PoisoningHeuristicAnalyzer
+from raggov.analyzers.security.privacy import PrivacyAnalyzer
 from raggov.models.chunk import RetrievedChunk
 from raggov.models.diagnosis import FailureStage, FailureType, SecurityRisk
 from raggov.models.retrieval_evidence import (
@@ -35,6 +36,21 @@ def test_prompt_injection_passes_when_no_patterns_match() -> None:
 
     assert result.status == "pass"
     assert result.security_risk == SecurityRisk.NONE
+
+
+def test_privacy_detects_employee_medical_disclosure_in_answer_and_context() -> None:
+    run = RAGRun(
+        query="What condition does employee 884 have?",
+        retrieved_chunks=[chunk("chunk-1", "Employee 884 reported migraine treatment.")],
+        final_answer="Employee 884 has migraine treatment on file.",
+    )
+
+    result = PrivacyAnalyzer().analyze(run)
+
+    assert result.status == "fail"
+    assert result.failure_type == FailureType.PRIVACY_VIOLATION
+    assert result.stage == FailureStage.SECURITY
+    assert "medical privacy evidence" in result.evidence[0]
 
 
 def test_prompt_injection_warns_on_hits_below_risk_threshold() -> None:

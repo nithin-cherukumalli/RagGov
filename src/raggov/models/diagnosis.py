@@ -61,6 +61,7 @@ class FailureType(str, Enum):
     RERANKER_FAILURE = "RERANKER_FAILURE"
     GENERATION_IGNORE = "GENERATION_IGNORE"
     INCOMPLETE_DIAGNOSIS = "INCOMPLETE_DIAGNOSIS"
+    CLAIM_EXTRACTION_FAILED = "CLAIM_EXTRACTION_FAILED"
     CLEAN = "CLEAN"
 
 
@@ -446,7 +447,10 @@ class Diagnosis(BaseModel):
             FailureType.INSUFFICIENT_CONTEXT,
             FailureType.RETRIEVAL_ANOMALY,
             FailureType.SUSPICIOUS_CHUNK,
+            FailureType.PRIVACY_VIOLATION,
+            FailureType.PROMPT_INJECTION,
             FailureType.RERANKER_FAILURE,
+            FailureType.CLAIM_EXTRACTION_FAILED,
         }
         if self.primary_failure in high_oversight_failures:
             return True

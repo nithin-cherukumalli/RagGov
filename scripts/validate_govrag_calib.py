@@ -1,26 +1,7 @@
-#!/usr/bin/env python3
-"""
-Validate the GovRAG-Calib dataset (govrag_calib_150.jsonl).
+"""Validate GovRAG-Calib-150 JSONL records.
 
-Checks:
-  - Schema validity for every case
-  - Unique case IDs
-  - Valid failure type
-  - Valid stage
-  - All retrieved chunks have IDs
-  - Claim label evidence IDs reference existing chunks
-  - Citation label chunk IDs reference existing chunks
-  - label_source, label_confidence, split are present
-  - Category distribution
-  - Domain distribution
-  - Placeholder count (cases with label_confidence=low)
-
-Outputs:
-  - reports/govrag_calib_validation.md
-  - reports/govrag_calib_validation.json
-
-Usage:
-  python scripts/validate_govrag_calib.py [--dataset PATH] [--write-splits]
+This script validates dataset structure only. It does not run analyzers, alter
+thresholds, or produce calibration claims.
 """
 
 from __future__ import annotations
@@ -28,343 +9,432 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from collections import Counter, defaultdict
+from collections import Counter
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-# ---------------------------------------------------------------------------
-# Locate project root
-# ---------------------------------------------------------------------------
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DATASET_PATH = PROJECT_ROOT / "evals" / "govrag_calib" / "govrag_calib_150.jsonl"
-SPLITS_DIR = PROJECT_ROOT / "evals" / "govrag_calib" / "splits"
-REPORTS_DIR = PROJECT_ROOT / "reports"
-
-
-def _add_project_to_path() -> None:
-    """Add src/ to sys.path so schema can be imported."""
-    src = PROJECT_ROOT / "src"
-    if str(src) not in sys.path:
-        sys.path.insert(0, str(src))
-    evals = PROJECT_ROOT / "evals"
-    if str(evals) not in sys.path:
-        sys.path.insert(0, str(evals))
-
-
-_add_project_to_path()
-
-from govrag_calib.schema import GovRAGCalibCase  # noqa: E402 — after path setup
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-CATEGORY_MAP: dict[str, str] = {
-    "CLEAN": "clean_pass",
-    "RETRIEVAL_ANOMALY": "retrieval",
-    "RETRIEVAL_DEPTH_LIMIT": "retrieval",
-    "SCOPE_VIOLATION": "retrieval",
-    "STALE_RETRIEVAL": "retrieval",
-    "INCONSISTENT_CHUNKS": "retrieval",
-    "UNSUPPORTED_CLAIM": "grounding",
-    "CONTRADICTED_CLAIM": "grounding",
-    "INSUFFICIENT_CONTEXT": "sufficiency",
-    "CITATION_MISMATCH": "citation",
-    "POST_RATIONALIZED_CITATION": "citation",
-    "PRIVACY_VIOLATION": "security",
-    "PROMPT_INJECTION": "security",
-    "SUSPICIOUS_CHUNK": "security",
-    "LOW_CONFIDENCE": "confidence",
-    "GENERATION_IGNORE": "answer_quality",
-    "TABLE_STRUCTURE_LOSS": "parsing",
-    "HIERARCHY_FLATTENING": "parsing",
-    "METADATA_LOSS": "parsing",
-    "PARSER_STRUCTURE_LOSS": "parsing",
-    "CHUNKING_BOUNDARY_ERROR": "parsing",
-    "EMBEDDING_DRIFT": "retrieval",
-    "RERANKER_FAILURE": "retrieval",
-    "INCOMPLETE_DIAGNOSIS": "other",
+REQUIRED_FIELDS = {
+    "case_id",
+    "domain",
+    "source_suite",
+    "source_case_id",
+    "query",
+    "retrieved_chunks",
+    "answer",
+    "claims",
+    "citations",
+    "expected_primary_failure",
+    "expected_stage",
+    "expected_first_failing_node",
+    "expected_root_cause",
+    "expected_fix_category",
+    "expected_affected_claim_ids",
+    "expected_affected_doc_ids",
+    "expected_human_review_required",
+    "acceptable_alternative_failures",
+    "failure_family",
+    "difficulty",
+    "adversarial",
+    "security_relevant",
+    "metadata_requirements",
+    "labeler",
+    "label_status",
+    "label_confidence",
+    "notes",
+    "calibration_split",
+    "calibration_status",
+    "provenance",
 }
 
+FAILURE_LABELS = {
+    "CLEAN",
+    "CITATION_MISMATCH",
+    "UNSUPPORTED_CLAIM",
+    "CONTRADICTED_CLAIM",
+    "STALE_RETRIEVAL",
+    "SCOPE_VIOLATION",
+    "PROMPT_INJECTION",
+    "INSUFFICIENT_CONTEXT",
+    "RETRIEVAL_ANOMALY",
+    "RETRIEVAL_DEPTH_LIMIT",
+    "INCONSISTENT_CHUNKS",
+    "POST_RATIONALIZED_CITATION",
+    "LOW_CONFIDENCE",
+    "PRIVACY_VIOLATION",
+    "SUSPICIOUS_CHUNK",
+    "TABLE_STRUCTURE_LOSS",
+    "HIERARCHY_FLATTENING",
+    "METADATA_LOSS",
+    "PARSER_STRUCTURE_LOSS",
+    "CHUNKING_BOUNDARY_ERROR",
+    "EMBEDDING_DRIFT",
+    "RERANKER_FAILURE",
+    "GENERATION_IGNORE",
+    "INCOMPLETE_DIAGNOSIS",
+}
 
-def load_raw_lines(path: Path) -> list[dict[str, Any]]:
-    raw = []
-    with path.open() as f:
-        for i, line in enumerate(f, 1):
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                raw.append({"line": i, "data": json.loads(line)})
-            except json.JSONDecodeError as e:
-                raw.append({"line": i, "error": str(e), "data": None})
-    return raw
+STAGE_LABELS = {
+    "PARSING",
+    "CHUNKING",
+    "EMBEDDING",
+    "RETRIEVAL",
+    "RERANKING",
+    "CONTEXT_ASSEMBLY",
+    "GROUNDING",
+    "SUFFICIENCY",
+    "GENERATION",
+    "CITATION",
+    "SECURITY",
+    "CONFIDENCE",
+    "UNKNOWN",
+}
+
+FAMILY_TARGETS = {
+    "clean_pass": 15,
+    "retrieval": 25,
+    "grounding": 25,
+    "citation": 20,
+    "sufficiency": 15,
+    "version_validity": 15,
+    "security_privacy": 20,
+    "answer_quality": 15,
+}
+
+DIFFICULTIES = {"low", "medium", "high"}
+CALIBRATION_SPLITS = {"train", "calibration", "heldout", "unset"}
+CALIBRATION_STATUSES = {"seed", "reviewed", "adjudicated", "heldout_locked"}
+LABEL_STATUSES = {"seed", "reviewed", "adjudicated"}
+LABEL_CONFIDENCES = {"low", "medium", "high"}
+PROVENANCE_FIELDS = {"source", "created_at", "derived_from", "transformation_notes"}
 
 
-def validate_dataset(path: Path) -> dict[str, Any]:
-    """
-    Run all validation checks. Returns a structured result dict.
-    """
-    errors: list[dict[str, Any]] = []
-    warnings: list[str] = []
-    valid_cases: list[GovRAGCalibCase] = []
+@dataclass
+class ValidationResult:
+    path: Path
+    total_cases: int = 0
+    errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    family_counts: Counter[str] = field(default_factory=Counter)
 
-    raw_lines = load_raw_lines(path)
+    @property
+    def ok(self) -> bool:
+        return not self.errors
 
-    # --- JSON parse errors ---
-    for item in raw_lines:
-        if item.get("error"):
-            errors.append({"line": item["line"], "type": "json_parse_error", "detail": item["error"]})
 
-    # --- Schema validation ---
-    all_data = [item["data"] for item in raw_lines if item.get("data") is not None]
-    for data in all_data:
-        case_id = data.get("case_id", "unknown")
+def validate_dataset(path: Path) -> ValidationResult:
+    result = ValidationResult(path=path)
+    case_ids: list[str] = []
+
+    for line_number, raw_line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        if not raw_line.strip():
+            continue
         try:
-            case = GovRAGCalibCase(**data)
-            valid_cases.append(case)
-        except Exception as e:
-            errors.append({"case_id": case_id, "type": "schema_error", "detail": str(e)})
+            case = json.loads(raw_line)
+        except json.JSONDecodeError as exc:
+            result.errors.append(f"line {line_number}: invalid JSON: {exc.msg}")
+            continue
+        if not isinstance(case, dict):
+            result.errors.append(f"line {line_number}: record must be a JSON object")
+            continue
 
-    # --- Unique case IDs ---
-    id_counter: Counter[str] = Counter(c.case_id for c in valid_cases)
-    for case_id, count in id_counter.items():
-        if count > 1:
-            errors.append({"case_id": case_id, "type": "duplicate_case_id", "detail": f"Appears {count} times."})
+        result.total_cases += 1
+        case_id = str(case.get("case_id", f"line-{line_number}"))
+        case_ids.append(case_id)
+        _validate_case(case, line_number, result)
 
-    # --- required fields presence (already enforced by Pydantic, but double-check) ---
-    for case in valid_cases:
-        if not case.label_source:
-            errors.append({"case_id": case.case_id, "type": "missing_label_source"})
-        if not case.label_confidence:
-            errors.append({"case_id": case.case_id, "type": "missing_label_confidence"})
-        if not case.split:
-            errors.append({"case_id": case.case_id, "type": "missing_split"})
+    duplicates = [case_id for case_id, count in Counter(case_ids).items() if count > 1]
+    for case_id in sorted(duplicates):
+        result.errors.append(f"case_id {case_id!r}: duplicate case_id")
 
-    # --- Chunk ID completeness ---
-    for case in valid_cases:
-        for chunk in case.retrieved_chunks:
-            if not chunk.chunk_id:
-                errors.append({"case_id": case.case_id, "type": "empty_chunk_id", "detail": str(chunk)})
+    if result.total_cases < 150:
+        result.warnings.append(
+            f"dataset has {result.total_cases} cases; GovRAG-Calib-150 target is 150"
+        )
+    for family, target in FAMILY_TARGETS.items():
+        count = result.family_counts.get(family, 0)
+        if count < target:
+            result.warnings.append(
+                f"family {family!r} has {count} cases; target is {target}"
+            )
 
-    # --- Claim label evidence IDs reference existing chunks ---
-    for case in valid_cases:
-        chunk_ids = {c.chunk_id for c in case.retrieved_chunks}
-        for cl in case.expected_claim_labels:
-            for eid in cl.expected_evidence_chunk_ids:
-                if eid not in chunk_ids:
-                    errors.append({
-                        "case_id": case.case_id,
-                        "type": "invalid_evidence_chunk_ref",
-                        "detail": f"ClaimLabel '{cl.claim_id}' references chunk_id '{eid}' not in retrieved_chunks.",
-                    })
+    return result
 
-    # --- Citation label chunk IDs reference existing chunks ---
-    for case in valid_cases:
-        chunk_ids = {c.chunk_id for c in case.retrieved_chunks}
-        for cit in case.expected_citation_labels:
-            if cit.cited_chunk_id is not None and cit.cited_chunk_id not in chunk_ids:
-                errors.append({
-                    "case_id": case.case_id,
-                    "type": "invalid_citation_chunk_ref",
-                    "detail": f"CitationLabel '{cit.citation_id}' references cited_chunk_id '{cit.cited_chunk_id}' not in retrieved_chunks.",
-                })
 
-    # --- Category distribution ---
-    category_counts: Counter[str] = Counter()
-    for case in valid_cases:
-        cat = CATEGORY_MAP.get(case.expected_primary_failure, "other")
-        category_counts[cat] += 1
+def _validate_case(case: dict[str, Any], line_number: int, result: ValidationResult) -> None:
+    prefix = f"line {line_number} case {case.get('case_id', '<missing>')!r}"
 
-    # --- Domain distribution ---
-    domain_counts: Counter[str] = Counter(c.domain for c in valid_cases)
+    if _contains_key(case, "production_gating_eligible"):
+        result.errors.append(f"{prefix}: production_gating_eligible must not appear")
 
-    # --- Split distribution ---
-    split_counts: Counter[str] = Counter(c.split for c in valid_cases)
+    missing = sorted(REQUIRED_FIELDS - set(case))
+    if missing:
+        result.errors.append(f"{prefix}: missing required fields: {', '.join(missing)}")
+        return
 
-    # --- Label source distribution ---
-    label_source_counts: Counter[str] = Counter(c.label_source for c in valid_cases)
+    _check_enum(case["expected_primary_failure"], FAILURE_LABELS, "expected_primary_failure", prefix, result)
+    _check_enum(case["expected_stage"], STAGE_LABELS, "expected_stage", prefix, result)
+    _check_enum(case["failure_family"], set(FAMILY_TARGETS), "failure_family", prefix, result)
+    _check_enum(case["difficulty"], DIFFICULTIES, "difficulty", prefix, result)
+    _check_enum(case["calibration_split"], CALIBRATION_SPLITS, "calibration_split", prefix, result)
+    _check_enum(case["calibration_status"], CALIBRATION_STATUSES, "calibration_status", prefix, result)
+    _check_enum(case["label_status"], LABEL_STATUSES, "label_status", prefix, result)
+    _check_enum(case["label_confidence"], LABEL_CONFIDENCES, "label_confidence", prefix, result)
 
-    # --- Label confidence distribution ---
-    label_conf_counts: Counter[str] = Counter(c.label_confidence for c in valid_cases)
+    if case["calibration_split"] == "heldout" and case["calibration_status"] != "heldout_locked":
+        result.errors.append(f"{prefix}: heldout cases require calibration_status='heldout_locked'")
 
-    # --- Placeholder count ---
-    placeholder_count = label_conf_counts.get("low", 0)
+    for field_name in (
+        "retrieved_chunks",
+        "claims",
+        "citations",
+        "expected_affected_claim_ids",
+        "expected_affected_doc_ids",
+        "acceptable_alternative_failures",
+        "metadata_requirements",
+    ):
+        if not isinstance(case[field_name], list):
+            result.errors.append(f"{prefix}: {field_name} must be a list")
 
-    # --- Complete cases (non-placeholder, non-unset) ---
-    complete_cases = [
-        c for c in valid_cases
-        if c.label_confidence != "low" and c.split != "unset"
-    ]
+    if not isinstance(case["expected_human_review_required"], bool):
+        result.errors.append(f"{prefix}: expected_human_review_required must be boolean")
+    if not isinstance(case["adversarial"], bool):
+        result.errors.append(f"{prefix}: adversarial must be boolean")
+    if not isinstance(case["security_relevant"], bool):
+        result.errors.append(f"{prefix}: security_relevant must be boolean")
 
-    # --- Warnings for thin categories ---
-    for cat, count in category_counts.items():
-        if count < 5:
-            warnings.append(f"Category '{cat}' has only {count} cases (minimum recommended: 5).")
+    if isinstance(case["acceptable_alternative_failures"], list):
+        for failure in case["acceptable_alternative_failures"]:
+            _check_enum(failure, FAILURE_LABELS, "acceptable_alternative_failures", prefix, result)
 
-    return {
-        "total_lines": len(raw_lines),
-        "total_valid_cases": len(valid_cases),
-        "complete_cases": len(complete_cases),
-        "placeholder_cases": placeholder_count,
-        "errors": errors,
-        "warnings": warnings,
-        "category_distribution": dict(category_counts),
-        "domain_distribution": dict(domain_counts),
-        "split_distribution": dict(split_counts),
-        "label_source_distribution": dict(label_source_counts),
-        "label_confidence_distribution": dict(label_conf_counts),
-        "passed": len(errors) == 0,
+    chunk_ids, doc_ids = _collect_chunk_and_doc_ids(case, prefix, result)
+    claim_ids = _collect_claim_ids(case, prefix, result)
+    citation_doc_ids, citation_chunk_ids = _collect_citation_ids(case, prefix, result)
+    doc_ids.update(citation_doc_ids)
+
+    for claim_id in case.get("expected_affected_claim_ids", []):
+        if claim_id not in claim_ids:
+            result.errors.append(f"{prefix}: affected claim_id {claim_id!r} does not exist")
+    for doc_id in case.get("expected_affected_doc_ids", []):
+        if doc_id not in doc_ids:
+            result.errors.append(f"{prefix}: affected doc_id {doc_id!r} does not exist")
+    for chunk_id in citation_chunk_ids:
+        if chunk_id is not None and chunk_id not in chunk_ids:
+            result.errors.append(f"{prefix}: citation chunk_id {chunk_id!r} does not exist")
+
+    _add_evidence_gap_warnings(case, prefix, result)
+
+    provenance = case.get("provenance")
+    if not isinstance(provenance, dict):
+        result.errors.append(f"{prefix}: provenance must be an object")
+    else:
+        missing_provenance = sorted(PROVENANCE_FIELDS - set(provenance))
+        if missing_provenance:
+            result.errors.append(
+                f"{prefix}: provenance missing fields: {', '.join(missing_provenance)}"
+            )
+
+    if case["failure_family"] in FAMILY_TARGETS:
+        result.family_counts[case["failure_family"]] += 1
+
+
+def _add_evidence_gap_warnings(
+    case: dict[str, Any],
+    prefix: str,
+    result: ValidationResult,
+) -> None:
+    primary_failure = case.get("expected_primary_failure")
+    family = case.get("failure_family")
+    notes = str(case.get("notes") or "").lower()
+
+    if primary_failure != "CLEAN" and not case.get("expected_affected_claim_ids"):
+        result.warnings.append(
+            f"{prefix}: non-clean case has empty expected_affected_claim_ids"
+        )
+
+    doc_required_families = {
+        "citation",
+        "retrieval",
+        "grounding",
+        "sufficiency",
+        "version_validity",
     }
+    if (
+        family in doc_required_families
+        and case.get("retrieved_chunks")
+        and not case.get("expected_affected_doc_ids")
+    ):
+        result.warnings.append(
+            f"{prefix}: {family} case has retrieved_chunks but empty expected_affected_doc_ids"
+        )
+
+    if family == "citation" and not case.get("citations"):
+        result.warnings.append(f"{prefix}: citation-family case has no citations")
+
+    if (
+        family == "version_validity" or primary_failure == "STALE_RETRIEVAL"
+    ) and not case.get("metadata_requirements"):
+        result.warnings.append(
+            f"{prefix}: version/staleness case has empty metadata_requirements"
+        )
+
+    if (
+        (case.get("security_relevant") is True or case.get("adversarial") is True)
+        and case.get("difficulty") == "high"
+        and case.get("expected_human_review_required") is False
+    ):
+        result.warnings.append(
+            f"{prefix}: high-risk security/adversarial case does not require human review"
+        )
+
+    ambiguous_families = {"retrieval", "sufficiency", "grounding", "answer_quality"}
+    if (
+        family in ambiguous_families
+        and "ambig" in notes
+        and not case.get("acceptable_alternative_failures")
+    ):
+        result.warnings.append(
+            f"{prefix}: ambiguous {family} case has empty acceptable_alternative_failures"
+        )
 
 
-# ---------------------------------------------------------------------------
-# Report writers
-# ---------------------------------------------------------------------------
-
-def write_json_report(result: dict[str, Any], path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w") as f:
-        json.dump(result, f, indent=2)
-    print(f"  JSON report → {path}")
-
-
-def write_markdown_report(result: dict[str, Any], path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    status = "✅ PASSED" if result["passed"] else "❌ FAILED"
-    lines = [
-        "# GovRAG-Calib Validation Report",
-        "",
-        f"**Status:** {status}",
-        f"**Total lines:** {result['total_lines']}",
-        f"**Valid cases:** {result['total_valid_cases']}",
-        f"**Complete cases (non-placeholder, split≠unset):** {result['complete_cases']}",
-        f"**Placeholder cases (label_confidence=low):** {result['placeholder_cases']}",
-        f"**Errors:** {len(result['errors'])}",
-        f"**Warnings:** {len(result['warnings'])}",
-        "",
-        "## Category Distribution",
-        "",
-        "| Category | Count |",
-        "|---|---|",
-    ]
-    for cat, count in sorted(result["category_distribution"].items()):
-        lines.append(f"| {cat} | {count} |")
-    lines += [
-        "",
-        "## Domain Distribution",
-        "",
-        "| Domain | Count |",
-        "|---|---|",
-    ]
-    for domain, count in sorted(result["domain_distribution"].items()):
-        lines.append(f"| {domain} | {count} |")
-    lines += [
-        "",
-        "## Split Distribution",
-        "",
-        "| Split | Count |",
-        "|---|---|",
-    ]
-    for split, count in sorted(result["split_distribution"].items()):
-        lines.append(f"| {split} | {count} |")
-    lines += [
-        "",
-        "## Label Confidence Distribution",
-        "",
-        "| Confidence | Count |",
-        "|---|---|",
-    ]
-    for conf, count in sorted(result["label_confidence_distribution"].items()):
-        lines.append(f"| {conf} | {count} |")
-
-    if result["warnings"]:
-        lines += ["", "## Warnings", ""]
-        for w in result["warnings"]:
-            lines.append(f"- ⚠️ {w}")
-
-    if result["errors"]:
-        lines += ["", "## Errors", ""]
-        for e in result["errors"]:
-            lines.append(f"- ❌ `{e}`")
-    else:
-        lines += ["", "## Errors", "", "None."]
-
-    with path.open("w") as f:
-        f.write("\n".join(lines) + "\n")
-    print(f"  Markdown report → {path}")
+def _check_enum(
+    value: Any,
+    allowed: set[str],
+    field_name: str,
+    prefix: str,
+    result: ValidationResult,
+) -> None:
+    if value not in allowed:
+        result.errors.append(f"{prefix}: invalid {field_name}={value!r}")
 
 
-def write_splits(valid_cases: list[GovRAGCalibCase], splits_dir: Path) -> None:
-    splits_dir.mkdir(parents=True, exist_ok=True)
-    split_groups: dict[str, list[dict]] = defaultdict(list)
-    for c in valid_cases:
-        split_groups[c.split].append(json.loads(c.model_dump_json()))
-    for split_name, cases in split_groups.items():
-        out = splits_dir / f"{split_name}.jsonl"
-        with out.open("w") as f:
-            for case in cases:
-                f.write(json.dumps(case) + "\n")
-        print(f"  Wrote {len(cases)} cases → {out}")
+def _collect_chunk_and_doc_ids(
+    case: dict[str, Any],
+    prefix: str,
+    result: ValidationResult,
+) -> tuple[set[str], set[str]]:
+    chunk_ids: set[str] = set()
+    doc_ids: set[str] = set()
+    chunks = case.get("retrieved_chunks", [])
+    if not isinstance(chunks, list):
+        return chunk_ids, doc_ids
+    for index, chunk in enumerate(chunks):
+        if not isinstance(chunk, dict):
+            result.errors.append(f"{prefix}: retrieved_chunks[{index}] must be an object")
+            continue
+        chunk_id = chunk.get("chunk_id")
+        doc_id = chunk.get("doc_id")
+        text = chunk.get("text")
+        if not isinstance(chunk_id, str) or not chunk_id:
+            result.errors.append(f"{prefix}: retrieved_chunks[{index}].chunk_id is required")
+        elif chunk_id in chunk_ids:
+            result.errors.append(f"{prefix}: duplicate chunk_id {chunk_id!r}")
+        else:
+            chunk_ids.add(chunk_id)
+        if not isinstance(doc_id, str) or not doc_id:
+            result.errors.append(f"{prefix}: retrieved_chunks[{index}].doc_id is required")
+        else:
+            doc_ids.add(doc_id)
+        if not isinstance(text, str) or not text:
+            result.errors.append(f"{prefix}: retrieved_chunks[{index}].text is required")
+    return chunk_ids, doc_ids
 
 
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
+def _collect_claim_ids(case: dict[str, Any], prefix: str, result: ValidationResult) -> set[str]:
+    claim_ids: set[str] = set()
+    claims = case.get("claims", [])
+    if not isinstance(claims, list):
+        return claim_ids
+    for index, claim in enumerate(claims):
+        if not isinstance(claim, dict):
+            result.errors.append(f"{prefix}: claims[{index}] must be an object")
+            continue
+        claim_id = claim.get("claim_id")
+        text = claim.get("text")
+        if not isinstance(claim_id, str) or not claim_id:
+            result.errors.append(f"{prefix}: claims[{index}].claim_id is required")
+        elif claim_id in claim_ids:
+            result.errors.append(f"{prefix}: duplicate claim_id {claim_id!r}")
+        else:
+            claim_ids.add(claim_id)
+        if not isinstance(text, str) or not text:
+            result.errors.append(f"{prefix}: claims[{index}].text is required")
+    return claim_ids
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Validate GovRAG-Calib dataset.")
-    parser.add_argument("--dataset", type=Path, default=DATASET_PATH)
-    parser.add_argument("--write-splits", action="store_true", help="Write split JSONL files.")
-    args = parser.parse_args()
 
-    dataset_path: Path = args.dataset
+def _collect_citation_ids(
+    case: dict[str, Any],
+    prefix: str,
+    result: ValidationResult,
+) -> tuple[set[str], set[str | None]]:
+    doc_ids: set[str] = set()
+    chunk_ids: set[str | None] = set()
+    citation_ids: set[str] = set()
+    citations = case.get("citations", [])
+    if not isinstance(citations, list):
+        return doc_ids, chunk_ids
+    for index, citation in enumerate(citations):
+        if not isinstance(citation, dict):
+            result.errors.append(f"{prefix}: citations[{index}] must be an object")
+            continue
+        citation_id = citation.get("citation_id")
+        doc_id = citation.get("doc_id")
+        chunk_id = citation.get("chunk_id")
+        if not isinstance(citation_id, str) or not citation_id:
+            result.errors.append(f"{prefix}: citations[{index}].citation_id is required")
+        elif citation_id in citation_ids:
+            result.errors.append(f"{prefix}: duplicate citation_id {citation_id!r}")
+        else:
+            citation_ids.add(citation_id)
+        if not isinstance(doc_id, str) or not doc_id:
+            result.errors.append(f"{prefix}: citations[{index}].doc_id is required")
+        else:
+            doc_ids.add(doc_id)
+        if chunk_id is not None:
+            if not isinstance(chunk_id, str) or not chunk_id:
+                result.errors.append(f"{prefix}: citations[{index}].chunk_id must be string or null")
+            else:
+                chunk_ids.add(chunk_id)
+    return doc_ids, chunk_ids
 
-    if not dataset_path.exists():
-        print(f"ERROR: Dataset not found: {dataset_path}", file=sys.stderr)
-        sys.exit(1)
 
-    print(f"Validating: {dataset_path}")
-    result = validate_dataset(dataset_path)
+def _contains_key(value: Any, target_key: str) -> bool:
+    if isinstance(value, dict):
+        return any(key == target_key or _contains_key(child, target_key) for key, child in value.items())
+    if isinstance(value, list):
+        return any(_contains_key(child, target_key) for child in value)
+    return False
 
-    print(f"\nResults:")
-    print(f"  Valid cases:       {result['total_valid_cases']}")
-    print(f"  Complete cases:    {result['complete_cases']}")
-    print(f"  Placeholder cases: {result['placeholder_cases']}")
-    print(f"  Errors:            {len(result['errors'])}")
-    print(f"  Warnings:          {len(result['warnings'])}")
 
-    write_json_report(result, REPORTS_DIR / "govrag_calib_validation.json")
-    write_markdown_report(result, REPORTS_DIR / "govrag_calib_validation.md")
+def print_result(result: ValidationResult) -> None:
+    print(f"GovRAG-Calib validation: {result.path}")
+    print(f"cases: {result.total_cases}")
+    print("family distribution:")
+    for family, target in FAMILY_TARGETS.items():
+        print(f"- {family}: {result.family_counts.get(family, 0)}/{target}")
 
-    if args.write_splits:
-        # Re-load valid cases for splitting
-        raw = load_raw_lines(dataset_path)
-        valid_cases = []
-        for item in raw:
-            if item.get("data"):
-                try:
-                    valid_cases.append(GovRAGCalibCase(**item["data"]))
-                except Exception:
-                    pass
-        write_splits(valid_cases, SPLITS_DIR)
+    if result.warnings:
+        print("warnings:")
+        for warning in result.warnings:
+            print(f"- {warning}")
+    if result.errors:
+        print("errors:")
+        for error in result.errors:
+            print(f"- {error}")
+    print("status: passed" if result.ok else "status: failed")
 
-    if result["errors"]:
-        print(f"\n{'='*60}")
-        print("VALIDATION FAILED — see reports/govrag_calib_validation.md")
-        print(f"{'='*60}")
-        for e in result["errors"][:10]:
-            print(f"  ❌ {e}")
-        if len(result["errors"]) > 10:
-            print(f"  ... and {len(result['errors']) - 10} more errors.")
-        sys.exit(1)
-    else:
-        print(f"\n{'='*60}")
-        print("VALIDATION PASSED")
-        print(f"{'='*60}")
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("dataset", type=Path)
+    args = parser.parse_args(argv)
+
+    result = validate_dataset(args.dataset)
+    print_result(result)
+    return 0 if result.ok else 1
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

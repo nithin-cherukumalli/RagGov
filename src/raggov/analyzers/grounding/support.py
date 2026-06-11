@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
 from raggov.analyzers.base import BaseAnalyzer
-from raggov.analyzers.grounding.claims import ClaimExtractor, ExtractedClaim
+from raggov.analyzers.grounding.claims import _ABSTENTION_RE, ClaimExtractor, ExtractedClaim
 from raggov.analyzers.grounding.diagnostic_rollups import ClaimDiagnosticRollupBuilder, ClaimDiagnosticSummary
 from raggov.analyzers.grounding.evidence_layer import ClaimEvidenceBuilder, ClaimEvidenceRecord
 from raggov.models.grounding import GroundingEvidenceBundle
@@ -43,6 +44,33 @@ REMEDIATION = (
     "{failed} of {total} claims are unsupported by retrieved context. "
     "Review retrieval quality or add source verification."
 )
+
+_EXTRACTION_FAILED_REMEDIATION = (
+    "Claim extractor returned no verifiable claims for a non-empty answer. "
+    "Inspect the extractor heuristics or supply an LLM extractor; "
+    "grounding/citation/completeness checks cannot run without claims."
+)
+
+_SUBSTANTIVE_MIN_CHARS = 80
+_SUBSTANTIVE_WORD_RE = re.compile(r"[A-Za-z]{4,}")
+
+
+def _answer_has_substantive_content(answer: str | None) -> bool:
+    """Return True when the answer has enough real content that an empty
+    claim extraction should be treated as a diagnostic failure rather than
+    a silent skip.
+
+    Trivially-short or abstaining answers continue to skip; substantive
+    answers escalate to CLAIM_EXTRACTION_FAILED.
+    """
+    if not answer:
+        return False
+    stripped = answer.strip()
+    if len(stripped) < _SUBSTANTIVE_MIN_CHARS:
+        return False
+    if _ABSTENTION_RE.search(stripped):
+        return False
+    return len(_SUBSTANTIVE_WORD_RE.findall(stripped)) >= 3
 
 _CALIBRATION_NOTE = (
     "[Uncalibrated heuristic support score, not calibrated confidence.]"
@@ -242,11 +270,27 @@ class ClaimGroundingAnalyzer(BaseAnalyzer):
                 list(extractor.extract(run.final_answer)),
             )
         if not claims:
+            if _answer_has_substantive_content(run.final_answer):
+                return self._fail(
+                    failure_type=FailureType.CLAIM_EXTRACTION_FAILED,
+                    stage=FailureStage.GROUNDING,
+                    evidence=[
+                        "Claim extractor returned zero claims for a substantive answer; "
+                        "grounding/citation/completeness checks could not run.",
+                        f"answer_length_chars={len(run.final_answer.strip())}",
+                    ],
+                    remediation=_EXTRACTION_FAILED_REMEDIATION,
+                )
             return self.skip("no claims extracted from final answer")
 
         verifiable_claims = [c for c in claims if c.should_verify]
         has_abstention = any(c.skip_reason == "answer_abstention" for c in claims)
         if not verifiable_claims and not has_abstention:
+            # All claims classified as non-verifiable (e.g. lacks_substantive_terms,
+            # short_non_substantive) is the extractor's correct conclusion for
+            # conceptual/explanatory prose; treat as clean-equivalent skip, not
+            # extraction failure. Only the zero-claims-at-all branch above is a
+            # true extraction failure.
             return self.skip("no claims extracted from final answer")
 
         # Build ClaimEvidenceRecords (richer than ClaimResult — needed for rollup)

@@ -1,0 +1,187 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://govrag.local/schemas/govrag-calib-150.schema.json",
+  "title": "GovRAG-Calib-150 Case",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "case_id",
+    "domain",
+    "source_suite",
+    "source_case_id",
+    "query",
+    "retrieved_chunks",
+    "answer",
+    "claims",
+    "citations",
+    "expected_primary_failure",
+    "expected_stage",
+    "expected_first_failing_node",
+    "expected_root_cause",
+    "expected_fix_category",
+    "expected_affected_claim_ids",
+    "expected_affected_doc_ids",
+    "expected_human_review_required",
+    "acceptable_alternative_failures",
+    "failure_family",
+    "difficulty",
+    "adversarial",
+    "security_relevant",
+    "metadata_requirements",
+    "labeler",
+    "label_status",
+    "label_confidence",
+    "notes",
+    "calibration_split",
+    "calibration_status",
+    "provenance"
+  ],
+  "properties": {
+    "case_id": {"type": "string", "minLength": 1},
+    "domain": {"type": "string", "minLength": 1},
+    "source_suite": {"type": "string", "minLength": 1},
+    "source_case_id": {"type": "string", "minLength": 1},
+    "query": {"type": "string", "minLength": 1},
+    "retrieved_chunks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["chunk_id", "doc_id", "text"],
+        "properties": {
+          "chunk_id": {"type": "string", "minLength": 1},
+          "doc_id": {"type": "string", "minLength": 1},
+          "text": {"type": "string", "minLength": 1},
+          "rank": {"type": ["integer", "null"], "minimum": 1},
+          "score": {"type": ["number", "null"]},
+          "metadata": {"type": "object"}
+        }
+      }
+    },
+    "answer": {"type": "string"},
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["claim_id", "text"],
+        "properties": {
+          "claim_id": {"type": "string", "minLength": 1},
+          "text": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "citations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["citation_id", "doc_id"],
+        "properties": {
+          "citation_id": {"type": "string", "minLength": 1},
+          "doc_id": {"type": "string", "minLength": 1},
+          "chunk_id": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "expected_primary_failure": {"$ref": "#/$defs/failure_label"},
+    "expected_stage": {"$ref": "#/$defs/stage_label"},
+    "expected_first_failing_node": {"type": ["string", "null"]},
+    "expected_root_cause": {"type": ["string", "null"]},
+    "expected_fix_category": {"type": ["string", "null"]},
+    "expected_affected_claim_ids": {"type": "array", "items": {"type": "string"}},
+    "expected_affected_doc_ids": {"type": "array", "items": {"type": "string"}},
+    "expected_human_review_required": {"type": "boolean"},
+    "acceptable_alternative_failures": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/failure_label"}
+    },
+    "failure_family": {
+      "type": "string",
+      "enum": [
+        "clean_pass",
+        "retrieval",
+        "grounding",
+        "citation",
+        "sufficiency",
+        "version_validity",
+        "security_privacy",
+        "answer_quality"
+      ]
+    },
+    "difficulty": {"type": "string", "enum": ["low", "medium", "high"]},
+    "adversarial": {"type": "boolean"},
+    "security_relevant": {"type": "boolean"},
+    "metadata_requirements": {"type": "array", "items": {"type": "string"}},
+    "labeler": {"type": "string", "minLength": 1},
+    "label_status": {"type": "string", "enum": ["seed", "reviewed", "adjudicated"]},
+    "label_confidence": {"type": "string", "enum": ["low", "medium", "high"]},
+    "notes": {"type": ["string", "null"]},
+    "calibration_split": {"type": "string", "enum": ["train", "calibration", "heldout", "unset"]},
+    "calibration_status": {
+      "type": "string",
+      "enum": ["seed", "reviewed", "adjudicated", "heldout_locked"]
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "created_at", "derived_from", "transformation_notes"],
+      "properties": {
+        "source": {"type": "string", "minLength": 1},
+        "created_at": {"type": "string", "minLength": 1},
+        "derived_from": {"type": "string", "minLength": 1},
+        "transformation_notes": {"type": "string"}
+      }
+    }
+  },
+  "$defs": {
+    "failure_label": {
+      "type": "string",
+      "enum": [
+        "CLEAN",
+        "CITATION_MISMATCH",
+        "UNSUPPORTED_CLAIM",
+        "CONTRADICTED_CLAIM",
+        "STALE_RETRIEVAL",
+        "SCOPE_VIOLATION",
+        "PROMPT_INJECTION",
+        "INSUFFICIENT_CONTEXT",
+        "RETRIEVAL_ANOMALY",
+        "RETRIEVAL_DEPTH_LIMIT",
+        "INCONSISTENT_CHUNKS",
+        "POST_RATIONALIZED_CITATION",
+        "LOW_CONFIDENCE",
+        "PRIVACY_VIOLATION",
+        "SUSPICIOUS_CHUNK",
+        "TABLE_STRUCTURE_LOSS",
+        "HIERARCHY_FLATTENING",
+        "METADATA_LOSS",
+        "PARSER_STRUCTURE_LOSS",
+        "CHUNKING_BOUNDARY_ERROR",
+        "EMBEDDING_DRIFT",
+        "RERANKER_FAILURE",
+        "GENERATION_IGNORE",
+        "INCOMPLETE_DIAGNOSIS"
+      ]
+    },
+    "stage_label": {
+      "type": "string",
+      "enum": [
+        "PARSING",
+        "CHUNKING",
+        "EMBEDDING",
+        "RETRIEVAL",
+        "RERANKING",
+        "CONTEXT_ASSEMBLY",
+        "GROUNDING",
+        "SUFFICIENCY",
+        "GENERATION",
+        "CITATION",
+        "SECURITY",
+        "CONFIDENCE",
+        "UNKNOWN"
+      ]
+    }
+  }
+}
