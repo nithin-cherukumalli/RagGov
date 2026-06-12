@@ -92,6 +92,11 @@ class ScopeViolationAnalyzer(BaseAnalyzer):
             )
 
         chunk_labels = {cp.chunk_id: cp.query_relevance_label for cp in profile.chunks}
+        relevant = [
+            chunk
+            for chunk in run.retrieved_chunks
+            if chunk_labels.get(chunk.chunk_id) == QueryRelevanceLabel.RELEVANT
+        ]
         irrelevant = [
             chunk
             for chunk in run.retrieved_chunks
@@ -113,6 +118,8 @@ class ScopeViolationAnalyzer(BaseAnalyzer):
                 _REMEDIATION,
                 analysis_source="retrieval_evidence_profile",
             )
+        if len(irrelevant) <= len(relevant):
+            return self._pass(analysis_source="retrieval_evidence_profile")
         return self._warn(
             FailureType.SCOPE_VIOLATION,
             FailureStage.RETRIEVAL,

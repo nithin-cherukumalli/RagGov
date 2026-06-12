@@ -106,10 +106,12 @@ def test_skips_when_no_generated_answer() -> None:
 
 
 def test_detects_missing_citation() -> None:
-    result, report = analyze(run_with_records([claim_record("claim-1")]))
+    result, report = analyze(
+        run_with_records([claim_record("claim-1", supporting_chunk_ids=["c1"])])
+    )
 
     record = report.records[0]
-    assert result.status == "warn"
+    assert result.status == "fail"
     assert record.citation_support_label == CitationSupportLabel.CITATION_MISSING
     assert record.faithfulness_risk == CitationFaithfulnessRisk.HIGH
     assert report.missing_citation_claim_ids == ["claim-1"]

@@ -234,7 +234,7 @@ class TestScopeViolationProfile:
         assert result.status == "pass"
         assert result.analysis_source == "retrieval_evidence_profile"
 
-    def test_profile_warn_on_some_irrelevant(self):
+    def test_profile_passes_when_relevant_chunks_cover_irrelevant_tail(self):
         profile = RetrievalEvidenceProfile(
             chunks=[
                 chunk_profile("c1", label=QueryRelevanceLabel.RELEVANT),
@@ -246,8 +246,8 @@ class TestScopeViolationProfile:
             profile,
         )
         result = ScopeViolationAnalyzer().analyze(r)
-        assert result.status == "warn"
-        assert result.failure_type == FailureType.SCOPE_VIOLATION
+        assert result.status == "pass"
+        assert result.failure_type is None
         assert result.analysis_source == "retrieval_evidence_profile"
 
     def test_profile_fail_when_all_irrelevant(self):

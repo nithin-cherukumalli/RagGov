@@ -89,7 +89,7 @@ def test_retrieval_anomaly_skips_without_scores() -> None:
     assert result.evidence == ["no retrieval scores available"]
 
 
-def test_retrieval_anomaly_alone_is_retrieval_stage() -> None:
+def test_retrieval_anomaly_duplicate_chunks_fail_at_retrieval_stage() -> None:
     result = RetrievalAnomalyAnalyzer().analyze(
         run_with_chunks(
             [
@@ -99,7 +99,7 @@ def test_retrieval_anomaly_alone_is_retrieval_stage() -> None:
         )
     )
 
-    assert result.status == "warn"
+    assert result.status == "fail"
     assert result.failure_type == FailureType.RETRIEVAL_ANOMALY
     assert result.stage == FailureStage.RETRIEVAL
     assert result.evidence == [

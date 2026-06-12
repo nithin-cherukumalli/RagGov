@@ -111,7 +111,7 @@ class CitationFaithfulnessAnalyzerV0(BaseAnalyzer):
                 citation_faithfulness_report=report,
             )
 
-        if self._legacy_partial_citation_support(report):
+        if self._legacy_partial_citation_support(report, run):
             return AnalyzerResult(
                 analyzer_name=self.name(),
                 status="fail",
@@ -125,6 +125,17 @@ class CitationFaithfulnessAnalyzerV0(BaseAnalyzer):
             )
 
         if report.unsupported_claim_ids and self._answer_has_explicit_citation_marker(run) and self._answer_has_specific_value(run):
+            return AnalyzerResult(
+                analyzer_name=self.name(),
+                status="fail",
+                failure_type=FailureType.CITATION_MISMATCH,
+                stage=FailureStage.GROUNDING,
+                evidence=evidence,
+                remediation=_REMEDIATION,
+                citation_faithfulness_report=report,
+            )
+
+        if report.missing_citation_claim_ids and self._missing_citation_is_isolated(run, report):
             return AnalyzerResult(
                 analyzer_name=self.name(),
                 status="fail",
@@ -596,6 +607,36 @@ class CitationFaithfulnessAnalyzerV0(BaseAnalyzer):
 
         return bool(re.search(r"\b\d{2,4}\b|[$₹€£]\s*\d|\b\d+(?:\.\d+)?\s*%", run.final_answer))
 
+    def _missing_citation_is_isolated(
+        self, run: RAGRun, report: CitationFaithfulnessReport
+    ) -> bool:
+        if run.cited_doc_ids:
+            return False
+        if len(run.retrieved_chunks) != 1:
+            return False
+        if not any(record.supporting_chunk_ids for record in report.records):
+            return False
+        if self._answer_looks_like_abstention(run):
+            return False
+        profile = run.retrieval_evidence_profile
+        if profile is not None and profile.noisy_chunk_ids:
+            return False
+        return True
+
+    def _answer_looks_like_abstention(self, run: RAGRun) -> bool:
+        answer = run.final_answer.lower()
+        return any(
+            marker in answer
+            for marker in (
+                "i don't have",
+                "i do not have",
+                "not enough information",
+                "cannot determine",
+                "can't determine",
+                "not available",
+            )
+        )
+
     def _imprecise_doc_level_citation(self, run: RAGRun) -> bool:
         if len(run.cited_doc_ids) != 1:
             return False
@@ -652,12 +693,20 @@ class CitationFaithfulnessAnalyzerV0(BaseAnalyzer):
             return CitationFaithfulnessRisk.HIGH
         return CitationFaithfulnessRisk.UNKNOWN
 
-    def _legacy_partial_citation_support(self, report: CitationFaithfulnessReport) -> bool:
-        return any(
-            record.citation_support_label == CitationSupportLabel.PARTIALLY_SUPPORTED
-            and record.evidence_source == CitationEvidenceSource.LEGACY_CITATION_IDS
-            for record in report.records
-        )
+    def _legacy_partial_citation_support(
+        self, report: CitationFaithfulnessReport, run: RAGRun
+    ) -> bool:
+        for record in report.records:
+            if record.citation_support_label != CitationSupportLabel.PARTIALLY_SUPPORTED:
+                continue
+            if record.evidence_source != CitationEvidenceSource.LEGACY_CITATION_IDS:
+                continue
+            best_supporting_chunk_ids = record.supporting_chunk_ids[:1]
+            best_supporting_doc_ids = self._doc_ids_for_chunks(run, best_supporting_chunk_ids)
+            if best_supporting_doc_ids and set(record.cited_doc_ids) & best_supporting_doc_ids:
+                continue
+            return True
+        return False
 
     def _evidence(self, report: CitationFaithfulnessReport) -> list[str]:
         counts: dict[str, int] = {}

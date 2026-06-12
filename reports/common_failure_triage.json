@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-12T04:53:55.742504+00:00",
+  "generated_at": "2026-06-12T06:21:49.864710+00:00",
   "modes": {
     "external-enhanced": {
       "category_stats": {
@@ -97,7 +97,7 @@
           "false_incomplete": false,
           "false_security": false,
           "likely_code_cause": "Expected evidence exists but decision policy selected a different higher-ranked failure.",
-          "likely_failing_analyzer": "RetrievalAnomalyAnalyzer (warn-level evidence not final)"
+          "likely_failing_analyzer": "RetrievalAnomalyAnalyzer (emitted expected evidence)"
         },
         {
           "actual_first_failing_node": "claim_support",
@@ -240,7 +240,7 @@
           "false_incomplete": false,
           "false_security": false,
           "likely_code_cause": "Expected evidence exists but decision policy selected a different higher-ranked failure.",
-          "likely_failing_analyzer": "RetrievalAnomalyAnalyzer (warn-level evidence not final)"
+          "likely_failing_analyzer": "RetrievalAnomalyAnalyzer (emitted expected evidence)"
         },
         {
           "actual_first_failing_node": null,

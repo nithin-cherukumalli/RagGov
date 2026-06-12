@@ -2,63 +2,61 @@
 
 - Status: `warn`
 - Branch: `main`
-- Last commit: `cf0fc4e`
+- Last commit: `d74791b`
 - Recommended action: Review warnings, then proceed only with a narrow harness-safe patch.
 
 ## Dirty Files
+- `reports/common_failure_coverage_matrix.md`
 - `reports/common_failure_triage.json`
 - `reports/common_failure_triage.md`
-- `reports/harness_post_edit_validation.json`
-- `reports/harness_post_edit_validation.md`
 - `reports/harness_preflight_report.json`
 - `reports/harness_preflight_report.md`
 - `reports/workspace_audit.json`
 - `reports/workspace_audit.md`
-- `src/raggov/cli.py`
+- `scripts/check_protected_baseline.py`
+- `src/raggov/analyzers/citation_faithfulness/analyzer.py`
+- `src/raggov/analyzers/retrieval/scope.py`
+- `src/raggov/analyzers/retrieval_diagnosis/retrieval_diagnosis.py`
+- `src/raggov/analyzers/security/anomalies.py`
 - `src/raggov/models/diagnosis.py`
-- `evals/govrag_calib/splits/heldout_v0_1.json`
-- `evals/govrag_calib/splits/heldout_v0_1.jsonl`
-- `reports/baseline_pin_v0_1_alpha_public_decision.md`
-- `reports/calib50_step2_result.json`
-- `reports/calib50_step2_result.md`
-- `tests/test_cli/`
-- `tests/test_models/test_human_review_escalation.py`
+- `tests/test_analyzers/test_citation_faithfulness_v0.py`
+- `tests/test_analyzers/test_retrieval_profile_integration.py`
+- `tests/test_analyzers/test_security.py`
+- `reports/baseline_pin_v0_1_alpha_public_migration.md`
+- `reports/codex_session/`
+- `reports/forensics_v0_1_warn_promotion_pre_registration.md`
+- `reports/forensics_v0_1_warn_promotion_result.md`
+- `tests/test_analyzers/test_analyzer_calibration.py`
 
 ## Deleted Tracked Files
 - None
 
 ## Untracked Files
-- `evals/govrag_calib/splits/heldout_v0_1.json`
-- `evals/govrag_calib/splits/heldout_v0_1.jsonl`
-- `reports/baseline_pin_v0_1_alpha_public_decision.md`
-- `reports/calib50_step2_result.json`
-- `reports/calib50_step2_result.md`
-- `tests/test_cli/`
-- `tests/test_models/test_human_review_escalation.py`
+- `reports/baseline_pin_v0_1_alpha_public_migration.md`
+- `reports/codex_session/`
+- `reports/forensics_v0_1_warn_promotion_pre_registration.md`
+- `reports/forensics_v0_1_warn_promotion_result.md`
+- `tests/test_analyzers/test_analyzer_calibration.py`
 
 ## Protected Changes
-- `evals/govrag_calib/splits/heldout_v0_1.json`
-- `evals/govrag_calib/splits/heldout_v0_1.jsonl`
-- `reports/baseline_pin_v0_1_alpha_public_decision.md`
-- `reports/calib50_step2_result.json`
-- `reports/calib50_step2_result.md`
+- `reports/baseline_pin_v0_1_alpha_public_migration.md`
 - `reports/common_failure_triage.json`
 - `reports/common_failure_triage.md`
-- `reports/harness_post_edit_validation.json`
-- `reports/harness_post_edit_validation.md`
-- `src/raggov/cli.py`
+- `reports/forensics_v0_1_warn_promotion_pre_registration.md`
+- `reports/forensics_v0_1_warn_promotion_result.md`
+- `scripts/check_protected_baseline.py`
 
 ## Threshold Or Gate Changes
-- `evals/govrag_calib/splits/heldout_v0_1.jsonl`
-- `reports/baseline_pin_v0_1_alpha_public_decision.md`
-- `reports/calib50_step2_result.json`
-- `reports/calib50_step2_result.md`
-- `reports/harness_post_edit_validation.json`
-- `reports/harness_post_edit_validation.md`
+- `reports/baseline_pin_v0_1_alpha_public_migration.md`
+- `reports/forensics_v0_1_warn_promotion_pre_registration.md`
+- `reports/forensics_v0_1_warn_promotion_result.md`
 - `reports/harness_preflight_report.json`
 - `reports/harness_preflight_report.md`
-- `src/raggov/cli.py`
+- `src/raggov/analyzers/retrieval/scope.py`
+- `src/raggov/analyzers/retrieval_diagnosis/retrieval_diagnosis.py`
+- `src/raggov/analyzers/security/anomalies.py`
 - `src/raggov/models/diagnosis.py`
+- `tests/test_analyzers/test_security.py`
 
 ## Benchmark Summary
 ```json

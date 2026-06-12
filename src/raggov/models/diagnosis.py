@@ -455,11 +455,11 @@ class Diagnosis(BaseModel):
         }
         if self.primary_failure in high_oversight_failures:
             return True
-            
+
         # 4. Trigger if any secondary failures are high-oversight types
         if any(f in high_oversight_failures for f in self.secondary_failures):
             return True
-            
+
         return False
 
     def summary(self) -> str:

@@ -322,35 +322,38 @@ class RetrievalDiagnosisAnalyzerV0(BaseAnalyzer):
             noise_min_chunks = int(self.config.get("noise_min_chunks", 2))
             noise_ratio_fail = float(self.config.get("noise_ratio_fail", 0.9))
             noise_fail_min_chunks = int(self.config.get("noise_fail_min_chunks", 5))
-            status = (
-                "fail"
-                if noise_ratio >= noise_ratio_fail
-                and len(noisy_chunk_ids) >= noise_fail_min_chunks
-                else "warn"
-            )
-            report = self._report(
-                run=run,
-                primary_failure_type=RetrievalFailureType.RETRIEVAL_NOISE,
-                noisy_chunk_ids=noisy_chunk_ids,
-                evidence_signals=[
-                    RetrievalEvidenceSignal(
-                        signal_name="noisy_chunk_ids",
-                        value=len(noisy_chunk_ids),
-                        source_report="RetrievalEvidenceProfile",
-                        source_ids=noisy_chunk_ids,
-                        interpretation="Existing retrieval evidence profile marked chunks as noise.",
-                        limitation="Thresholds are heuristic and uncalibrated.",
-                    )
-                ],
-                recommended_fix="Tune retriever filters, query rewriting, and ranking to reduce noisy chunks.",
-                limitations=[
-                    f"noise_ratio_warn={noise_ratio_warn}",
-                    f"noise_min_chunks={noise_min_chunks}",
-                    f"noise_ratio_fail={noise_ratio_fail}",
-                    f"noise_fail_min_chunks={noise_fail_min_chunks}",
-                ],
-            )
-            return self._result(status, report, FailureType.RETRIEVAL_ANOMALY, report.recommended_fix)
+            if noise_ratio < noise_ratio_warn or len(noisy_chunk_ids) < noise_min_chunks:
+                noisy_chunk_ids = []
+            else:
+                status = (
+                    "fail"
+                    if noise_ratio >= noise_ratio_fail
+                    and len(noisy_chunk_ids) >= noise_fail_min_chunks
+                    else "warn"
+                )
+                report = self._report(
+                    run=run,
+                    primary_failure_type=RetrievalFailureType.RETRIEVAL_NOISE,
+                    noisy_chunk_ids=noisy_chunk_ids,
+                    evidence_signals=[
+                        RetrievalEvidenceSignal(
+                            signal_name="noisy_chunk_ids",
+                            value=len(noisy_chunk_ids),
+                            source_report="RetrievalEvidenceProfile",
+                            source_ids=noisy_chunk_ids,
+                            interpretation="Existing retrieval evidence profile marked chunks as noise.",
+                            limitation="Thresholds are heuristic and uncalibrated.",
+                        )
+                    ],
+                    recommended_fix="Tune retriever filters, query rewriting, and ranking to reduce noisy chunks.",
+                    limitations=[
+                        f"noise_ratio_warn={noise_ratio_warn}",
+                        f"noise_min_chunks={noise_min_chunks}",
+                        f"noise_ratio_fail={noise_ratio_fail}",
+                        f"noise_fail_min_chunks={noise_fail_min_chunks}",
+                    ],
+                )
+                return self._result(status, report, FailureType.RETRIEVAL_ANOMALY, report.recommended_fix)
 
         if self._rank_failure_unknown(run, unsupported_claims):
             candidate_chunk_ids = self._candidate_chunk_ids(unsupported_claims)

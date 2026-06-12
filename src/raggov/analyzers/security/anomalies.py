@@ -46,7 +46,8 @@ class RetrievalAnomalyAnalyzer(BaseAnalyzer):
         evidence.extend(self._score_cliff(scored_chunks))
 
         if evidence:
-            return self._warn(
+            result = self._fail if self._has_near_duplicate_evidence(evidence) else self._warn
+            return result(
                 FailureType.RETRIEVAL_ANOMALY,
                 FailureStage.RETRIEVAL,
                 evidence,
@@ -119,6 +120,9 @@ class RetrievalAnomalyAnalyzer(BaseAnalyzer):
                         f"overlap={overlap:.2f}"
                     )
         return evidence
+
+    def _has_near_duplicate_evidence(self, evidence: list[str]) -> bool:
+        return any(item.startswith("near duplicate chunks ") for item in evidence)
 
     def _score_cliff(self, chunks: list[RetrievedChunk]) -> list[str]:
         if len(chunks) < 2:

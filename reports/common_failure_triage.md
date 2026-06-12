@@ -1,6 +1,6 @@
 # Common Failure Triage
 
-Generated: `2026-06-12T04:53:55.742504+00:00`
+Generated: `2026-06-12T06:21:49.864710+00:00`
 
 ## native
 
@@ -28,7 +28,7 @@ False INCOMPLETE: 0
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | `retrieval_top_k_too_small_08` | retrieval | `RETRIEVAL_DEPTH_LIMIT` / `RETRIEVAL` | `UNSUPPORTED_CLAIM` / `GROUNDING` | none | RetrievalDiagnosisAnalyzerV0 | Retrieval evidence is generated but subtype mapping remains too coarse for this fixture. |
 | `grounding_date_hallucination_20` | grounding | `UNSUPPORTED_CLAIM` / `GROUNDING` | `INSUFFICIENT_CONTEXT` / `SUFFICIENCY` | none | ClaimGroundingAnalyzer (emitted expected evidence) | Expected evidence exists but decision policy selected a different higher-ranked failure. |
-| `security_retrieval_anomaly_only_36` | security | `RETRIEVAL_ANOMALY` / `RETRIEVAL` | `UNSUPPORTED_CLAIM` / `GROUNDING` | none | RetrievalAnomalyAnalyzer (warn-level evidence not final) | Expected evidence exists but decision policy selected a different higher-ranked failure. |
+| `security_retrieval_anomaly_only_36` | security | `RETRIEVAL_ANOMALY` / `RETRIEVAL` | `UNSUPPORTED_CLAIM` / `GROUNDING` | none | RetrievalAnomalyAnalyzer (emitted expected evidence) | Expected evidence exists but decision policy selected a different higher-ranked failure. |
 | `quality_incomplete_38` | answer_quality | `UNSUPPORTED_CLAIM` / `GENERATION` | `UNSUPPORTED_CLAIM` / `GROUNDING` | none | ClaimGroundingAnalyzer/SemanticEntropyAnalyzer/CitationFaithfulnessAnalyzerV0 | Expected evidence exists but decision policy selected a different higher-ranked failure. |
 | `quality_ignores_context_41` | answer_quality | `CONTRADICTED_CLAIM` / `GENERATION` | `UNSUPPORTED_CLAIM` / `GROUNDING` | none | ClaimGroundingAnalyzer/SemanticEntropyAnalyzer/CitationFaithfulnessAnalyzerV0 | Expected evidence exists but decision policy selected a different higher-ranked failure. |
 
@@ -58,6 +58,6 @@ False INCOMPLETE: 0
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | `retrieval_top_k_too_small_08` | retrieval | `RETRIEVAL_DEPTH_LIMIT` / `RETRIEVAL` | `UNSUPPORTED_CLAIM` / `GROUNDING` | none | RetrievalDiagnosisAnalyzerV0 | Retrieval evidence is generated but subtype mapping remains too coarse for this fixture. |
 | `grounding_date_hallucination_20` | grounding | `UNSUPPORTED_CLAIM` / `GROUNDING` | `INSUFFICIENT_CONTEXT` / `SUFFICIENCY` | none | ClaimGroundingAnalyzer (emitted expected evidence) | Expected evidence exists but decision policy selected a different higher-ranked failure. |
-| `security_retrieval_anomaly_only_36` | security | `RETRIEVAL_ANOMALY` / `RETRIEVAL` | `UNSUPPORTED_CLAIM` / `GROUNDING` | none | RetrievalAnomalyAnalyzer (warn-level evidence not final) | Expected evidence exists but decision policy selected a different higher-ranked failure. |
+| `security_retrieval_anomaly_only_36` | security | `RETRIEVAL_ANOMALY` / `RETRIEVAL` | `UNSUPPORTED_CLAIM` / `GROUNDING` | none | RetrievalAnomalyAnalyzer (emitted expected evidence) | Expected evidence exists but decision policy selected a different higher-ranked failure. |
 | `quality_incomplete_38` | answer_quality | `UNSUPPORTED_CLAIM` / `GENERATION` | `UNSUPPORTED_CLAIM` / `GROUNDING` | none | ClaimGroundingAnalyzer/SemanticEntropyAnalyzer/CitationFaithfulnessAnalyzerV0 | Expected evidence exists but decision policy selected a different higher-ranked failure. |
 | `quality_ignores_context_41` | answer_quality | `CONTRADICTED_CLAIM` / `GENERATION` | `UNSUPPORTED_CLAIM` / `GROUNDING` | none | ClaimGroundingAnalyzer/SemanticEntropyAnalyzer/CitationFaithfulnessAnalyzerV0 | Expected evidence exists but decision policy selected a different higher-ranked failure. |

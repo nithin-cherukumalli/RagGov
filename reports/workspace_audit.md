@@ -2,7 +2,7 @@
 
 - Status: `warn`
 - Branch: `main`
-- Last commit: `cf0fc4e`
+- Last commit: `d74791b`
 - Recommended action: Stop and review deleted/protected files before editing.
 
 ## Git Dirty
@@ -11,42 +11,36 @@
 ## Dirty Files
 - `reports/common_failure_triage.json`
 - `reports/common_failure_triage.md`
-- `reports/harness_post_edit_validation.json`
-- `reports/harness_post_edit_validation.md`
 - `reports/harness_preflight_report.json`
 - `reports/harness_preflight_report.md`
-- `src/raggov/cli.py`
+- `scripts/check_protected_baseline.py`
 - `src/raggov/models/diagnosis.py`
-- `reports/calib50_step2_result.json`
-- `reports/calib50_step2_result.md`
-- `tests/test_cli/`
-- `tests/test_models/test_human_review_escalation.py`
+- `reports/baseline_pin_v0_1_alpha_public_migration.md`
+- `reports/forensics_v0_1_warn_promotion_pre_registration.md`
+- `reports/forensics_v0_1_warn_promotion_result.md`
 
 ## Deleted Tracked Files
 - None
 
 ## Untracked Files
-- `reports/calib50_step2_result.json`
-- `reports/calib50_step2_result.md`
-- `tests/test_cli/`
-- `tests/test_models/test_human_review_escalation.py`
+- `reports/baseline_pin_v0_1_alpha_public_migration.md`
+- `reports/forensics_v0_1_warn_promotion_pre_registration.md`
+- `reports/forensics_v0_1_warn_promotion_result.md`
 
 ## Protected Files Changed
-- `reports/calib50_step2_result.json`
-- `reports/calib50_step2_result.md`
+- `reports/baseline_pin_v0_1_alpha_public_migration.md`
 - `reports/common_failure_triage.json`
 - `reports/common_failure_triage.md`
-- `reports/harness_post_edit_validation.json`
-- `reports/harness_post_edit_validation.md`
-- `src/raggov/cli.py`
+- `reports/forensics_v0_1_warn_promotion_pre_registration.md`
+- `reports/forensics_v0_1_warn_promotion_result.md`
+- `scripts/check_protected_baseline.py`
 
 ## Generated Reports Changed
-- `reports/calib50_step2_result.json`
-- `reports/calib50_step2_result.md`
+- `reports/baseline_pin_v0_1_alpha_public_migration.md`
 - `reports/common_failure_triage.json`
 - `reports/common_failure_triage.md`
-- `reports/harness_post_edit_validation.json`
-- `reports/harness_post_edit_validation.md`
+- `reports/forensics_v0_1_warn_promotion_pre_registration.md`
+- `reports/forensics_v0_1_warn_promotion_result.md`
 - `reports/harness_preflight_report.json`
 - `reports/harness_preflight_report.md`
 

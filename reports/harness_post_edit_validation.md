@@ -4,7 +4,6 @@
 - Recommended action: Stop and investigate baseline regressions or protected edits.
 
 ## Changed Files
-- `reports/common_failure_coverage_matrix.md`
 - `reports/common_failure_triage.json`
 - `reports/common_failure_triage.md`
 - `reports/harness_post_edit_validation.json`
@@ -13,19 +12,20 @@
 - `reports/harness_preflight_report.md`
 - `reports/workspace_audit.json`
 - `reports/workspace_audit.md`
-- `src/raggov/analyzers/answer_quality/analyzer.py`
-- `src/raggov/analyzers/grounding/evidence_layer.py`
-- `src/raggov/analyzers/grounding/verifiers.py`
+- `scripts/check_protected_baseline.py`
+- `src/raggov/analyzers/citation_faithfulness/analyzer.py`
+- `src/raggov/analyzers/retrieval/scope.py`
 - `src/raggov/analyzers/retrieval_diagnosis/retrieval_diagnosis.py`
-- `src/raggov/analyzers/verification/ncv_priority.py`
-- `src/raggov/cli.py`
-- `src/raggov/decision_policy_support.py`
-- `src/raggov/engine.py`
+- `src/raggov/analyzers/security/anomalies.py`
 - `src/raggov/models/diagnosis.py`
-- `reports/calib50_step2_result.json`
-- `reports/calib50_step2_result.md`
-- `tests/test_cli/`
-- `tests/test_models/test_human_review_escalation.py`
+- `tests/test_analyzers/test_citation_faithfulness_v0.py`
+- `tests/test_analyzers/test_retrieval_profile_integration.py`
+- `tests/test_analyzers/test_security.py`
+- `reports/baseline_pin_v0_1_alpha_public_migration.md`
+- `reports/codex_session/`
+- `reports/forensics_v0_1_warn_promotion_pre_registration.md`
+- `reports/forensics_v0_1_warn_promotion_result.md`
+- `tests/test_analyzers/test_analyzer_calibration.py`
 
 ## Risk Classification
 ```json
@@ -35,29 +35,29 @@
     "reports/common_failure_triage.md"
   ],
   "high": [
-    "src/raggov/analyzers/answer_quality/analyzer.py",
-    "src/raggov/analyzers/grounding/evidence_layer.py",
-    "src/raggov/analyzers/grounding/verifiers.py",
+    "src/raggov/analyzers/citation_faithfulness/analyzer.py",
+    "src/raggov/analyzers/retrieval/scope.py",
     "src/raggov/analyzers/retrieval_diagnosis/retrieval_diagnosis.py",
-    "src/raggov/analyzers/verification/ncv_priority.py",
-    "src/raggov/decision_policy_support.py",
-    "src/raggov/engine.py"
+    "src/raggov/analyzers/security/anomalies.py"
   ],
   "low": [
-    "reports/calib50_step2_result.json",
-    "reports/calib50_step2_result.md",
-    "reports/common_failure_coverage_matrix.md",
+    "reports/baseline_pin_v0_1_alpha_public_migration.md",
+    "reports/codex_session/",
+    "reports/forensics_v0_1_warn_promotion_pre_registration.md",
+    "reports/forensics_v0_1_warn_promotion_result.md",
     "reports/harness_post_edit_validation.json",
     "reports/harness_post_edit_validation.md",
     "reports/harness_preflight_report.json",
     "reports/harness_preflight_report.md",
     "reports/workspace_audit.json",
     "reports/workspace_audit.md",
-    "tests/test_cli/",
-    "tests/test_models/test_human_review_escalation.py"
+    "tests/test_analyzers/test_analyzer_calibration.py",
+    "tests/test_analyzers/test_citation_faithfulness_v0.py",
+    "tests/test_analyzers/test_retrieval_profile_integration.py",
+    "tests/test_analyzers/test_security.py"
   ],
   "medium": [
-    "src/raggov/cli.py",
+    "scripts/check_protected_baseline.py",
     "src/raggov/models/diagnosis.py"
   ]
 }
@@ -90,23 +90,23 @@
 ## Benchmark After
 ```json
 {
-  "generated_at": "2026-06-11T16:59:07.760413+00:00",
+  "generated_at": "2026-06-12T06:21:49.864710+00:00",
   "modes": {
     "external-enhanced": {
       "category_stats": {
         "answer_quality": {
-          "pass_rate": 0.8333333333333334,
-          "passed": 5,
+          "pass_rate": 0.6666666666666666,
+          "passed": 4,
           "total": 6
         },
         "citation": {
-          "pass_rate": 0.8,
-          "passed": 4,
+          "pass_rate": 1.0,
+          "passed": 5,
           "total": 5
         },
         "grounding": {
-          "pass_rate": 1.0,
-          "passed": 7,
+          "pass_rate": 0.8571428571428571,
+          "passed": 6,
           "total": 7
         },
         "parser_chunking": {
@@ -155,22 +155,22 @@
           "likely_failing_analyzer": "RetrievalDiagnosisAnalyzerV0"
         },
         {
-          "actual_first_failing_node": "claim_support",
-          "actual_fix": "Audit citation logic. Model cited documents outside the retrieved context window.",
-          "actual_primary_failure": "CITATION_MISMATCH",
-          "actual_stage": "RETRIEVAL",
-          "case_id": "citation_phantom_23",
-          "category": "citation",
+          "actual_first_failing_node": "retrieval_coverage",
+          "actual_fix": "Expand retrieval to include effective dates, version metadata, or current lifecycle state before answering.",
+          "actual_primary_failure": "INSUFFICIENT_CONTEXT",
+          "actual_stage": "SUFFICIENCY",
+          "case_id": "grounding_date_hallucination_20",
+          "category": "grounding",
           "expected_first_failing_node": null,
-          "expected_fix": "CITATION_FILTERING",
-          "expected_primary_failure": "CITATION_MISMATCH",
+          "expected_fix": "TEMPORAL_VERIFICATION",
+          "expected_primary_failure": "UNSUPPORTED_CLAIM",
           "expected_stage": "GROUNDING",
           "external_probes": [],
           "false_clean": false,
           "false_incomplete": false,
           "false_security": false,
           "likely_code_cause": "Expected evidence exists but decision policy selected a different higher-ranked failure.",
-          "likely_failing_analyzer": "CitationFaithfulnessAnalyzerV0 (warn-level evidence not final)"
+          "likely_failing_analyzer": "ClaimGroundingAnalyzer (emitted expected evidence)"
         },
         {
           "actual_first_failing_node": "context_assembly",
@@ -188,50 +188,68 @@
           "false_incomplete": false,
           "false_security": false,
           "likely_code_cause": "Expected evidence exists but decision policy selected a different higher-ranked failure.",
-          "likely_failing_analyzer": "RetrievalAnomalyAnalyzer (warn-level evidence not final)"
+          "likely_failing_analyzer": "RetrievalAnomalyAnalyzer (emitted expected evidence)"
         },
         {
           "actual_first_failing_node": "claim_support",
-          "actual_fix": "Strengthen generation grounding instructions so retrieved context controls the answer.",
+          "actual_fix": "1 of 1 claims are unsupported by retrieved context. Review retrieval quality or add source verification.",
           "actual_primary_failure": "UNSUPPORTED_CLAIM",
-          "actual_stage": "GENERATION",
-          "case_id": "quality_overconfident_weak_evidence_42",
+          "actual_stage": "GROUNDING",
+          "case_id": "quality_incomplete_38",
           "category": "answer_quality",
           "expected_first_failing_node": null,
-          "expected_fix": "CALIBRATION_TRAINING",
+          "expected_fix": "COMPLETENESS_VERIFICATION",
           "expected_primary_failure": "UNSUPPORTED_CLAIM",
-          "expected_stage": "GROUNDING",
+          "expected_stage": "GENERATION",
           "external_probes": [],
           "false_clean": false,
           "false_incomplete": false,
           "false_security": false,
           "likely_code_cause": "Expected evidence exists but decision policy selected a different higher-ranked failure.",
-          "likely_failing_analyzer": "ClaimGroundingAnalyzer (emitted expected evidence)"
+          "likely_failing_analyzer": "ClaimGroundingAnalyzer/SemanticEntropyAnalyzer/CitationFaithfulnessAnalyzerV0"
+        },
+        {
+          "actual_first_failing_node": "retrieval_coverage",
+          "actual_fix": "1 of 1 claims are unsupported by retrieved context. Review retrieval quality or add source verification.",
+          "actual_primary_failure": "UNSUPPORTED_CLAIM",
+          "actual_stage": "GROUNDING",
+          "case_id": "quality_ignores_context_41",
+          "category": "answer_quality",
+          "expected_first_failing_node": null,
+          "expected_fix": "GROUNDING_PROMPT_FIX",
+          "expected_primary_failure": "CONTRADICTED_CLAIM",
+          "expected_stage": "GENERATION",
+          "external_probes": [],
+          "false_clean": false,
+          "false_incomplete": false,
+          "false_security": false,
+          "likely_code_cause": "Expected evidence exists but decision policy selected a different higher-ranked failure.",
+          "likely_failing_analyzer": "ClaimGroundingAnalyzer/SemanticEntropyAnalyzer/CitationFaithfulnessAnalyzerV0"
         }
       ],
       "false_clean_count": 0,
       "false_incomplete_count": 0,
       "false_security_count": 0,
       "mode": "external-enhanced",
-      "pass_rate": 0.9130434782608695,
-      "passed_cases": 42,
+      "pass_rate": 0.8913043478260869,
+      "passed_cases": 41,
       "total_cases": 46
     },
     "native": {
       "category_stats": {
         "answer_quality": {
-          "pass_rate": 0.8333333333333334,
-          "passed": 5,
+          "pass_rate": 0.6666666666666666,
+          "passed": 4,
           "total": 6
         },
         "citation": {
-          "pass_rate": 0.8,
-          "passed": 4,
+          "pass_rate": 1.0,
+          "passed": 5,
           "total": 5
         },
         "grounding": {
-          "pass_rate": 1.0,
-          "passed": 7,
+          "pass_rate": 0.8571428571428571,
+          "passed": 6,
           "total": 7
         },
         "parser_chunking": {
@@ -281,21 +299,21 @@
         },
         {
           "actual_first_failing_node": null,
-          "actual_fix": "Audit citation logic. Model cited documents outside the retrieved context window.",
-          "actual_primary_failure": "CITATION_MISMATCH",
-          "actual_stage": "RETRIEVAL",
-          "case_id": "citation_phantom_23",
-          "category": "citation",
+          "actual_fix": "Expand retrieval to include effective dates, version metadata, or current lifecycle state before answering.",
+          "actual_primary_failure": "INSUFFICIENT_CONTEXT",
+          "actual_stage": "SUFFICIENCY",
+          "case_id": "grounding_date_hallucination_20",
+          "category": "grounding",
           "expected_first_failing_node": null,
-          "expected_fix": "CITATION_FILTERING",
-          "expected_primary_failure": "CITATION_MISMATCH",
+          "expected_fix": "TEMPORAL_VERIFICATION",
+          "expected_primary_failure": "UNSUPPORTED_CLAIM",
           "expected_stage": "GROUNDING",
           "external_probes": [],
           "false_clean": false,
           "false_incomplete": false,
           "false_security": false,
           "likely_code_cause": "Expected evidence exists but decision policy selected a different higher-ranked failure.",
-          "likely_failing_analyzer": "CitationFaithfulnessAnalyzerV0 (warn-level evidence not final)"
+          "likely_failing_analyzer": "ClaimGroundingAnalyzer (emitted expected evidence)"
         },
         {
           "actual_first_failing_node": null,
@@ -313,33 +331,51 @@
           "false_incomplete": false,
           "false_security": false,
           "likely_code_cause": "Expected evidence exists but decision policy selected a different higher-ranked failure.",
-          "likely_failing_analyzer": "RetrievalAnomalyAnalyzer (warn-level evidence not final)"
+          "likely_failing_analyzer": "RetrievalAnomalyAnalyzer (emitted expected evidence)"
         },
         {
           "actual_first_failing_node": null,
-          "actual_fix": "Strengthen generation grounding instructions so retrieved context controls the answer.",
+          "actual_fix": "1 of 1 claims are unsupported by retrieved context. Review retrieval quality or add source verification.",
           "actual_primary_failure": "UNSUPPORTED_CLAIM",
-          "actual_stage": "GENERATION",
-          "case_id": "quality_overconfident_weak_evidence_42",
+          "actual_stage": "GROUNDING",
+          "case_id": "quality_incomplete_38",
           "category": "answer_quality",
           "expected_first_failing_node": null,
-          "expected_fix": "CALIBRATION_TRAINING",
+          "expected_fix": "COMPLETENESS_VERIFICATION",
           "expected_primary_failure": "UNSUPPORTED_CLAIM",
-          "expected_stage": "GROUNDING",
+          "expected_stage": "GENERATION",
           "external_probes": [],
           "false_clean": false,
           "false_incomplete": false,
           "false_security": false,
           "likely_code_cause": "Expected evidence exists but decision policy selected a different higher-ranked failure.",
-          "likely_failing_analyzer": "ClaimGroundingAnalyzer (emitted expected evidence)"
+          "likely_failing_analyzer": "ClaimGroundingAnalyzer/SemanticEntropyAnalyzer/CitationFaithfulnessAnalyzerV0"
+        },
+        {
+          "actual_first_failing_node": null,
+          "actual_fix": "1 of 1 claims are unsupported by retrieved context. Review retrieval quality or add source verification.",
+          "actual_primary_failure": "UNSUPPORTED_CLAIM",
+          "actual_stage": "GROUNDING",
+          "case_id": "quality_ignores_context_41",
+          "category": "answer_quality",
+          "expected_first_failing_node": null,
+          "expected_fix": "GROUNDING_PROMPT_FIX",
+          "expected_primary_failure": "CONTRADICTED_CLAIM",
+          "expected_stage": "GENERATION",
+          "external_probes": [],
+          "false_clean": false,
+          "false_incomplete": false,
+          "false_security": false,
+          "likely_code_cause": "Expected evidence exists but decision policy selected a different higher-ranked failure.",
+          "likely_failing_analyzer": "ClaimGroundingAnalyzer/SemanticEntropyAnalyzer/CitationFaithfulnessAnalyzerV0"
         }
       ],
       "false_clean_count": 0,
       "false_incomplete_count": 0,
       "false_security_count": 0,
       "mode": "native",
-      "pass_rate": 0.9130434782608695,
-      "passed_cases": 42,
+      "pass_rate": 0.8913043478260869,
+      "passed_cases": 41,
       "total_cases": 46
     }
   },
@@ -354,14 +390,14 @@
     "false_clean_count": 0,
     "false_incomplete_count": 0,
     "false_security_count": 0,
-    "passed": 42,
+    "passed": 41,
     "total": 46
   },
   "native": {
     "false_clean_count": 0,
     "false_incomplete_count": 0,
     "false_security_count": 0,
-    "passed": 42,
+    "passed": 41,
     "total": 46
   }
 }
@@ -380,26 +416,28 @@
 `False`
 
 ## Protected Changes
-- `reports/calib50_step2_result.json`
-- `reports/calib50_step2_result.md`
+- `reports/baseline_pin_v0_1_alpha_public_migration.md`
 - `reports/common_failure_triage.json`
 - `reports/common_failure_triage.md`
+- `reports/forensics_v0_1_warn_promotion_pre_registration.md`
+- `reports/forensics_v0_1_warn_promotion_result.md`
 - `reports/harness_post_edit_validation.json`
 - `reports/harness_post_edit_validation.md`
-- `src/raggov/cli.py`
+- `scripts/check_protected_baseline.py`
 
 ## Threshold Or Gate Changes
-- `reports/calib50_step2_result.json`
-- `reports/calib50_step2_result.md`
+- `reports/baseline_pin_v0_1_alpha_public_migration.md`
+- `reports/forensics_v0_1_warn_promotion_pre_registration.md`
+- `reports/forensics_v0_1_warn_promotion_result.md`
 - `reports/harness_post_edit_validation.json`
 - `reports/harness_post_edit_validation.md`
 - `reports/harness_preflight_report.json`
 - `reports/harness_preflight_report.md`
-- `src/raggov/analyzers/grounding/evidence_layer.py`
-- `src/raggov/analyzers/grounding/verifiers.py`
+- `src/raggov/analyzers/retrieval/scope.py`
 - `src/raggov/analyzers/retrieval_diagnosis/retrieval_diagnosis.py`
-- `src/raggov/cli.py`
+- `src/raggov/analyzers/security/anomalies.py`
 - `src/raggov/models/diagnosis.py`
+- `tests/test_analyzers/test_security.py`
 
 ## Protected Baseline Regressions
 - None
