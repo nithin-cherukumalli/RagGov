@@ -673,12 +673,119 @@ def _diagnosis_footer(diagnosis: Diagnosis, *, mode: str) -> str:
     )
 
 
+def _voting_analyzers(diagnosis: Diagnosis) -> list[str]:
+    """Analyzers whose status='fail' and failure_type matches the primary verdict.
+
+    These are the components that actually drove the diagnosis — surfacing them
+    lets an engineer jump straight to the right analyzer's code/config instead
+    of guessing.
+    """
+    if diagnosis.primary_failure == FailureType.CLEAN:
+        return []
+    return [
+        r.analyzer_name
+        for r in diagnosis.analyzer_results
+        if r.status == "fail" and r.failure_type == diagnosis.primary_failure
+    ]
+
+
+def _supporting_analyzers(diagnosis: Diagnosis) -> list[str]:
+    """Analyzers that fired at warn/fail with a non-primary failure_type.
+
+    These represent the differential — other concerns the engine saw but did
+    not promote to primary. Useful for engineers to confirm we didn't miss a
+    deeper issue underneath the named failure.
+    """
+    primary = diagnosis.primary_failure
+    seen: list[str] = []
+    for r in diagnosis.analyzer_results:
+        if r.status not in {"fail", "warn"}:
+            continue
+        if r.failure_type is None or r.failure_type == primary:
+            continue
+        label = f"{r.analyzer_name} ({r.failure_type.value}, {r.status})"
+        if label not in seen:
+            seen.append(label)
+    return seen
+
+
+def _inspect_next_target(diagnosis: Diagnosis) -> str | None:
+    """Concrete next-step pointer derived from existing structured fields.
+
+    Preference order: pinpoint location > root_cause_attribution >
+    first_failing_node > recommended_fix. Returns None if nothing concrete.
+    """
+    if diagnosis.pinpoint_findings:
+        loc = diagnosis.pinpoint_findings[0].location
+        parts: list[str] = []
+        if getattr(loc, "claim_id", None):
+            parts.append(f"claim={loc.claim_id}")
+        if getattr(loc, "chunk_id", None):
+            parts.append(f"chunk={loc.chunk_id}")
+        if getattr(loc, "doc_id", None):
+            parts.append(f"doc={loc.doc_id}")
+        if getattr(loc, "stage", None):
+            parts.append(f"stage={loc.stage}")
+        if parts:
+            return ", ".join(parts)
+    if diagnosis.root_cause_attribution:
+        return diagnosis.root_cause_attribution
+    if diagnosis.first_failing_node:
+        return f"node={diagnosis.first_failing_node}"
+    return None
+
+
+def _render_why_block(diagnosis: Diagnosis) -> list[str]:
+    """Engineer-facing 'Why this verdict?' provenance block.
+
+    Pure formatting over existing Diagnosis fields. Does NOT alter the verdict,
+    the analyzer set, or any decision. Designed to be pipeline- and
+    domain-agnostic: it shows which analyzer voted, what alternatives were
+    considered, and where to look next.
+    """
+    lines: list[str] = ["Why this verdict?"]
+    if diagnosis.primary_failure == FailureType.CLEAN:
+        warns = [r.analyzer_name for r in diagnosis.analyzer_results if r.status == "warn"]
+        if warns:
+            lines.append(
+                f"  Verdict: CLEAN. {len(warns)} analyzer(s) raised advisory warnings "
+                f"but none escalated to fail: {', '.join(warns[:5])}"
+            )
+        else:
+            lines.append("  Verdict: CLEAN. No analyzer flagged a failure.")
+        lines.append("  Voted by: (n/a — no failure to attribute)")
+        lines.append("  Also considered: (none)")
+        lines.append("  Inspect next: (n/a)")
+        return lines
+
+    voters = _voting_analyzers(diagnosis)
+    voters_str = ", ".join(voters) if voters else "(no analyzer claims this verdict — engine-level decision)"
+    lines.append(f"  Voted by: {voters_str}")
+
+    secondary = [f.value for f in diagnosis.secondary_failures] if diagnosis.secondary_failures else []
+    supporting = _supporting_analyzers(diagnosis)
+    if secondary or supporting:
+        considered_parts: list[str] = []
+        if secondary:
+            considered_parts.append("secondary=" + ", ".join(secondary))
+        if supporting:
+            considered_parts.append("warn/fail=" + "; ".join(supporting[:3]))
+        lines.append("  Also considered: " + " | ".join(considered_parts))
+    else:
+        lines.append("  Also considered: (none)")
+
+    target = _inspect_next_target(diagnosis)
+    lines.append(f"  Inspect next: {target if target else '(no structured target — see Evidence below)'}")
+    return lines
+
+
 def _render_diagnosis_text(diagnosis: Diagnosis, *, mode: str) -> str:
     """Plain one-page engineer report. No colour codes, no panels, no side effects."""
     hrr = diagnosis.human_review_required()
     first_failing = diagnosis.first_failing_node or "n/a"
     evidence_lines = diagnosis.evidence[:5] or ["(no evidence recorded)"]
     evidence_block = "\n".join(f"  - {line}" for line in evidence_lines)
+    why_block = "\n".join(_render_why_block(diagnosis))
     sections = [
         f"Run ID: {diagnosis.run_id}",
         f"Primary Failure: {diagnosis.primary_failure.value}",
@@ -686,6 +793,9 @@ def _render_diagnosis_text(diagnosis: Diagnosis, *, mode: str) -> str:
         f"First Failing Node: {first_failing}",
         f"Human Review Required: {hrr}",
         f"Recommended Fix: {diagnosis.recommended_fix}",
+        "",
+        why_block,
+        "",
         "Evidence:",
         evidence_block,
         "",

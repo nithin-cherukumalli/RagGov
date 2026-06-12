@@ -2,61 +2,34 @@
 
 - Status: `warn`
 - Branch: `main`
-- Last commit: `d74791b`
+- Last commit: `0f1367a`
 - Recommended action: Review warnings, then proceed only with a narrow harness-safe patch.
 
 ## Dirty Files
-- `reports/common_failure_coverage_matrix.md`
 - `reports/common_failure_triage.json`
 - `reports/common_failure_triage.md`
 - `reports/harness_preflight_report.json`
 - `reports/harness_preflight_report.md`
-- `reports/workspace_audit.json`
-- `reports/workspace_audit.md`
-- `scripts/check_protected_baseline.py`
-- `src/raggov/analyzers/citation_faithfulness/analyzer.py`
-- `src/raggov/analyzers/retrieval/scope.py`
-- `src/raggov/analyzers/retrieval_diagnosis/retrieval_diagnosis.py`
-- `src/raggov/analyzers/security/anomalies.py`
-- `src/raggov/models/diagnosis.py`
-- `tests/test_analyzers/test_citation_faithfulness_v0.py`
-- `tests/test_analyzers/test_retrieval_profile_integration.py`
-- `tests/test_analyzers/test_security.py`
-- `reports/baseline_pin_v0_1_alpha_public_migration.md`
-- `reports/codex_session/`
-- `reports/forensics_v0_1_warn_promotion_pre_registration.md`
-- `reports/forensics_v0_1_warn_promotion_result.md`
-- `tests/test_analyzers/test_analyzer_calibration.py`
+- `src/raggov/cli.py`
+- `tests/cli/test_diagnose_text_format.py`
 
 ## Deleted Tracked Files
 - None
 
 ## Untracked Files
-- `reports/baseline_pin_v0_1_alpha_public_migration.md`
-- `reports/codex_session/`
-- `reports/forensics_v0_1_warn_promotion_pre_registration.md`
-- `reports/forensics_v0_1_warn_promotion_result.md`
-- `tests/test_analyzers/test_analyzer_calibration.py`
+- `tests/cli/test_diagnose_text_format.py`
 
 ## Protected Changes
-- `reports/baseline_pin_v0_1_alpha_public_migration.md`
 - `reports/common_failure_triage.json`
 - `reports/common_failure_triage.md`
-- `reports/forensics_v0_1_warn_promotion_pre_registration.md`
-- `reports/forensics_v0_1_warn_promotion_result.md`
-- `scripts/check_protected_baseline.py`
+- `src/raggov/cli.py`
+- `tests/cli/test_diagnose_text_format.py`
 
 ## Threshold Or Gate Changes
-- `reports/baseline_pin_v0_1_alpha_public_migration.md`
-- `reports/forensics_v0_1_warn_promotion_pre_registration.md`
-- `reports/forensics_v0_1_warn_promotion_result.md`
 - `reports/harness_preflight_report.json`
 - `reports/harness_preflight_report.md`
-- `src/raggov/analyzers/retrieval/scope.py`
-- `src/raggov/analyzers/retrieval_diagnosis/retrieval_diagnosis.py`
-- `src/raggov/analyzers/security/anomalies.py`
-- `src/raggov/models/diagnosis.py`
-- `tests/test_analyzers/test_security.py`
+- `src/raggov/cli.py`
+- `tests/cli/test_diagnose_text_format.py`
 
 ## Benchmark Summary
 ```json
