@@ -1,0 +1,36 @@
+{
+  "split_name": "heldout_v0_1",
+  "purpose": "Frozen evaluation slice locked on 2026-06-12 before accepting any protected-baseline pin update. Cases were chosen to be family-balanced AND deliberately exclude cases worked on during the v0.1-alpha-public sprint (007, 023, 030, 033, 034, 036, 037, 049), so this slice was not seen by the code that targets it.",
+  "created_at": "2026-06-12",
+  "case_ids": [
+    "govrag-calib-seed-010",
+    "govrag-calib-seed-050",
+    "govrag-calib-seed-027",
+    "govrag-calib-seed-031",
+    "govrag-calib-seed-013",
+    "govrag-calib-seed-015",
+    "govrag-calib-seed-021",
+    "govrag-calib-seed-024",
+    "govrag-calib-seed-017",
+    "govrag-calib-seed-020",
+    "govrag-calib-seed-043",
+    "govrag-calib-seed-046",
+    "govrag-calib-seed-006",
+    "govrag-calib-seed-035",
+    "govrag-calib-seed-040"
+  ],
+  "case_count": 15,
+  "family_distribution": {
+    "answer_quality": 2,
+    "citation": 2,
+    "clean_pass": 2,
+    "grounding": 2,
+    "retrieval": 2,
+    "security_privacy": 2,
+    "sufficiency": 2,
+    "version_validity": 1
+  },
+  "content_fingerprint_sha256": "58261ecc57247f9fe80e114d126e914107c52bbe598acf851e4b616bc9b15c76",
+  "fingerprint_method": "sha256 over JSON-canonicalised dict {case_id: full_case_object}, case_ids sorted, sort_keys=True, separators=(',',':')",
+  "do_not_modify": "This file defines the v0.1-alpha-public locked heldout slice. Changing case_ids or content_fingerprint_sha256 invalidates every heldout-based decision recorded in reports/baseline_pin_*.md. If a case needs to be replaced, lock a new split (heldout_v0_2) rather than mutating this one."
+}

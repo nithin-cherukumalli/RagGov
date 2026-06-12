@@ -451,6 +451,7 @@ class Diagnosis(BaseModel):
             FailureType.PROMPT_INJECTION,
             FailureType.RERANKER_FAILURE,
             FailureType.CLAIM_EXTRACTION_FAILED,
+            FailureType.STALE_RETRIEVAL,
         }
         if self.primary_failure in high_oversight_failures:
             return True

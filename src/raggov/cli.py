@@ -51,11 +51,29 @@ app.add_typer(providers_app, name="providers")
 @app.command()
 def diagnose(
     run_file: Path,
-    mode: str = typer.Option("external-enhanced", "--mode", help="Diagnosis mode: external-enhanced, native, or calibrated"),
+    mode: str = typer.Option(
+        "external-enhanced",
+        "--mode",
+        help="Diagnosis mode: external-enhanced, native, or calibrated.",
+    ),
+    format: str = typer.Option(
+        "rich",
+        "--format",
+        help=(
+            "Output format. 'rich' (default) keeps the existing colored panel + "
+            "side-effect JSON file. 'text' emits a plain one-page engineer "
+            "report to stdout with no side effects. 'json' emits "
+            "diagnosis_to_dict() JSON to stdout with no side effects."
+        ),
+    ),
 ) -> None:
     """Diagnose a RAGRun JSON file."""
     if mode == "calibrated":
         console.print("[red]Not Implemented[/red]: Calibrated mode is not yet available natively.")
+        raise typer.Exit(code=1)
+
+    if format not in {"rich", "text", "json"}:
+        console.print("[red]Invalid format[/red]: expected 'rich', 'text', or 'json'")
         raise typer.Exit(code=1)
 
     try:
@@ -66,11 +84,28 @@ def diagnose(
 
     engine_config = {"mode": mode}
     diagnosis = DiagnosisEngine(config=engine_config).diagnose(run)
-    
+
+    if format == "json":
+        from raggov.io.serialize import diagnosis_to_dict
+
+        typer.echo(json.dumps(diagnosis_to_dict(diagnosis), indent=2, default=str))
+        return
+
+    if format == "text":
+        typer.echo(_render_diagnosis_text(diagnosis, mode=mode))
+        return
+
+    # Legacy rich behaviour: preserved unchanged for existing users, with an
+    # added always-visible footer so calibration_status / gating cannot be
+    # silently misread by an engineer skimming the panel.
     if diagnosis.degraded_external_mode:
-        console.print(f"[yellow]Warning: Running in degraded external mode. Missing providers: {', '.join(diagnosis.missing_external_providers)}[/yellow]")
+        console.print(
+            f"[yellow]Warning: Running in degraded external mode. "
+            f"Missing providers: {', '.join(diagnosis.missing_external_providers)}[/yellow]"
+        )
 
     console.print(_diagnosis_panel(diagnosis))
+    console.print(_diagnosis_footer(diagnosis, mode=mode))
 
     output_path = Path.cwd() / f"{run.run_id}_diagnosis.json"
     output_path.write_text(diagnosis.model_dump_json(indent=2))
@@ -618,6 +653,51 @@ def _package_version() -> str:
         return "0.1.0"
 
 
+def _production_gating_eligible(diagnosis: Diagnosis) -> bool:
+    """Project-wide gating predicate visible to engineers in every report.
+
+    GovRAG v0.1-alpha-clean: this is always False until calibration_status is
+    'calibrated' and the heldout split + confidence intervals predicate flips.
+    Until then we surface False so an engineer reading a single CLI run sees
+    the same answer as the launch-readiness reports.
+    """
+    return diagnosis.calibration_status == "calibrated"
+
+
+def _diagnosis_footer(diagnosis: Diagnosis, *, mode: str) -> str:
+    """Single-line footer that makes the calibration posture visible on every run."""
+    return (
+        f"mode={mode} | "
+        f"calibration_status={diagnosis.calibration_status} | "
+        f"production_gating_eligible={_production_gating_eligible(diagnosis)}"
+    )
+
+
+def _render_diagnosis_text(diagnosis: Diagnosis, *, mode: str) -> str:
+    """Plain one-page engineer report. No colour codes, no panels, no side effects."""
+    hrr = diagnosis.human_review_required()
+    first_failing = diagnosis.first_failing_node or "n/a"
+    evidence_lines = diagnosis.evidence[:5] or ["(no evidence recorded)"]
+    evidence_block = "\n".join(f"  - {line}" for line in evidence_lines)
+    sections = [
+        f"Run ID: {diagnosis.run_id}",
+        f"Primary Failure: {diagnosis.primary_failure.value}",
+        f"Root Cause Stage: {diagnosis.root_cause_stage.value}",
+        f"First Failing Node: {first_failing}",
+        f"Human Review Required: {hrr}",
+        f"Recommended Fix: {diagnosis.recommended_fix}",
+        "Evidence:",
+        evidence_block,
+        "",
+        _diagnosis_footer(diagnosis, mode=mode),
+    ]
+    return "\n".join(sections)
+
+
 def main() -> Any:
     """Run the Typer application."""
     return app()
+
+
+if __name__ == "__main__":
+    main()
