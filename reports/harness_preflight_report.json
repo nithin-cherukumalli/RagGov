@@ -10,16 +10,16 @@
     "reports/common_failure_triage.md",
     "reports/harness_preflight_report.json",
     "reports/harness_preflight_report.md",
-    "src/raggov/cli.py",
-    "tests/cli/test_diagnose_text_format.py"
+    "src/raggov/analyzers/retrieval/stale.py",
+    "reports/forensics_v0_1_stale_retrieval_pre_registration.md",
+    "tests/test_analyzers/test_stale_retrieval_relative_recency.py"
   ],
   "errors": [],
-  "last_commit": "0f1367a",
+  "last_commit": "64909ff",
   "protected_changes": [
     "reports/common_failure_triage.json",
     "reports/common_failure_triage.md",
-    "src/raggov/cli.py",
-    "tests/cli/test_diagnose_text_format.py"
+    "reports/forensics_v0_1_stale_retrieval_pre_registration.md"
   ],
   "recent_reports": {
     "common_failure_triage_json": true,
@@ -30,13 +30,15 @@
   "recommended_action": "Review warnings, then proceed only with a narrow harness-safe patch.",
   "status": "warn",
   "threshold_or_gate_changes": [
+    "reports/forensics_v0_1_stale_retrieval_pre_registration.md",
     "reports/harness_preflight_report.json",
     "reports/harness_preflight_report.md",
-    "src/raggov/cli.py",
-    "tests/cli/test_diagnose_text_format.py"
+    "src/raggov/analyzers/retrieval/stale.py",
+    "tests/test_analyzers/test_stale_retrieval_relative_recency.py"
   ],
   "untracked_files": [
-    "tests/cli/test_diagnose_text_format.py"
+    "reports/forensics_v0_1_stale_retrieval_pre_registration.md",
+    "tests/test_analyzers/test_stale_retrieval_relative_recency.py"
   ],
   "warnings": [
     "Workspace has dirty files before edits.",
