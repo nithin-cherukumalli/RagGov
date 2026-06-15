@@ -2,36 +2,75 @@
 
 - Status: `warn`
 - Branch: `main`
-- Last commit: `64909ff`
+- Last commit: `47af1ad`
 - Recommended action: Review warnings, then proceed only with a narrow harness-safe patch.
 
 ## Dirty Files
 - `reports/common_failure_triage.json`
 - `reports/common_failure_triage.md`
+- `reports/harness_post_edit_validation.json`
+- `reports/harness_post_edit_validation.md`
 - `reports/harness_preflight_report.json`
 - `reports/harness_preflight_report.md`
-- `src/raggov/analyzers/retrieval/stale.py`
-- `reports/forensics_v0_1_stale_retrieval_pre_registration.md`
-- `tests/test_analyzers/test_stale_retrieval_relative_recency.py`
+- `reports/workspace_audit.json`
+- `reports/workspace_audit.md`
+- `src/raggov/analyzers/parsing/parser_validation.py`
+- `src/raggov/decision_policy_support.py`
+- `tests/decision_policy/test_primary_failure_policy.py`
+- `tests/test_analyzers/test_parsing.py`
+- `reports/codex_session/calib_after_parser_validation.json`
+- `reports/codex_session/calib_after_parser_validation.md`
+- `reports/codex_session/calib_after_stale_priority.json`
+- `reports/codex_session/calib_after_stale_priority.md`
+- `reports/codex_session/heldout_after_parser_validation.json`
+- `reports/codex_session/heldout_after_parser_validation.md`
+- `reports/codex_session/heldout_after_stale_priority.json`
+- `reports/codex_session/heldout_after_stale_priority.md`
+- `reports/codex_session/stale_priority_result.md`
 
 ## Deleted Tracked Files
 - None
 
 ## Untracked Files
-- `reports/forensics_v0_1_stale_retrieval_pre_registration.md`
-- `tests/test_analyzers/test_stale_retrieval_relative_recency.py`
+- `reports/codex_session/calib_after_parser_validation.json`
+- `reports/codex_session/calib_after_parser_validation.md`
+- `reports/codex_session/calib_after_stale_priority.json`
+- `reports/codex_session/calib_after_stale_priority.md`
+- `reports/codex_session/heldout_after_parser_validation.json`
+- `reports/codex_session/heldout_after_parser_validation.md`
+- `reports/codex_session/heldout_after_stale_priority.json`
+- `reports/codex_session/heldout_after_stale_priority.md`
+- `reports/codex_session/stale_priority_result.md`
 
 ## Protected Changes
+- `reports/codex_session/calib_after_parser_validation.json`
+- `reports/codex_session/calib_after_parser_validation.md`
+- `reports/codex_session/calib_after_stale_priority.json`
+- `reports/codex_session/calib_after_stale_priority.md`
+- `reports/codex_session/heldout_after_parser_validation.json`
+- `reports/codex_session/heldout_after_parser_validation.md`
+- `reports/codex_session/heldout_after_stale_priority.json`
+- `reports/codex_session/heldout_after_stale_priority.md`
+- `reports/codex_session/stale_priority_result.md`
 - `reports/common_failure_triage.json`
 - `reports/common_failure_triage.md`
-- `reports/forensics_v0_1_stale_retrieval_pre_registration.md`
+- `reports/harness_post_edit_validation.json`
+- `reports/harness_post_edit_validation.md`
 
 ## Threshold Or Gate Changes
-- `reports/forensics_v0_1_stale_retrieval_pre_registration.md`
+- `reports/codex_session/calib_after_parser_validation.json`
+- `reports/codex_session/calib_after_parser_validation.md`
+- `reports/codex_session/calib_after_stale_priority.json`
+- `reports/codex_session/calib_after_stale_priority.md`
+- `reports/codex_session/heldout_after_parser_validation.json`
+- `reports/codex_session/heldout_after_parser_validation.md`
+- `reports/codex_session/heldout_after_stale_priority.json`
+- `reports/codex_session/heldout_after_stale_priority.md`
+- `reports/codex_session/stale_priority_result.md`
+- `reports/harness_post_edit_validation.json`
+- `reports/harness_post_edit_validation.md`
 - `reports/harness_preflight_report.json`
 - `reports/harness_preflight_report.md`
-- `src/raggov/analyzers/retrieval/stale.py`
-- `tests/test_analyzers/test_stale_retrieval_relative_recency.py`
 
 ## Benchmark Summary
 ```json

@@ -12,20 +12,19 @@
 - `reports/harness_preflight_report.md`
 - `reports/workspace_audit.json`
 - `reports/workspace_audit.md`
-- `scripts/check_protected_baseline.py`
-- `src/raggov/analyzers/citation_faithfulness/analyzer.py`
-- `src/raggov/analyzers/retrieval/scope.py`
-- `src/raggov/analyzers/retrieval_diagnosis/retrieval_diagnosis.py`
-- `src/raggov/analyzers/security/anomalies.py`
-- `src/raggov/models/diagnosis.py`
-- `tests/test_analyzers/test_citation_faithfulness_v0.py`
-- `tests/test_analyzers/test_retrieval_profile_integration.py`
-- `tests/test_analyzers/test_security.py`
-- `reports/baseline_pin_v0_1_alpha_public_migration.md`
-- `reports/codex_session/`
-- `reports/forensics_v0_1_warn_promotion_pre_registration.md`
-- `reports/forensics_v0_1_warn_promotion_result.md`
-- `tests/test_analyzers/test_analyzer_calibration.py`
+- `src/raggov/analyzers/parsing/parser_validation.py`
+- `src/raggov/decision_policy_support.py`
+- `tests/decision_policy/test_primary_failure_policy.py`
+- `tests/test_analyzers/test_parsing.py`
+- `reports/codex_session/calib_after_parser_validation.json`
+- `reports/codex_session/calib_after_parser_validation.md`
+- `reports/codex_session/calib_after_stale_priority.json`
+- `reports/codex_session/calib_after_stale_priority.md`
+- `reports/codex_session/heldout_after_parser_validation.json`
+- `reports/codex_session/heldout_after_parser_validation.md`
+- `reports/codex_session/heldout_after_stale_priority.json`
+- `reports/codex_session/heldout_after_stale_priority.md`
+- `reports/codex_session/stale_priority_result.md`
 
 ## Risk Classification
 ```json
@@ -35,31 +34,29 @@
     "reports/common_failure_triage.md"
   ],
   "high": [
-    "src/raggov/analyzers/citation_faithfulness/analyzer.py",
-    "src/raggov/analyzers/retrieval/scope.py",
-    "src/raggov/analyzers/retrieval_diagnosis/retrieval_diagnosis.py",
-    "src/raggov/analyzers/security/anomalies.py"
+    "src/raggov/analyzers/parsing/parser_validation.py",
+    "src/raggov/decision_policy_support.py"
   ],
   "low": [
-    "reports/baseline_pin_v0_1_alpha_public_migration.md",
-    "reports/codex_session/",
-    "reports/forensics_v0_1_warn_promotion_pre_registration.md",
-    "reports/forensics_v0_1_warn_promotion_result.md",
+    "reports/codex_session/calib_after_parser_validation.json",
+    "reports/codex_session/calib_after_parser_validation.md",
+    "reports/codex_session/calib_after_stale_priority.json",
+    "reports/codex_session/calib_after_stale_priority.md",
+    "reports/codex_session/heldout_after_parser_validation.json",
+    "reports/codex_session/heldout_after_parser_validation.md",
+    "reports/codex_session/heldout_after_stale_priority.json",
+    "reports/codex_session/heldout_after_stale_priority.md",
+    "reports/codex_session/stale_priority_result.md",
     "reports/harness_post_edit_validation.json",
     "reports/harness_post_edit_validation.md",
     "reports/harness_preflight_report.json",
     "reports/harness_preflight_report.md",
     "reports/workspace_audit.json",
     "reports/workspace_audit.md",
-    "tests/test_analyzers/test_analyzer_calibration.py",
-    "tests/test_analyzers/test_citation_faithfulness_v0.py",
-    "tests/test_analyzers/test_retrieval_profile_integration.py",
-    "tests/test_analyzers/test_security.py"
+    "tests/decision_policy/test_primary_failure_policy.py",
+    "tests/test_analyzers/test_parsing.py"
   ],
-  "medium": [
-    "scripts/check_protected_baseline.py",
-    "src/raggov/models/diagnosis.py"
-  ]
+  "medium": []
 }
 ```
 
@@ -90,7 +87,7 @@
 ## Benchmark After
 ```json
 {
-  "generated_at": "2026-06-12T06:21:49.864710+00:00",
+  "generated_at": "2026-06-12T10:29:32.472142+00:00",
   "modes": {
     "external-enhanced": {
       "category_stats": {
@@ -416,28 +413,34 @@
 `False`
 
 ## Protected Changes
-- `reports/baseline_pin_v0_1_alpha_public_migration.md`
+- `reports/codex_session/calib_after_parser_validation.json`
+- `reports/codex_session/calib_after_parser_validation.md`
+- `reports/codex_session/calib_after_stale_priority.json`
+- `reports/codex_session/calib_after_stale_priority.md`
+- `reports/codex_session/heldout_after_parser_validation.json`
+- `reports/codex_session/heldout_after_parser_validation.md`
+- `reports/codex_session/heldout_after_stale_priority.json`
+- `reports/codex_session/heldout_after_stale_priority.md`
+- `reports/codex_session/stale_priority_result.md`
 - `reports/common_failure_triage.json`
 - `reports/common_failure_triage.md`
-- `reports/forensics_v0_1_warn_promotion_pre_registration.md`
-- `reports/forensics_v0_1_warn_promotion_result.md`
 - `reports/harness_post_edit_validation.json`
 - `reports/harness_post_edit_validation.md`
-- `scripts/check_protected_baseline.py`
 
 ## Threshold Or Gate Changes
-- `reports/baseline_pin_v0_1_alpha_public_migration.md`
-- `reports/forensics_v0_1_warn_promotion_pre_registration.md`
-- `reports/forensics_v0_1_warn_promotion_result.md`
+- `reports/codex_session/calib_after_parser_validation.json`
+- `reports/codex_session/calib_after_parser_validation.md`
+- `reports/codex_session/calib_after_stale_priority.json`
+- `reports/codex_session/calib_after_stale_priority.md`
+- `reports/codex_session/heldout_after_parser_validation.json`
+- `reports/codex_session/heldout_after_parser_validation.md`
+- `reports/codex_session/heldout_after_stale_priority.json`
+- `reports/codex_session/heldout_after_stale_priority.md`
+- `reports/codex_session/stale_priority_result.md`
 - `reports/harness_post_edit_validation.json`
 - `reports/harness_post_edit_validation.md`
 - `reports/harness_preflight_report.json`
 - `reports/harness_preflight_report.md`
-- `src/raggov/analyzers/retrieval/scope.py`
-- `src/raggov/analyzers/retrieval_diagnosis/retrieval_diagnosis.py`
-- `src/raggov/analyzers/security/anomalies.py`
-- `src/raggov/models/diagnosis.py`
-- `tests/test_analyzers/test_security.py`
 
 ## Protected Baseline Regressions
 - None

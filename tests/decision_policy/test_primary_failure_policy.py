@@ -336,3 +336,46 @@ def test_strong_citation_mismatch_is_not_suppressed_by_sufficiency() -> None:
         candidate["failure_type"] == FailureType.CITATION_MISMATCH.value
         for candidate in trace["suppressed_candidates"]
     )
+
+
+def test_stale_context_specificity_outranks_retrieval_insufficiency() -> None:
+    results = [
+        AnalyzerResult(
+            analyzer_name="SufficiencyAnalyzer",
+            status="fail",
+            failure_type=FailureType.STALE_RETRIEVAL,
+            stage=FailureStage.RETRIEVAL,
+            evidence=[
+                "[sufficiency:stale_context_mistaken_as_sufficient] "
+                "[sufficiency:missing_temporal_or_freshness_requirement] "
+                "Query requests current information but retrieved chunk is stale."
+            ],
+            sufficiency_result=SufficiencyResult(
+                sufficient=False,
+                sufficiency_label="insufficient",
+                structured_failure_reason="stale_context_mistaken_as_sufficient",
+                recommended_fix_category="REINDEX_STALE_SOURCES",
+                evidence_markers=[
+                    "[sufficiency:stale_context_mistaken_as_sufficient]",
+                    "[sufficiency:missing_temporal_or_freshness_requirement]",
+                ],
+                method="structured_heuristic_v1",
+            ),
+        ),
+        _result(
+            analyzer_name="RetrievalDiagnosisAnalyzerV0",
+            status="fail",
+            failure_type=FailureType.INSUFFICIENT_CONTEXT,
+            stage=FailureStage.RETRIEVAL,
+            evidence=["retrieval miss: current source not retrieved"],
+        ),
+    ]
+
+    selected, _, trace = select_primary_failure_with_policy(
+        results,
+        {"SufficiencyAnalyzer": 0.9, "RetrievalDiagnosisAnalyzerV0": 0.95},
+        FAILURE_PRIORITY,
+    )
+
+    assert selected == FailureType.STALE_RETRIEVAL
+    assert trace["selected_analyzer"] == "SufficiencyAnalyzer"

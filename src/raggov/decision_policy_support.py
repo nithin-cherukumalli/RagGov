@@ -1356,6 +1356,19 @@ def _specificity_rank(candidate: DecisionCandidate) -> int:
         return 90
     if (
         candidate.failure_type == FailureType.STALE_RETRIEVAL
+        and candidate.analyzer_name == "SufficiencyAnalyzer"
+        and (
+            candidate.sufficiency_reason == "stale_context_mistaken_as_sufficient"
+            or "[sufficiency:stale_context_mistaken_as_sufficient]" in candidate.sufficiency_markers
+            or "[sufficiency:stale_context_mistaken_as_sufficient]" in candidate.evidence_summary
+        )
+    ):
+        # Staleness is a more specific retrieval root cause than generic
+        # insufficiency: it identifies the wrong-version context that made
+        # the otherwise present evidence unusable.
+        return 91
+    if (
+        candidate.failure_type == FailureType.STALE_RETRIEVAL
         and candidate.analyzer_name in {"TemporalSourceValidityAnalyzerV1", "VersionValidityAnalyzerV1", "RetrievalDiagnosisAnalyzerV0"}
         and _candidate_has_strong_version_root_cause(candidate)
     ):
