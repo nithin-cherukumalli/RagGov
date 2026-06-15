@@ -186,3 +186,31 @@ def test_stale_retrieval_fixture_has_no_structural_false_positive_when_metadata_
 
     assert result.status == "pass"
     assert result.failure_type is None
+
+
+def test_missing_profile_numeric_prose_does_not_fail_as_flattened_table() -> None:
+    analyzer = ParserValidationAnalyzer()
+    result = analyzer.analyze(
+        run_with_chunks(
+            [
+                chunk(
+                    "chunk-1",
+                    "The 2025 mileage reimbursement rate is $0.67 per mile.",
+                    metadata={
+                        "effective_date": "2025-01-01",
+                        "valid_until": "2025-12-31",
+                    },
+                ),
+                chunk(
+                    "chunk-2",
+                    "The 2026 mileage reimbursement rate is $0.71 per mile.",
+                    metadata={"effective_date": "2026-01-01"},
+                ),
+            ],
+            query="What is the 2026 mileage reimbursement rate?",
+        )
+    )
+
+    assert result.status == "warn"
+    assert result.failure_type == FailureType.METADATA_LOSS
+    assert result.evidence[0] == "parser_validation_profile_missing"

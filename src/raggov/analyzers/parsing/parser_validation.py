@@ -251,6 +251,8 @@ class ParserValidationAnalyzer(BaseAnalyzer):
     def _looks_like_flattened_table(self, query_lower: str, text: str) -> bool:
         if not re.search(r"\b(rate|limit|table|row|column|q[1-4]|revenue|loan|term|max)\b", query_lower):
             return False
+        if re.search(r"[.!?]", text):
+            return False
         value_tokens = re.findall(r"\b\d+(?:\.\d+)?%?\b|\bq[1-4]\b|\b\d+\s*yr\b", text.lower())
         label_tokens = re.findall(r"\b(?:term|interest|rate|limit|revenue|max|min|year|yr)\b", text.lower())
         return len(value_tokens) >= 3 and len(label_tokens) >= 1 and not re.search(r"[|,\n\t:]", text)
