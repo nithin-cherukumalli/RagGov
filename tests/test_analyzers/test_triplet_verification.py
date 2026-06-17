@@ -34,8 +34,8 @@ def test_aggregation_all_entailed():
         TripletVerificationResult(label="entailed", raw_score=0.9, method="mock"),
         TripletVerificationResult(label="entailed", raw_score=0.8, method="mock")
     ]
-    base = VerificationResult(label="unsupported", raw_score=0.0, evidence_chunk_id=None, evidence_span=None, rationale="", verifier_name="base")
-    
+    base = VerificationResult(label="unsupported", support_label="insufficient_evidence", raw_score=0.0, evidence_chunk_id=None, evidence_span=None, rationale="", verifier_name="base")
+
     aggregated = builder._aggregate_triplet_results(triplet_results, base)
     assert aggregated.label == "entailed"
     assert aggregated.raw_score == pytest.approx(0.85)
@@ -47,8 +47,8 @@ def test_aggregation_one_contradicted():
         TripletVerificationResult(label="entailed", raw_score=0.9, method="mock"),
         TripletVerificationResult(label="contradicted", raw_score=0.9, method="mock")
     ]
-    base = VerificationResult(label="entailed", raw_score=0.9, evidence_chunk_id=None, evidence_span=None, rationale="", verifier_name="base")
-    
+    base = VerificationResult(label="entailed", support_label="supported", raw_score=0.9, evidence_chunk_id=None, evidence_span=None, rationale="", verifier_name="base")
+
     aggregated = builder._aggregate_triplet_results(triplet_results, base)
     assert aggregated.label == "contradicted"
 
@@ -59,8 +59,8 @@ def test_aggregation_one_unsupported():
         TripletVerificationResult(label="entailed", raw_score=0.9, method="mock"),
         TripletVerificationResult(label="unsupported", raw_score=0.5, method="mock")
     ]
-    base = VerificationResult(label="entailed", raw_score=0.9, evidence_chunk_id=None, evidence_span=None, rationale="", verifier_name="base")
-    
+    base = VerificationResult(label="entailed", support_label="supported", raw_score=0.9, evidence_chunk_id=None, evidence_span=None, rationale="", verifier_name="base")
+
     aggregated = builder._aggregate_triplet_results(triplet_results, base)
     assert aggregated.label == "unsupported"
 
@@ -68,7 +68,7 @@ def test_aggregation_one_unsupported():
 def test_triplet_verification_flow():
     # Setup mocks
     verifier = MagicMock()
-    verifier.verify.return_value = VerificationResult(label="unsupported", raw_score=0.0, evidence_chunk_id=None, evidence_span=None, rationale="", verifier_name="base")
+    verifier.verify.return_value = VerificationResult(label="unsupported", support_label="insufficient_evidence", raw_score=0.0, evidence_chunk_id=None, evidence_span=None, rationale="", verifier_name="base")
     
     selector = MagicMock()
     selector.select_candidates.return_value = [
@@ -106,7 +106,7 @@ def test_triplet_verification_flow():
 
 def test_triplet_verification_fallback_on_extraction_failure():
     verifier = MagicMock()
-    verifier.verify.return_value = VerificationResult(label="entailed", raw_score=0.9, evidence_chunk_id="c1", evidence_span=None, rationale="Base rationale", verifier_name="base")
+    verifier.verify.return_value = VerificationResult(label="entailed", support_label="supported", raw_score=0.9, evidence_chunk_id="c1", evidence_span=None, rationale="Base rationale", verifier_name="base")
     
     selector = MagicMock()
     selector.select_candidates.return_value = [

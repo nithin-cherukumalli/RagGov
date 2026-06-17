@@ -46,35 +46,35 @@ def verify_claim(claim: str, query: str, chunks: list[RetrievedChunk], config: d
 # ---------------------------------------------------------------------------
 
 def test_detect_claim_type_go_number() -> None:
-    assert detect_claim_type("As per G.O.Rt.No. 2115, optional holidays apply.") == "general_factual"
+    assert detect_claim_type("As per G.O.Rt.No. 2115, optional holidays apply.") == "entity_attribute"
 
 
 def test_detect_claim_type_go_number_ms_variant() -> None:
-    assert detect_claim_type("G.O.Ms.No. 33 prescribes revised pay scales.") == "general_factual"
+    assert detect_claim_type("G.O.Ms.No. 33 prescribes revised pay scales.") == "entity_attribute"
 
 
 def test_detect_claim_type_numeric_percentage() -> None:
-    assert detect_claim_type("The subsidy is 20% for all eligible applicants.") == "value_assertion"
+    assert detect_claim_type("The subsidy is 20% for all eligible applicants.") == "numeric"
 
 
 def test_detect_claim_type_numeric_currency() -> None:
-    assert detect_claim_type("Refunds apply above Rs. 50,000 for this scheme.") == "value_assertion"
+    assert detect_claim_type("Refunds apply above Rs. 50,000 for this scheme.") == "numeric"
 
 
 def test_detect_claim_type_date_or_deadline_month() -> None:
-    assert detect_claim_type("Applications close on July 15 for this intake cycle.") == "date_time_assertion"
+    assert detect_claim_type("Applications close on July 15 for this intake cycle.") == "temporal"
 
 
 def test_detect_claim_type_date_or_deadline_keyword() -> None:
-    assert detect_claim_type("The deadline for submission is next Friday.") == "date_time_assertion"
+    assert detect_claim_type("The deadline for submission is next Friday.") == "temporal"
 
 
 def test_detect_claim_type_eligibility() -> None:
-    assert detect_claim_type("Teachers with 3 years of service are eligible for transfer.") == "requirement_or_condition"
+    assert detect_claim_type("Teachers with 3 years of service are eligible for transfer.") == "eligibility"
 
 
 def test_detect_claim_type_policy_rule() -> None:
-    assert detect_claim_type("All employees must submit a leave form in advance.") == "requirement_or_condition"
+    assert detect_claim_type("All employees must submit a leave form in advance.") == "obligation"
 
 
 def test_detect_claim_type_definition() -> None:
@@ -82,11 +82,11 @@ def test_detect_claim_type_definition() -> None:
 
 
 def test_detect_claim_type_general_factual() -> None:
-    assert detect_claim_type("The department issued a notice to all staff.") == "general_factual"
+    assert detect_claim_type("The department issued a notice to all staff.") == "entity_attribute"
 
 
 def test_detect_claim_type_go_takes_priority_over_numeric() -> None:
-    assert detect_claim_type("G.O.Ms.No. 45 sets the rate at 20%.") == "value_assertion"
+    assert detect_claim_type("G.O.Ms.No. 45 sets the rate at 20%.") == "numeric"
 
 
 # ---------------------------------------------------------------------------
@@ -283,7 +283,7 @@ def test_claim_evidence_builder_sets_claim_type() -> None:
         "subsidy",
         [chunk("c1", "The subsidy rate is 20%.")],
     )
-    assert records[0].claim_type == "value_assertion"
+    assert records[0].claim_type == "numeric"
 
 
 def test_claim_evidence_builder_sets_atomicity_status() -> None:

@@ -357,4 +357,4 @@ def test_version_validity_decision_trace_explains_downstream_claim_failure() -> 
     )
 
     assert diagnosis.diagnosis_decision_trace is not None
-    assert "downstream of invalid source lifecycle evidence" in diagnosis.diagnosis_decision_trace["selection_reason"]
+    assert "make downstream claim-level symptoms secondary" in diagnosis.diagnosis_decision_trace["selection_reason"]
