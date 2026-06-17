@@ -67,7 +67,14 @@ def pull_ragtruth(n_conflict: int = 15, n_baseless: int = 15) -> list[dict]:
     _show_schema("ragtruth", ds)
     lic = coerce_license(ds)
     conflict, baseless = [], []
+    skipped_task = 0
     for ex in ds:
+        # Only the QA task is a genuine RAG question->context->answer case.
+        # (RAGTruth also has Summary and Data2txt tasks, which don't fit.)
+        task = str(ex.get("task_type") or "").lower()
+        if "qa" not in task and "question" not in task:
+            skipped_task += 1
+            continue
         q, ctx, out = ex.get("query"), ex.get("context"), ex.get("output")
         if not (q and ctx and out):
             continue
@@ -75,6 +82,7 @@ def pull_ragtruth(n_conflict: int = 15, n_baseless: int = 15) -> list[dict]:
         if not raw:
             continue  # no hallucination annotated -> not a failure case
         blob = json.dumps(raw).lower()
+        # Conflict = contradicts the source; Baseless Info = unsupported addition.
         label = "contradicted" if "conflict" in blob else "unsupported"
         item = {
             "source_dataset": "ragtruth",
@@ -87,11 +95,14 @@ def pull_ragtruth(n_conflict: int = 15, n_baseless: int = 15) -> list[dict]:
             "source_label": label,
             "supporting_doc_ids": None,
             "license": lic,
-            "notes": f"RAGTruth {ex.get('task_type')} response; hallucination={label}.",
+            # Carry the raw label so the contradicted/unsupported split is auditable.
+            "notes": f"RAGTruth QA; raw_label={json.dumps(raw)[:160]}",
         }
         (conflict if label == "contradicted" else baseless).append(item)
     random.shuffle(conflict)
     random.shuffle(baseless)
+    print(f"  (ragtruth: skipped {skipped_task} non-QA rows; "
+          f"{len(conflict)} conflict / {len(baseless)} baseless QA failures found)")
     return conflict[:n_conflict] + baseless[:n_baseless]
 
 
