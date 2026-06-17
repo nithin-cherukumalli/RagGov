@@ -64,65 +64,100 @@ These are cases where the right signal is already in `analyzer_results` but the 
 
 ---
 
-### Task 3 — Fix `CITATION_MISMATCH` vs `UNSUPPORTED_CLAIM` routing for missing-citation cases
+## Phase A addendum — Tasks 3, 4, 5 reformulated as v2
 
-**Problem.** Calib-50 cases 025, 029, 030 expect `CITATION_MISMATCH` but get `UNSUPPORTED_CLAIM`. Inspect each case: when an answer has claims with **no citation at all**, is that better classified as a citation problem (missing citation) or a grounding problem (no support)?
+> Tasks 3, 4, 5 (v1) were reverted on 2026-06-15 (commit `e759a12`) because each
+> changed an analyzer in isolation without the matching decision-policy rank
+> change, relied on query-string heuristics, or was never promoted by the engine.
+> See `reports/codex_session/tasks_3_4_5_result.md`. The entries below are the v2
+> reformulations with hard, pre-registered acceptance criteria. They are **queued,
+> not yet implemented** — do not start until explicitly scheduled.
 
-**Hypothesis.** Per the failure taxonomy:
-- `CITATION_MISMATCH` = a citation exists but doesn't match the cited source
-- `UNSUPPORTED_CLAIM` = no supporting evidence in retrieved chunks
-- A separate failure type may be missing for "no citation at all". Check the taxonomy.
+### Task 3-v2 — CITATION_MISMATCH: analyzer gate AND decision-policy rank
 
-**Scope.** Read the taxonomy and the actual fixtures. May resolve in one of three ways:
-- (a) `CitationFaithfulnessAnalyzerV0` should already fire on these — fix the predicate.
-- (b) These cases are legitimately `UNSUPPORTED_CLAIM` and the goldens are wrong — file a labelling-review note (do NOT change goldens unilaterally).
-- (c) A `MISSING_CITATION` failure type should be introduced.
+**Why v1 failed.** Changed analyzer gate only. Engine kept routing to
+UNSUPPORTED_CLAIM via ClaimGroundingAnalyzer. New gate was also less specific
+than the old one.
+
+**Scope (both changes mandatory).**
+1. Analyzer-level: refine the gate so CITATION_MISMATCH fires only when a
+   citation points to a retrieved doc AND the cited content does not support
+   the answer's specific value claim. Keep specificity ≥ the original gate.
+2. Decision-policy-level: in src/raggov/decision_policy.py, promote
+   CITATION_MISMATCH above UNSUPPORTED_CLAIM when both fire at status=fail
+   AND a citation→retrieved-doc binding exists.
 
 **Acceptance criteria.**
-- Pre-registration must explicitly choose (a), (b), or (c) **before** any code change, with rationale.
-- If (a): at least 2 of cases {025, 029, 030} flip to `CITATION_MISMATCH`. Protected pin unchanged. Heldout ≥ 0.733.
-- If (b): write a labelling-review note in `reports/codex_session/`. No code change.
-- If (c): new enum value plus analyzer change. Full pre-registration. Protected pin unchanged.
+- ≥2 of {029, 030} flip to CITATION_MISMATCH; case 025 does not change
+  (it has no citations — different root cause).
+- Protected pin (42, 46) unchanged.
+- All safety counters stay 0.
+- Heldout primary ≥ 0.733.
+- Calib-50 primary ≥ 0.62.
+- New test: tests/test_engine/test_citation_mismatch_routing.py runs
+  DiagnosisEngine end-to-end on cases 029, 030 and asserts primary_failure ==
+  "CITATION_MISMATCH".
 
-**Out of scope.** Wholesale taxonomy redesign.
+**Out of scope.** Any other decision-policy rank changes.
 
 ---
 
-### Task 4 — Add `RETRIEVAL_DEPTH_LIMIT` analyzer (or repair existing path)
+### Task 4-v2 — RETRIEVAL_DEPTH_LIMIT: pipeline-introspection only
 
-**Problem.** Calib-50 cases 004, 019 expect `RETRIEVAL_DEPTH_LIMIT` but get `UNSUPPORTED_CLAIM`. This failure mode is real and engineer-actionable: the retriever's top-K was too small, so the right chunk wasn't in the candidate set.
+**Why v1 failed.** Predicate parsed cardinal numbers from query text. False-
+fired on CLEAN cases 011, 012 and broke 023, 027. Heldout regressed.
 
-**Hypothesis.** A principled, pipeline-agnostic check: when `len(retrieved_chunks) <= k_floor` (configurable, default 5) **and** the answer's claims have low overlap with all retrieved chunks **and** the run's metadata indicates a `top_k` value, fire `RETRIEVAL_DEPTH_LIMIT`. If no `top_k` metadata, fire when retrieved set is suspiciously small.
+**Pre-condition for landing.** Fixtures for cases 004, 019 must contain
+pipeline-introspection signals (top_k in run.metadata, chunk-rank
+saturation pattern, or configured k_floor). If those signals are not
+present, this task is DEFERRED — there is no pipeline-agnostic way to detect
+depth limit without them. Document the deferral and stop.
 
-**Scope.** New analyzer file `src/raggov/analyzers/retrieval/depth.py` (or extend `RetrievalDiagnosisAnalyzerV0`). Register in engine.
+**Scope (both changes mandatory).**
+1. Analyzer: predicate reads only from run.metadata / chunk.metadata /
+   RetrievalEvidenceProfile. Never parses the query string for numbers.
+2. Decision-policy rank: promote RETRIEVAL_DEPTH_LIMIT only when retrieval
+   metadata confirms a saturation pattern.
 
 **Acceptance criteria.**
-- Cases 004, 019 → `RETRIEVAL_DEPTH_LIMIT`.
-- Protected pin unchanged.
+- Cases 004, 019 flip to RETRIEVAL_DEPTH_LIMIT.
+- Cases 011, 012 stay CLEAN (no false positive on numeric prose).
+- Cases 023, 027 stay at their pre-change primary_failure.
+- Protected pin (42, 46) unchanged.
+- All safety counters stay 0.
 - Heldout primary ≥ 0.733.
-- No false fire on any case with `retrieved_chunks >= 5` and substantive answer alignment.
-- Pre-registration must define the predicate in dataset-independent terms (no thresholds tuned to 004/019).
+- Calib-50 primary ≥ 0.62.
+- New test: tests/test_engine/test_retrieval_depth_limit_routing.py asserts
+  end-to-end primary_failure on at least 004, 019, 011, 012.
 
-**Out of scope.** Reranker-related failures (Task 5).
+**Out of scope.** Adding new metadata to fixtures to make the task land. If
+the signal is not in the data, defer.
 
 ---
 
-### Task 5 — Add `RERANKER_FAILURE` detection
+### Task 5-v2 — RERANKER_FAILURE: analyzer AND decision-policy rank
 
-**Problem.** Calib-50 case 020 expects `RERANKER_FAILURE`. This is when the reranker demoted the relevant chunk below a less-relevant one.
+**Why v1 failed.** Analyzer registered, but decision policy never promoted
+RERANKER_FAILURE over UNSUPPORTED_CLAIM. Target case 020 unchanged.
 
-**Hypothesis.** When `chunk.metadata` exposes `initial_rank` / `pre_rerank_score` and `final_rank` / `rerank_score`, and the chunk most textually aligned with the answer is significantly downranked (final_rank > initial_rank by a threshold) while a less-aligned chunk was upranked, fire `RERANKER_FAILURE`.
-
-**Scope.** New analyzer or extension. Pipeline-agnostic: only fires when rerank metadata is present.
+**Scope (both changes mandatory).**
+1. Analyzer reads reranker metadata from run.metadata or
+   RetrievalEvidenceProfile (no query-string heuristics).
+2. Decision-policy: promote RERANKER_FAILURE over UNSUPPORTED_CLAIM when
+   reranker metadata is present AND indicates rank inversion or low
+   confidence.
 
 **Acceptance criteria.**
-- Case 020 → `RERANKER_FAILURE`.
-- Skips cleanly when no rerank metadata present (no false fire on Calib-50 cases without rerank info).
-- Protected pin unchanged.
+- Case 020 primary_failure becomes RERANKER_FAILURE.
+- Protected pin (42, 46) unchanged.
+- All safety counters stay 0.
 - Heldout primary ≥ 0.733.
-- Pre-registration declares which metadata keys are recognised; no domain assumption.
+- Calib-50 primary ≥ 0.62.
+- New test: tests/test_engine/test_reranker_failure_routing.py asserts
+  end-to-end primary_failure on case 020 and on at least one negative case
+  (reranker metadata absent → no RERANKER_FAILURE fired).
 
-**Out of scope.** Building a reranker. Detection only.
+**Out of scope.** Re-tuning other analyzers' weights.
 
 ---
 
