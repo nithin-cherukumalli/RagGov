@@ -1,0 +1,36 @@
+{
+  "case_id": "gc-XXX  (leave as-is; add_calib_case.py --append assigns the next id)",
+  "domain": "software | policy | finance | health | ...",
+  "source_type": "fixture | synthetic_mutation | benchmark_migrated | production_trace",
+  "query": "The question the RAG user asked.",
+  "retrieved_chunks": [
+    {
+      "chunk_id": "chunk-1",
+      "doc_id": "doc-1",
+      "text": "The exact retrieved context text.",
+      "rank": 1,
+      "score": 0.83,
+      "metadata": {}
+    }
+  ],
+  "answer": "The generated answer to be diagnosed.",
+  "citations": ["doc-1"],
+  "expected_primary_failure": "ONE of the FailureType enum values (see taxonomy_support_tiers.json)",
+  "expected_stage": "RETRIEVAL | GROUNDING | CITATION | GENERATION | SECURITY | NONE",
+  "expected_first_failing_node": "AnalyzerName or null",
+  "expected_root_cause": "One-sentence, evidence-backed reason this is the primary failure.",
+  "expected_secondary_failures": [],
+  "expected_claim_labels": [],
+  "expected_citation_labels": [],
+  "expected_retrieval_issue": "none | stale_source | depth_limit | scope | anomaly",
+  "expected_sufficiency_issue": "none | insufficient",
+  "expected_version_issue": "none | stale | expired",
+  "expected_answer_quality_issue": "none | incomplete | ignores_context",
+  "expected_security_issue": "none | prompt_injection | privacy | poisoning",
+  "expected_fix_category": "e.g. add_citation_grounding | widen_retrieval | refresh_index",
+  "expected_human_review_required": false,
+  "label_source": "manual_seed | synthetic_mutation | benchmark_migrated | production_trace",
+  "label_confidence": "high | medium | low",
+  "split": "unset  (use train/dev for scored; reserve heldout for double-labelled cases)",
+  "notes": "How this case was created and any labelling caveats. Do NOT write TODO/placeholder for a real case."
+}
