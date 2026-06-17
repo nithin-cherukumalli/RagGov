@@ -218,3 +218,6 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 .worktrees/
+
+# Calibration seed-intake raw dumps (third-party passage text — never commit)
+evals/govrag_calib/staging/raw/
