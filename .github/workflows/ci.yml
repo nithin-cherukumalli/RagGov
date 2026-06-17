@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-and-guardrails:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install package + test/runtime deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[stresslab]"
+          pip install pytest
+
+      # Foundation guardrails (cheap, no model calls). These enforce the
+      # discipline from reports/codex_session/foundation_stabilization_plan.md.
+      - name: Dataset lock (no silent relabel/renumber)
+        run: python scripts/check_dataset_lock.py
+
+      - name: Taxonomy support tiers in sync with data
+        run: python scripts/check_taxonomy_support.py
+
+      - name: Protected baseline (41/46 must stay green)
+        run: PYTHONPATH=src:. python scripts/check_protected_baseline.py
+
+      - name: Unit tests
+        run: PYTHONPATH=src:. pytest -q
