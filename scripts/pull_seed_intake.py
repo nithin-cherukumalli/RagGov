@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import random
+import re
 from pathlib import Path
 
 from datasets import load_dataset
@@ -51,41 +52,44 @@ def _show_schema(name: str, ds) -> None:
 
 
 # ---------- RAGTruth (labelled_failure) ----------
+def _ctx_to_passages(ctx, base_id: str) -> list[dict]:
+    """Split a RAGTruth context string into passage chunks."""
+    ctx_str = ctx if isinstance(ctx, str) else json.dumps(ctx)
+    parts = [p.strip() for p in re.split(r"\n\n+|passage\s*\d+\s*:", ctx_str,
+                                         flags=re.I) if p.strip()]
+    parts = parts or [ctx_str]
+    return [{"doc_id": f"{base_id}-p{i}", "text": t} for i, t in enumerate(parts[:6])]
+
+
 def pull_ragtruth(n_conflict: int = 15, n_baseless: int = 15) -> list[dict]:
+    # Real schema: query, context, output, hallucination_labels_processed, task_type, ...
     ds = load_dataset("wandb/RAGTruth-processed", split="train")
     _show_schema("ragtruth", ds)
     lic = coerce_license(ds)
     conflict, baseless = [], []
     for ex in ds:
-        label = str(ex.get("label") or ex.get("label_type") or "")
-        docs = []
-        for doc in (ex.get("documents") or ex.get("docs") or ex.get("context") or []):
-            if isinstance(doc, dict):
-                docs.append({"doc_id": doc.get("id") or doc.get("doc_id")
-                             or doc.get("title") or "", "text": doc.get("text")
-                             or doc.get("content") or ""})
-            else:
-                docs.append({"doc_id": "", "text": str(doc)})
-        src_label = ("contradicted" if label == "Conflict"
-                     else "unsupported" if label == "Baseless Info" else label)
+        q, ctx, out = ex.get("query"), ex.get("context"), ex.get("output")
+        if not (q and ctx and out):
+            continue
+        raw = ex.get("hallucination_labels_processed") or ex.get("hallucination_labels")
+        if not raw:
+            continue  # no hallucination annotated -> not a failure case
+        blob = json.dumps(raw).lower()
+        label = "contradicted" if "conflict" in blob else "unsupported"
         item = {
             "source_dataset": "ragtruth",
-            "source_id": str(ex.get("id") or ex.get("source_id") or ""),
+            "source_id": str(ex.get("id") or ""),
             "domain": "wiki",
-            "query": ex.get("prompt") or ex.get("question") or ex.get("query"),
-            "passages": docs,
-            "reference_answer": ex.get("response") or ex.get("answer")
-            or ex.get("reference") or ex.get("gold"),
+            "query": q,
+            "passages": _ctx_to_passages(ctx, f"ragtruth-{ex.get('id')}"),
+            "reference_answer": out,  # the (flawed) model response being judged
             "kind": "labelled_failure",
-            "source_label": src_label,
+            "source_label": label,
             "supporting_doc_ids": None,
             "license": lic,
-            "notes": "",
+            "notes": f"RAGTruth {ex.get('task_type')} response; hallucination={label}.",
         }
-        if src_label == "contradicted":
-            conflict.append(item)
-        elif src_label == "unsupported":
-            baseless.append(item)
+        (conflict if label == "contradicted" else baseless).append(item)
     random.shuffle(conflict)
     random.shuffle(baseless)
     return conflict[:n_conflict] + baseless[:n_baseless]
@@ -93,8 +97,7 @@ def pull_ragtruth(n_conflict: int = 15, n_baseless: int = 15) -> list[dict]:
 
 # ---------- HotpotQA (clean) ----------
 def pull_hotpotqa(n: int = 20) -> list[dict]:
-    ds = load_dataset("hotpotqa/hotpot_qa", "fullwiki", split="train",
-                      trust_remote_code=True)
+    ds = load_dataset("hotpotqa/hotpot_qa", "fullwiki", split="train")
     _show_schema("hotpotqa", ds)
     lic = coerce_license(ds)
     items = []
@@ -123,26 +126,51 @@ def pull_hotpotqa(n: int = 20) -> list[dict]:
 
 # ---------- ALCE (labelled_failure; citation) ----------
 def pull_alce(n: int = 10) -> list[dict]:
+    # ALCE-data is a WebDataset: each row is a FILE -> data lives in ex['json'].
+    # No pre-labelled mismatches, so treat as CLEAN (question + gold docs + answer)
+    # and let induce_cases.py derive citation/sufficiency variants.
     ds = load_dataset("princeton-nlp/ALCE-data", split="train")
     _show_schema("alce", ds)
     lic = coerce_license(ds)
-    items = []
+    items: list[dict] = []
     for ex in ds:
-        ctx = ex.get("context") or ex.get("passage") or ex.get("input") or ""
-        items.append({
-            "source_dataset": "alce",
-            "source_id": str(ex.get("qid") or ex.get("doc_id") or ""),
-            "domain": "wiki",
-            "query": ex.get("question") or ex.get("input") or ex.get("prompt"),
-            "passages": [{"doc_id": ex.get("doc_id") or ex.get("qid") or "",
-                          "text": ctx if isinstance(ctx, str) else json.dumps(ctx)}],
-            "reference_answer": ex.get("answer") or ex.get("target") or "",
-            "kind": "labelled_failure",
-            "source_label": "citation",
-            "supporting_doc_ids": None,
-            "license": lic,
-            "notes": f"citation={ex.get('citation')}",
-        })
+        raw = ex.get("json")
+        try:
+            obj = json.loads(raw) if isinstance(raw, (str, bytes, bytearray)) else raw
+        except Exception:
+            continue
+        records = obj.get("data") if isinstance(obj, dict) else obj
+        if not isinstance(records, list):
+            continue
+        fname = str(ex.get("__key__") or "")
+        for rec in records:
+            q = rec.get("question") or rec.get("query")
+            ans = rec.get("answer") or rec.get("gold_answer") or ""
+            docs = rec.get("docs") or rec.get("passages") or rec.get("ctxs") or []
+            passages = []
+            for j, d in enumerate(docs[:8]):
+                if isinstance(d, dict):
+                    txt = d.get("text") or d.get("content") or d.get("snippet") or ""
+                    if txt:
+                        passages.append({"doc_id": d.get("id") or d.get("title")
+                                         or f"alce-{j}", "text": txt})
+            if not (q and passages):
+                continue
+            items.append({
+                "source_dataset": "alce",
+                "source_id": f"{fname}:{rec.get('sample_id') or rec.get('id') or len(items)}",
+                "domain": "wiki",
+                "query": q,
+                "passages": passages,
+                "reference_answer": ans if isinstance(ans, str) else json.dumps(ans),
+                "kind": "clean",
+                "source_label": None,
+                "supporting_doc_ids": [passages[0]["doc_id"]],
+                "license": lic,
+                "notes": f"ALCE {fname}; treated as clean base for induction.",
+            })
+            if len(items) >= n:
+                break
         if len(items) >= n:
             break
     return items
