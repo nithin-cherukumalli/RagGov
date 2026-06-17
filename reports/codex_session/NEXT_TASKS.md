@@ -277,7 +277,18 @@ Once Calib-50 primary ≥ 0.70 and Phase A/B/C/D land:
 
 **Symptom.** `tests/test_analyzers/test_version_validity_pipeline.py::test_stale_irrelevant_source_does_not_primary_fail` fails: a stale-but-irrelevant lease doc (2010) becomes `primary_failure=STALE_RETRIEVAL` even though the answer cites the fresh, active CEO doc (2024). The stale source is not answer-bearing, so it should not drive the primary verdict.
 
-**Hypothesis.** The STALE_RETRIEVAL promotion (interacts with Task 2) does not gate on whether the stale source is cited / answer-bearing. It should only primary-fail when the stale source actually backs the answer.
+**Regression provenance (verified 2026-06-17).** This is a long-standing
+pre-existing red, **not** caused by Task 2 (`a17f75c`). The test was run against
+each commit's actual code: it fails identically at `38e50e5` (Task 1, the parent
+of Task 2), and is already red at `64909ff` — before the STALE_RETRIEVAL feature
+(`7b47abe`) even shipped. Task 2 is causally innocent, so the Task 3/4/5-v2
+specificity-rank stack is safe to land on top of it; Task 14 is independent and
+not a blocker for v2.
+
+**Hypothesis.** The STALE_RETRIEVAL promotion does not gate on whether the stale
+source is cited / answer-bearing. It should only primary-fail when the stale
+source actually backs the answer. (Origin is the stale/version-validity detection
+path, not the Task 2 rank change.)
 
 **Scope (pre-register before coding).** Likely `src/raggov/decision_policy.py` and/or the stale/version-validity analyzer gate. Add an "is the stale source answer-bearing/cited?" condition.
 
