@@ -53,6 +53,18 @@ Field rules:
 That comfortably clears the ≥5 floor for grounding, retrieval, citation, and
 security types, and leaves enough to build a ~30-case heldout.
 
+## Bulk pipeline (once the seed JSONL exists)
+
+```bash
+python scripts/pull_seed_intake.py        # on a machine with internet -> staging/raw/starter_seed_intake.jsonl
+python scripts/induce_cases.py            # -> staging/raw/induced_candidates.jsonl (clean->CLEAN+variants; labelled->mapped)
+# review induced_candidates.jsonl, then append the good ones:
+#   scripts/add_calib_case.py <case> --append   (assigns gc-0NN)
+python scripts/check_dataset_lock.py --regenerate
+python scripts/check_taxonomy_support.py --regenerate
+# add a LABEL_CHANGELOG.md entry, then re-run the eval.
+```
+
 ## Hand-off
 
 Drop the JSONL (and/or the puller script) in `staging/raw/` and tell me. I'll run
