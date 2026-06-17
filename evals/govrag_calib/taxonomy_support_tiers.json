@@ -1,0 +1,137 @@
+{
+  "generated": "2026-06-17",
+  "dataset_version": "dataset_v1",
+  "floor_for_supported": 5,
+  "definition": {
+    "supported": ">=5 real cases",
+    "thin": "1-4 real cases",
+    "unsupported": "0 real cases (in enum but undetectable/unvalidatable)"
+  },
+  "types": {
+    "CONTRADICTED_CLAIM": {
+      "real_cases": 11,
+      "file_cases": 11,
+      "tier": "supported"
+    },
+    "CLEAN": {
+      "real_cases": 10,
+      "file_cases": 10,
+      "tier": "supported"
+    },
+    "INSUFFICIENT_CONTEXT": {
+      "real_cases": 5,
+      "file_cases": 5,
+      "tier": "supported"
+    },
+    "UNSUPPORTED_CLAIM": {
+      "real_cases": 4,
+      "file_cases": 4,
+      "tier": "thin"
+    },
+    "SCOPE_VIOLATION": {
+      "real_cases": 3,
+      "file_cases": 3,
+      "tier": "thin"
+    },
+    "STALE_RETRIEVAL": {
+      "real_cases": 3,
+      "file_cases": 3,
+      "tier": "thin"
+    },
+    "CITATION_MISMATCH": {
+      "real_cases": 2,
+      "file_cases": 4,
+      "tier": "thin"
+    },
+    "PROMPT_INJECTION": {
+      "real_cases": 2,
+      "file_cases": 2,
+      "tier": "thin"
+    },
+    "RETRIEVAL_DEPTH_LIMIT": {
+      "real_cases": 2,
+      "file_cases": 3,
+      "tier": "thin"
+    },
+    "POST_RATIONALIZED_CITATION": {
+      "real_cases": 1,
+      "file_cases": 1,
+      "tier": "thin"
+    },
+    "PRIVACY_VIOLATION": {
+      "real_cases": 1,
+      "file_cases": 1,
+      "tier": "thin"
+    },
+    "RETRIEVAL_ANOMALY": {
+      "real_cases": 1,
+      "file_cases": 3,
+      "tier": "thin"
+    },
+    "CHUNKING_BOUNDARY_ERROR": {
+      "real_cases": 0,
+      "file_cases": 0,
+      "tier": "unsupported"
+    },
+    "CLAIM_EXTRACTION_FAILED": {
+      "real_cases": 0,
+      "file_cases": 0,
+      "tier": "unsupported"
+    },
+    "EMBEDDING_DRIFT": {
+      "real_cases": 0,
+      "file_cases": 0,
+      "tier": "unsupported"
+    },
+    "GENERATION_IGNORE": {
+      "real_cases": 0,
+      "file_cases": 1,
+      "tier": "unsupported"
+    },
+    "HIERARCHY_FLATTENING": {
+      "real_cases": 0,
+      "file_cases": 0,
+      "tier": "unsupported"
+    },
+    "INCOMPLETE_DIAGNOSIS": {
+      "real_cases": 0,
+      "file_cases": 0,
+      "tier": "unsupported"
+    },
+    "INCONSISTENT_CHUNKS": {
+      "real_cases": 0,
+      "file_cases": 0,
+      "tier": "unsupported"
+    },
+    "LOW_CONFIDENCE": {
+      "real_cases": 0,
+      "file_cases": 1,
+      "tier": "unsupported"
+    },
+    "METADATA_LOSS": {
+      "real_cases": 0,
+      "file_cases": 0,
+      "tier": "unsupported"
+    },
+    "PARSER_STRUCTURE_LOSS": {
+      "real_cases": 0,
+      "file_cases": 0,
+      "tier": "unsupported"
+    },
+    "RERANKER_FAILURE": {
+      "real_cases": 0,
+      "file_cases": 0,
+      "tier": "unsupported"
+    },
+    "SUSPICIOUS_CHUNK": {
+      "real_cases": 0,
+      "file_cases": 0,
+      "tier": "unsupported"
+    },
+    "TABLE_STRUCTURE_LOSS": {
+      "real_cases": 0,
+      "file_cases": 0,
+      "tier": "unsupported"
+    }
+  }
+}
