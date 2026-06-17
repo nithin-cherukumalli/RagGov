@@ -346,6 +346,54 @@ path, not the Task 2 rank change.)
 
 ---
 
+## Phase G — Generalization bugs (found by the fresh-data probe)
+
+> Surfaced by `reports/codex_session/generalization_probe_v1.md`: the engine
+> scores ~0.31 primary on fresh induced data vs ~0.62 on its own fixtures. These
+> are the two clearest, most actionable gaps. Pre-register before any code change;
+> validate against the induced candidate set, not just the existing fixtures.
+
+### Task 17 — Over-firing on CLEAN inputs (false positives)
+
+**Symptom.** On 20 induced CLEAN cases (HotpotQA gold answers, fully supported),
+the engine returned CLEAN only 3/20; it flagged `INCONSISTENT_CHUNKS`,
+`STALE_RETRIEVAL`, `INSUFFICIENT_CONTEXT` on healthy answers. A diagnosis tool
+that cries wolf on working pipelines is not trustworthy.
+
+**Hypothesis.** One or more analyzers fire on benign multi-passage contexts
+(distractor chunks read as "inconsistent"; terse gold answers read as
+"insufficient"). Likely a threshold/precision problem, not a routing one.
+
+**Scope (pre-register first).** Identify which analyzers over-fire on CLEAN;
+tighten precision **without** tuning to specific fixtures. Add a
+false-positive-rate metric over the induced CLEAN set.
+
+**Acceptance criteria.** CLEAN recall on the induced CLEAN set materially up
+(target ≥ 0.7) with no new dangerous-miss; protected baseline unchanged; Calib-50
+and Heldout primary not regressed.
+
+---
+
+### Task 18 — PROMPT_INJECTION detected but not promoted to primary
+
+**Symptom.** On 10 injection cases, the injection analyzer fires ("Prompt
+injection detected") but primary_failure came out `UNSUPPORTED_CLAIM` 9/10. A
+security-relevant signal is detected and then buried.
+
+**Hypothesis.** The decision policy does not rank `PROMPT_INJECTION` (security
+stage) above grounding failures when both fire. Security should generally
+out-rank downstream grounding symptoms.
+
+**Scope (pre-register first).** Decision-policy specificity/priority for the
+security stage. End-to-end test asserting primary == PROMPT_INJECTION on an
+injection case, plus a negative (no injection → no false security primary).
+
+**Acceptance criteria.** Injection cases route to PROMPT_INJECTION as primary;
+no security false-positive on clean/non-injection cases; protected baseline
+unchanged; Calib-50/Heldout not regressed; safety counters still 0.
+
+---
+
 ## Discipline reminders
 
 1. **Pre-registration before code.** Always. No exceptions.
