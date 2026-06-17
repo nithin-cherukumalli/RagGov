@@ -18,6 +18,7 @@ from raggov.calibration import ARESCalibrator, ConfidenceInterval
 from raggov.engine import DEFAULT_EXTERNAL_PROVIDERS, DiagnosisEngine
 from raggov.evaluators.doctor import render_provider_doctor_text
 from raggov.evaluators.registry import create_standard_registry
+from raggov.io.serialize import diagnosis_why_block
 from raggov.models.diagnosis import Diagnosis, FailureType, SecurityRisk
 from raggov.models.run import RAGRun
 from raggov.parser_validation.profile_questionnaire import profile_yaml_from_answers
@@ -488,6 +489,7 @@ def _diagnosis_panel(diagnosis: Diagnosis) -> Panel:
         table.add_row("Recommended fix", Text(s.recommended_fix, style="bold"))
         if s.recommended_next_debug_step:
             table.add_row("Next Debug Step", Text(s.recommended_next_debug_step, style="cyan"))
+        table.add_row("Why this verdict?", _rich_why_block_text(diagnosis))
 
         return Panel(table, title=f"Diagnosis: {diagnosis.run_id}", expand=False)
 
@@ -525,6 +527,7 @@ def _diagnosis_panel(diagnosis: Diagnosis) -> Panel:
     evidence = "\n".join(f"• {item}" for item in diagnosis.evidence) or "• None"
     table.add_row("Evidence", evidence)
     table.add_row("Recommended fix", Text(diagnosis.recommended_fix, style="bold"))
+    table.add_row("Why this verdict?", _rich_why_block_text(diagnosis))
     table.add_row("Checks", _checks_table(diagnosis))
 
     return Panel(table, title=f"Diagnosis: {diagnosis.run_id}", expand=False)
@@ -673,68 +676,6 @@ def _diagnosis_footer(diagnosis: Diagnosis, *, mode: str) -> str:
     )
 
 
-def _voting_analyzers(diagnosis: Diagnosis) -> list[str]:
-    """Analyzers whose status='fail' and failure_type matches the primary verdict.
-
-    These are the components that actually drove the diagnosis — surfacing them
-    lets an engineer jump straight to the right analyzer's code/config instead
-    of guessing.
-    """
-    if diagnosis.primary_failure == FailureType.CLEAN:
-        return []
-    return [
-        r.analyzer_name
-        for r in diagnosis.analyzer_results
-        if r.status == "fail" and r.failure_type == diagnosis.primary_failure
-    ]
-
-
-def _supporting_analyzers(diagnosis: Diagnosis) -> list[str]:
-    """Analyzers that fired at warn/fail with a non-primary failure_type.
-
-    These represent the differential — other concerns the engine saw but did
-    not promote to primary. Useful for engineers to confirm we didn't miss a
-    deeper issue underneath the named failure.
-    """
-    primary = diagnosis.primary_failure
-    seen: list[str] = []
-    for r in diagnosis.analyzer_results:
-        if r.status not in {"fail", "warn"}:
-            continue
-        if r.failure_type is None or r.failure_type == primary:
-            continue
-        label = f"{r.analyzer_name} ({r.failure_type.value}, {r.status})"
-        if label not in seen:
-            seen.append(label)
-    return seen
-
-
-def _inspect_next_target(diagnosis: Diagnosis) -> str | None:
-    """Concrete next-step pointer derived from existing structured fields.
-
-    Preference order: pinpoint location > root_cause_attribution >
-    first_failing_node > recommended_fix. Returns None if nothing concrete.
-    """
-    if diagnosis.pinpoint_findings:
-        loc = diagnosis.pinpoint_findings[0].location
-        parts: list[str] = []
-        if getattr(loc, "claim_id", None):
-            parts.append(f"claim={loc.claim_id}")
-        if getattr(loc, "chunk_id", None):
-            parts.append(f"chunk={loc.chunk_id}")
-        if getattr(loc, "doc_id", None):
-            parts.append(f"doc={loc.doc_id}")
-        if getattr(loc, "stage", None):
-            parts.append(f"stage={loc.stage}")
-        if parts:
-            return ", ".join(parts)
-    if diagnosis.root_cause_attribution:
-        return diagnosis.root_cause_attribution
-    if diagnosis.first_failing_node:
-        return f"node={diagnosis.first_failing_node}"
-    return None
-
-
 def _render_why_block(diagnosis: Diagnosis) -> list[str]:
     """Engineer-facing 'Why this verdict?' provenance block.
 
@@ -743,40 +684,44 @@ def _render_why_block(diagnosis: Diagnosis) -> list[str]:
     domain-agnostic: it shows which analyzer voted, what alternatives were
     considered, and where to look next.
     """
-    lines: list[str] = ["Why this verdict?"]
-    if diagnosis.primary_failure == FailureType.CLEAN:
-        warns = [r.analyzer_name for r in diagnosis.analyzer_results if r.status == "warn"]
-        if warns:
-            lines.append(
-                f"  Verdict: CLEAN. {len(warns)} analyzer(s) raised advisory warnings "
-                f"but none escalated to fail: {', '.join(warns[:5])}"
-            )
-        else:
-            lines.append("  Verdict: CLEAN. No analyzer flagged a failure.")
-        lines.append("  Voted by: (n/a — no failure to attribute)")
-        lines.append("  Also considered: (none)")
-        lines.append("  Inspect next: (n/a)")
-        return lines
-
-    voters = _voting_analyzers(diagnosis)
-    voters_str = ", ".join(voters) if voters else "(no analyzer claims this verdict — engine-level decision)"
+    block = diagnosis_why_block(diagnosis)
+    lines: list[str] = ["Why this verdict?", f"  Verdict: {block['verdict_summary']}"]
+    voters = block["voted_by"]
+    voters_str = ", ".join(voters) if voters else "(n/a — no failure to attribute)"
     lines.append(f"  Voted by: {voters_str}")
-
-    secondary = [f.value for f in diagnosis.secondary_failures] if diagnosis.secondary_failures else []
-    supporting = _supporting_analyzers(diagnosis)
-    if secondary or supporting:
-        considered_parts: list[str] = []
-        if secondary:
-            considered_parts.append("secondary=" + ", ".join(secondary))
-        if supporting:
-            considered_parts.append("warn/fail=" + "; ".join(supporting[:3]))
-        lines.append("  Also considered: " + " | ".join(considered_parts))
+    considered = block["also_considered"]
+    if considered:
+        rendered = "; ".join(
+            f"{item['analyzer']} ({item['failure_type']}, {item['status']})"
+            for item in considered[:3]
+        )
+        lines.append(f"  Also considered: {rendered}")
     else:
         lines.append("  Also considered: (none)")
-
-    target = _inspect_next_target(diagnosis)
-    lines.append(f"  Inspect next: {target if target else '(no structured target — see Evidence below)'}")
+    target = _render_inspect_next(block["inspect_next"])
+    lines.append(f"  Inspect next: {target}")
     return lines
+
+
+def _rich_why_block_text(diagnosis: Diagnosis) -> Text:
+    lines = _render_why_block(diagnosis)[1:]
+    text = Text()
+    for index, line in enumerate(lines):
+        text.append(line.strip())
+        if index < len(lines) - 1:
+            text.append("\n")
+    return text
+
+
+def _render_inspect_next(target: Any) -> str:
+    if not target:
+        return "(n/a)" if target is None else str(target)
+    if isinstance(target, dict):
+        source = target.get("source")
+        parts = [f"{key}={value}" for key, value in target.items() if key != "source"]
+        suffix = ", ".join(parts) if parts else "(no structured target)"
+        return f"{source}: {suffix}" if source else suffix
+    return str(target)
 
 
 def _render_diagnosis_text(diagnosis: Diagnosis, *, mode: str) -> str:

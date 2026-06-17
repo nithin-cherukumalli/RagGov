@@ -92,6 +92,33 @@ def test_diagnose_json_format_emits_valid_json_to_stdout() -> None:
     assert "run_id" in payload
 
 
+def test_diagnose_json_format_includes_why_block_for_citation_mismatch() -> None:
+    result = _run_cli(
+        "diagnose",
+        str(FIXTURES / "citation_mismatch.json"),
+        "--mode",
+        "native",
+        "--format",
+        "json",
+    )
+
+    assert result.returncode == 0, f"stderr:\n{result.stderr}"
+    payload = json.loads(result.stdout)
+    why_block = payload["why_block"]
+    assert set(why_block) == {
+        "verdict_summary",
+        "voted_by",
+        "also_considered",
+        "inspect_next",
+    }
+    assert isinstance(why_block["voted_by"], list)
+    assert isinstance(why_block["also_considered"], list)
+    assert any(
+        item["analyzer"] and item["failure_type"] and item["status"]
+        for item in why_block["also_considered"]
+    )
+
+
 def test_diagnose_rejects_invalid_format_with_nonzero_exit() -> None:
     result = _run_cli(
         "diagnose",

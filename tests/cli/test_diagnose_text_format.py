@@ -11,9 +11,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from rich.console import Console
 from typer.testing import CliRunner
 
-from raggov.cli import app
+from raggov.cli import _diagnosis_panel, app
+from raggov.engine import diagnose
+from raggov.io.serialize import diagnosis_to_dict
+from raggov.models.run import RAGRun
 
 
 FIXTURES = Path(__file__).resolve().parents[2] / "fixtures"
@@ -86,3 +90,32 @@ def test_text_format_does_not_crash_on_clean_pass() -> None:
     # On CLEAN, the why-block should say so explicitly rather than naming an
     # arbitrary analyzer.
     assert "Why this verdict?" in out
+
+
+def test_rich_panel_surfaces_why_block() -> None:
+    run = RAGRun.model_validate_json((FIXTURES / "citation_mismatch.json").read_text())
+    diagnosis = diagnose(run, config={"mode": "native"})
+    console = Console(record=True, width=140)
+
+    console.print(_diagnosis_panel(diagnosis))
+    rendered = console.export_text()
+
+    assert "Why this verdict?" in rendered
+    assert "Voted by:" in rendered
+    assert "Also considered:" in rendered
+    assert "Inspect next:" in rendered
+
+
+def test_json_serialization_surfaces_structured_why_block() -> None:
+    run = RAGRun.model_validate_json((FIXTURES / "citation_mismatch.json").read_text())
+    diagnosis = diagnose(run, config={"mode": "native"})
+
+    payload = diagnosis_to_dict(diagnosis)
+
+    assert "why_block" in payload
+    assert set(payload["why_block"]) == {
+        "verdict_summary",
+        "voted_by",
+        "also_considered",
+        "inspect_next",
+    }
