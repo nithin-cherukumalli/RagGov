@@ -9,11 +9,17 @@ description = "Diagnose why your RAG answer failed, whether the evidence was uns
 license = {text = "MIT"}
 authors = [{name = "RagGov Contributors"}]
 readme = "README.md"
-requires-python = ">=3.10"
+# Code uses 3.11 stdlib (datetime.UTC, tomllib) in src/raggov; 3.10 import-fails.
+requires-python = ">=3.11"
 dependencies = [
     "pydantic>=2.0",
     "typer>=0.9",
     "rich>=13.0",
+]
+classifiers = [
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
 ]
 
 [project.urls]
