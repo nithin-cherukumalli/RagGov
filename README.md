@@ -6,6 +6,15 @@ GovRAG tells you why a RAG answer failed, where the failure originated, whether 
 
 Most RAG tooling measures answer quality or traces execution. GovRAG is built for a different job: failure attribution.
 
+> **Maturity: research preview — `calibration_status: not_calibrated`, not production-gated.**
+> The architecture and taxonomy are complete, but evaluation is still maturing. The
+> calibration set (`dataset_v1`) is 52 cases, mostly synthetic, and only **3 of 25**
+> failure types currently have ≥5 real labelled examples behind them (see
+> `evals/govrag_calib/taxonomy_support_tiers.json`). Treat GovRAG today as a useful
+> first-pass signal on its data-backed failure modes — not yet an authoritative
+> diagnosis across the full taxonomy. Roadmap to trustworthy: grow and lock the
+> dataset, then calibrate (`reports/codex_session/foundation_stabilization_plan.md`).
+
 ## Overview
 
 Production RAG systems do not fail in one place.
@@ -118,20 +127,29 @@ GovRAG currently ships with deterministic analyzers across retrieval, sufficienc
 
 GovRAG uses typed failure classes so diagnoses are stable, inspectable, and automatable.
 
-| Failure Type | Meaning |
-| --- | --- |
-| `STALE_RETRIEVAL` | Retrieved material is outdated relative to the task |
-| `SCOPE_VIOLATION` | Retrieved context is likely off-topic |
-| `CITATION_MISMATCH` | The answer cites sources outside the retrieved context |
-| `INCONSISTENT_CHUNKS` | Retrieved chunks show contradiction-like signals |
-| `INSUFFICIENT_CONTEXT` | The retrieved context does not contain enough information to answer reliably |
-| `UNSUPPORTED_CLAIM` | The answer makes claims not supported by retrieved evidence |
-| `CONTRADICTED_CLAIM` | The answer conflicts with retrieved evidence |
-| `PROMPT_INJECTION` | Retrieved content contains instruction-like or adversarial prompt material |
-| `SUSPICIOUS_CHUNK` | A chunk exhibits poisoning-like answer-steering behavior |
-| `RETRIEVAL_ANOMALY` | Retrieval behavior shows statistical or structural anomalies |
-| `LOW_CONFIDENCE` | Aggregate signals indicate the output is not trustworthy |
-| `CLEAN` | No significant failure was detected |
+The **Data** column reflects how many real (non-placeholder) labelled cases back each
+type in `dataset_v1`: ✅ supported (≥5), 🟡 thin (1–4), 🧪 experimental (0 — defined
+in the taxonomy but not yet data-backed). See `evals/govrag_calib/taxonomy_support_tiers.json`.
+
+| Failure Type | Meaning | Data |
+| --- | --- | --- |
+| `INSUFFICIENT_CONTEXT` | The retrieved context does not contain enough information to answer reliably | ✅ |
+| `CONTRADICTED_CLAIM` | The answer conflicts with retrieved evidence | ✅ |
+| `CLEAN` | No significant failure was detected | ✅ |
+| `STALE_RETRIEVAL` | Retrieved material is outdated relative to the task | 🟡 |
+| `SCOPE_VIOLATION` | Retrieved context is likely off-topic | 🟡 |
+| `CITATION_MISMATCH` | The answer cites sources outside the retrieved context | 🟡 |
+| `UNSUPPORTED_CLAIM` | The answer makes claims not supported by retrieved evidence | 🟡 |
+| `PROMPT_INJECTION` | Retrieved content contains instruction-like or adversarial prompt material | 🟡 |
+| `RETRIEVAL_ANOMALY` | Retrieval behavior shows statistical or structural anomalies | 🟡 |
+| `INCONSISTENT_CHUNKS` | Retrieved chunks show contradiction-like signals | 🧪 |
+| `SUSPICIOUS_CHUNK` | A chunk exhibits poisoning-like answer-steering behavior | 🧪 |
+| `LOW_CONFIDENCE` | Aggregate signals indicate the output is not trustworthy | 🧪 |
+
+The full enum defines 25 failure types; the table shows the primary ones. The remaining
+types (e.g. parser/chunking/embedding failures, `RERANKER_FAILURE`) are 🧪 experimental —
+defined but not yet data-backed. The complete tiering lives in
+`evals/govrag_calib/taxonomy_support_tiers.json`.
 
 Every diagnosis also includes:
 
