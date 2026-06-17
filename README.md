@@ -206,6 +206,25 @@ GovRAG will:
 3. print a structured diagnosis panel
 4. write raw diagnosis JSON to the working directory
 
+### Framework Quickstarts
+
+Copy-pasteable integration examples live in `examples/` and run with stub
+retrievers by default:
+
+```bash
+python examples/langchain_integration.py
+python examples/llamaindex_integration.py
+```
+
+Install framework packages separately only when wiring real pipelines:
+
+```bash
+pip install langchain
+pip install llama-index
+```
+
+GovRAG does not add LangChain or LlamaIndex as runtime dependencies.
+
 ### Semantic Entropy Configuration
 
 `SemanticEntropyAnalyzer` supports both deterministic claim-label entropy and LLM sampling mode.
