@@ -266,6 +266,57 @@ Once Calib-50 primary ≥ 0.70 and Phase A/B/C/D land:
 
 ---
 
+## Phase F — Follow-ups filed from Task 10 red-test triage
+
+> These are `real_bug` rows from `reports/codex_session/red_test_triage.md`.
+> Production was not changed in Task 10; each is a genuine routing/attribution
+> gap surfaced by a golden-aligned analyzer test. Each needs its own
+> pre-registration before any code change.
+
+### Task 14 — STALE_RETRIEVAL over-promotes on irrelevant stale sources
+
+**Symptom.** `tests/test_analyzers/test_version_validity_pipeline.py::test_stale_irrelevant_source_does_not_primary_fail` fails: a stale-but-irrelevant lease doc (2010) becomes `primary_failure=STALE_RETRIEVAL` even though the answer cites the fresh, active CEO doc (2024). The stale source is not answer-bearing, so it should not drive the primary verdict.
+
+**Hypothesis.** The STALE_RETRIEVAL promotion (interacts with Task 2) does not gate on whether the stale source is cited / answer-bearing. It should only primary-fail when the stale source actually backs the answer.
+
+**Scope (pre-register before coding).** Likely `src/raggov/decision_policy.py` and/or the stale/version-validity analyzer gate. Add an "is the stale source answer-bearing/cited?" condition.
+
+**Acceptance criteria.**
+- Case in `test_stale_irrelevant_source_does_not_primary_fail` stops returning STALE_RETRIEVAL.
+- Task 2's target (Calib-50 case 038) still resolves to STALE_RETRIEVAL.
+- Protected baseline unchanged (41/46 GREEN). Heldout primary ≥ 0.733. Calib-50 ≥ baseline.
+- All safety counters stay 0.
+
+---
+
+### Task 15 — Stage attribution: incomplete answer should be GENERATION, not GROUNDING
+
+**Symptom.** `tests/test_analyzers/test_answer_quality_confidence_metadata.py::test_quality_incomplete_38_has_generation_stage_candidate_if_supported` fails: engine agrees `primary_failure=UNSUPPORTED_CLAIM` but sets `root_cause_stage=GROUNDING`. An incomplete-answer case (case 38) is a generation-stage problem and should attribute to `GENERATION` with `AnswerQualityAnalyzer` as the selected analyzer.
+
+**Hypothesis.** Stage attribution / analyzer selection for incomplete answers is dominated by a grounding-stage analyzer; AnswerQualityAnalyzer's generation-stage candidate is not promoted when it should be.
+
+**Scope (pre-register before coding).** Engine stage-attribution / decision-policy. End-to-end DiagnosisEngine test on case 38.
+
+**Acceptance criteria.**
+- Case 38 → `root_cause_stage=GENERATION`, selected analyzer `AnswerQualityAnalyzer`, primary stays `UNSUPPORTED_CLAIM`.
+- Protected baseline unchanged. Heldout primary ≥ 0.733. Calib-50 ≥ baseline. Safety counters 0.
+
+---
+
+### Task 16 — Specificity: case 41 should route to CONTRADICTED_CLAIM, not UNSUPPORTED_CLAIM
+
+**Symptom.** `tests/test_analyzers/test_answer_quality_confidence_metadata.py::test_quality_ignores_context_41_has_generation_stage_candidate_if_supported` fails: golden expects `CONTRADICTED_CLAIM` (answer ignores/contradicts retrieved context) but engine routes to less-specific `UNSUPPORTED_CLAIM`.
+
+**Hypothesis.** Same family as the v2 routing work: a more-specific failure (CONTRADICTED_CLAIM) is not promoted over UNSUPPORTED_CLAIM when contradiction signal is present. Sequence after Tasks 3-v2/5-v2 so the specificity-rank machinery is consistent.
+
+**Scope (pre-register before coding).** Decision-policy specificity rank + analyzer contradiction signal. End-to-end DiagnosisEngine test on case 41.
+
+**Acceptance criteria.**
+- Case 41 → `primary_failure=CONTRADICTED_CLAIM`, `root_cause_stage=GENERATION`.
+- No regression on UNSUPPORTED_CLAIM cases. Protected baseline unchanged. Heldout primary ≥ 0.733. Calib-50 ≥ baseline. Safety counters 0.
+
+---
+
 ## Discipline reminders
 
 1. **Pre-registration before code.** Always. No exceptions.
