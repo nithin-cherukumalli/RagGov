@@ -75,6 +75,12 @@ These are cases where the right signal is already in `analyzer_results` but the 
 
 ### Task 3-v2 — CITATION_MISMATCH: analyzer gate AND decision-policy rank
 
+> ⚠ **BLOCKED (2026-06-17).** Feasibility check found the named cases (029, 030, 025)
+> no longer carry the assumed goldens, and the gate does not match the real
+> CITATION_MISMATCH cases (gc-024/025 are *cited-doc-not-retrieved*). Re-scope before
+> pre-registration. See `reports/codex_session/v2_feasibility_blocker.md`. Criteria
+> below preserved unchanged as the pre-registration record.
+
 **Why v1 failed.** Changed analyzer gate only. Engine kept routing to
 UNSUPPORTED_CLAIM via ClaimGroundingAnalyzer. New gate was also less specific
 than the old one.
@@ -103,6 +109,12 @@ than the old one.
 ---
 
 ### Task 4-v2 — RETRIEVAL_DEPTH_LIMIT: pipeline-introspection only
+
+> ⚠ **DEFERRED (2026-06-17).** Hits its own pre-registered deferral clause: no
+> `top_k`/`k_floor`/saturation signal exists in the fixtures (`RAGRun.metadata` empty,
+> chunk metadata `{}`; only `rank`/`score`). Named cases (004, 019) are also
+> mislabeled now. See `reports/codex_session/v2_feasibility_blocker.md`. Criteria
+> below preserved unchanged as the pre-registration record.
 
 **Why v1 failed.** Predicate parsed cardinal numbers from query text. False-
 fired on CLEAN cases 011, 012 and broke 023, 027. Heldout regressed.
@@ -136,6 +148,12 @@ the signal is not in the data, defer.
 ---
 
 ### Task 5-v2 — RERANKER_FAILURE: analyzer AND decision-policy rank
+
+> ⚠ **DEFERRED (2026-06-17).** Not viable against current data: zero cases carry the
+> `RERANKER_FAILURE` golden and no reranker metadata exists anywhere, so the required
+> end-to-end test cannot be constructed. See
+> `reports/codex_session/v2_feasibility_blocker.md`. Criteria below preserved
+> unchanged as the pre-registration record.
 
 **Why v1 failed.** Analyzer registered, but decision policy never promoted
 RERANKER_FAILURE over UNSUPPORTED_CLAIM. Target case 020 unchanged.
