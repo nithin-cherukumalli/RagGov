@@ -1606,6 +1606,17 @@ def _citation_markers(result: AnalyzerResult) -> list[str]:
     return list(dict.fromkeys(markers))
 
 
+# Verifier methods that produce entailment-grade (semantic) contradiction verdicts. A
+# contradiction from one of these is hard evidence (Phase 2 hybrid tier). Native lexical
+# verifiers (value_aware_structured_claim_verifier_v1, deterministic_overlap_anchor_v0) are
+# deliberately excluded — their contradiction is not trustworthy (Task 22).
+_ENTAILMENT_GRADE_METHODS = frozenset({
+    "llm_claim_entailment_verifier_v1",
+    "structured_llm_claim_verifier_v1",
+    "conservative_ensemble_v1",
+})
+
+
 def _has_explicit_contradiction(candidate: DecisionCandidate, results: list[AnalyzerResult]) -> bool:
     # "explicit_contradiction" is the default label_reason for ANY contradicted claim
     # (see _default_label_reason in verifiers.py).  Counting it here would make
@@ -1615,6 +1626,15 @@ def _has_explicit_contradiction(candidate: DecisionCandidate, results: list[Anal
     # a real value conflict, a "conflicting value" phrase, or a specific typed reason.
     result = results[candidate.original_index]
     for claim in result.claim_results or []:
+        # Phase 2 (hybrid tier): a contradiction verified by an entailment-grade method
+        # (NLI / LLM entailment) is hard semantic evidence and counts as explicit. Native
+        # lexical verifiers are NOT in this set, so native behavior is unchanged (the
+        # Task 22 no-go for heuristic contradiction is preserved).
+        if (
+            getattr(claim, "label", None) == "contradicted"
+            and getattr(claim, "verification_method", None) in _ENTAILMENT_GRADE_METHODS
+        ):
+            return True
         if claim.value_conflicts:
             if claim.value_matches and (claim.atomicity_status == "compound" or len(claim.value_conflicts) > 1):
                 continue
