@@ -405,6 +405,20 @@ class DiagnosisEngine:
         else:
             root_cause_stage = FailureStage.UNKNOWN
 
+        # Stage re-attribution (Task 15): when the answer omits requested enumerated
+        # items that ARE present in the retrieved context, the unsupported-claim failure
+        # is a generation fault (the generator dropped available content), not a
+        # retrieval/grounding fault. Narrow: only the incompleteness pattern, never
+        # generic over-claim cases. Primary failure is unchanged; only the stage moves.
+        if (
+            primary_failure == FailureType.UNSUPPORTED_CLAIM
+            and primary_result is not None
+            and primary_result.analyzer_name == "ClaimGroundingAnalyzer"
+            and root_cause_stage == FailureStage.GROUNDING
+            and self._answer_incomplete_despite_context(run)
+        ):
+            root_cause_stage = FailureStage.GENERATION
+
         # Extract A2P attribution fields if present
         root_cause_attribution = None
         proposed_fix = None
@@ -690,6 +704,20 @@ class DiagnosisEngine:
                 if sr.sufficient and sr.sufficiency_label != "insufficient":
                     return True
         return False
+
+    def _answer_incomplete_despite_context(self, run: RAGRun) -> bool:
+        """True when the answer omits requested enumerated items that are present in context.
+
+        Reuses AnswerQualityAnalyzer's completeness definition so the engine's stage
+        re-attribution (Task 15) stays consistent with the analyzer. Stage-only; never
+        changes the primary failure.
+        """
+        try:
+            from raggov.analyzers.answer_quality.analyzer import AnswerQualityAnalyzer
+
+            return bool(AnswerQualityAnalyzer(self.config)._answer_completeness_signals(run))
+        except Exception:
+            return False
 
     def _should_use_a2p_stage_override(self, a2p_result: AnalyzerResult | None) -> bool:
         if a2p_result is None or a2p_result.attribution_stage is None:

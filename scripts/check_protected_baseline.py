@@ -21,7 +21,12 @@ EXPECTED_FAILURES = {
     # improvement; not a label change. See
     # reports/baseline_pin_v0_1_alpha_public_migration.md for provenance.
     "security_retrieval_anomaly_only_36",
-    "quality_incomplete_38",
+    # `quality_incomplete_38` was a pinned expected mismatch (incomplete answer with
+    # sufficient context attributed to GROUNDING instead of GENERATION). Task 15 added
+    # narrow stage re-attribution (engine.py `_answer_incomplete_despite_context`): the
+    # primary failure is still UNSUPPORTED_CLAIM, only the stage now correctly reads
+    # GENERATION. This is a real attribution fix; no golden label changed. See
+    # reports/codex_session/task15_result.md.
     "quality_ignores_context_41",
 }
 
@@ -89,9 +94,9 @@ def _mode_errors(mode_name: str, mode: dict[str, Any]) -> list[str]:
     passed = mode.get("passed_cases")
     total = mode.get("total_cases")
     effective_passed = (passed or 0) + sum(alt_promotions.values())
-    if (effective_passed, total) != (42, 46):
+    if (effective_passed, total) != (43, 46):
         errors.append(
-            f"{mode_name}: expected 42/46 (incl. acceptable alternatives), "
+            f"{mode_name}: expected 43/46 (incl. acceptable alternatives), "
             f"got {effective_passed}/{total}"
         )
 
