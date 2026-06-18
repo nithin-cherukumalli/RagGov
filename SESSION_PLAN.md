@@ -95,9 +95,20 @@ CLEAN-correct 4/30 → 13/30; UNSUPPORTED_CLAIM 2/30 → 25/30; CITATION_MISMATC
 - **Task 22 NO-GO (documented)** — CONTRADICTED_CLAIM recall can't be safely recovered in native
   mode: `_require_explicit_contradiction` is load-bearing (disabling regresses Calib 23→22, +10
   false contradictions). Needs optional LLM/NLI verifier or label audit. See `task22_result.md`.
-- **Tasks 14/15/16 — groundwork only** (`task14_15_16_groundwork.md`); deferred to avoid a
-  protected-baseline-risking profile/policy change at session end. Recommended order: 15 → 14 → 16.
-- **Task 24** (list/short-answer extraction recall) not started; higher CLEAN-precision risk.
+- **Task 15 LANDED** — incomplete-answer (requested enumerated items present in context but omitted)
+  now attributed to GENERATION stage (`engine.py`). Fixed protected case `quality_incomplete_38`
+  (effective 42→43) + the red `test_pr5e` test; primary unchanged. v1 reverted (dropped protected
+  41→36) then narrowed to the incompleteness signal. See `task15_result.md`.
+- **Task 16 LANDED** — broad-permission vs explicit-restriction now recognized as contradiction
+  (`decision_policy_support.py`). Case 41 primary `UNSUPPORTED_CLAIM→CONTRADICTED_CLAIM` (correct);
+  fires on 0/145 probe rows, all gates green. Distinct from the Task 22 no-go. See `task16_result.md`.
+- **Task 22 NO-GO (documented)** — see above; native-mode contradiction recall bounded.
+- **Task 25 (next)** — wire `AnswerQualityAnalyzer` into the default suite; this is the shared
+  unlock that would flip both xfail tests (`_38`, `_41`) now that 15/16 fixed stage+primary. Broad
+  blast radius → needs full probe/Calib/protected validation.
+- **Task 14 (next)** — stale irrelevant source; deep profile relative-recency change entangled with
+  protected case 32 (Task-17-style). **Task 24** — list/short-answer recall; higher CLEAN risk.
+- Protected baseline pin updated 42→43 (case 38 fixed; precedent: `retrieval_irrelevant_plausible_09`).
 
 ---
 
