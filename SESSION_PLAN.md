@@ -106,8 +106,11 @@ CLEAN-correct 4/30 → 13/30; UNSUPPORTED_CLAIM 2/30 → 25/30; CITATION_MISMATC
 - **Task 25 (next)** — wire `AnswerQualityAnalyzer` into the default suite; this is the shared
   unlock that would flip both xfail tests (`_38`, `_41`) now that 15/16 fixed stage+primary. Broad
   blast radius → needs full probe/Calib/protected validation.
-- **Task 14 (next)** — stale irrelevant source; deep profile relative-recency change entangled with
-  protected case 32 (Task-17-style). **Task 24** — list/short-answer recall; higher CLEAN risk.
+- **Task 14 LANDED** — `StaleRetrievalAnalyzer._from_profile` now gates STALE on query-relevance +
+  strictly-newer dated alternative. Flipped its strict-xfail test to passing (full resolution);
+  genuine stale TPs preserved. Protected 43/46, Calib/probe unchanged. See `task14_result.md`.
+- **Task 24 (next)** — list/short-answer recall; higher CLEAN risk. **Task 25** deprioritized
+  (cosmetic: engine output already correct for 38/41; only the selected_analyzer assertion remains).
 - Protected baseline pin updated 42→43 (case 38 fixed; precedent: `retrieval_irrelevant_plausible_09`).
 
 ---
