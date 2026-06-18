@@ -57,6 +57,19 @@ _ENTITY_ATTRIBUTE_CLAIM_RE = re.compile(
     r"\b(?:the\s+)?[a-z][a-z0-9_-]{2,}\s+(?:is|are|was|were)\s+"
     r"(?:[A-Z][A-Za-z0-9_.-]*(?:\s+[A-Z][A-Za-z0-9_.-]*){0,3}|[a-z0-9_-]{3,})\.?$"
 )
+# Source-assertion sentences attribute a factual claim to the retrieved material
+# ("The source also notes ...", "the document states ..."). These are verifiable
+# factual assertions even without an entity/date/number, and leaving them
+# non-verifiable lets fabricated source-attribution suffixes pass as CLEAN.
+_SOURCE_ASSERTION_RE = re.compile(
+    r"(?i)\b(?:the\s+|this\s+)?"
+    r"(?:sources?|passages?|documents?|texts?|articles?|reports?|authors?|"
+    r"studies|study|records?|excerpts?|contexts?|paragraphs?)\s+"
+    r"(?:also\s+|further\s+|additionally\s+)?"
+    r"(?:notes?|states?|reports?|confirms?|documents?|says?|said|mentions?|"
+    r"indicates?|asserts?|claims?|observes?|describes?|adds?|"
+    r"reaffirm(?:s|ed)?|noted)\b"
+)
 
 ClaimAtomicity = Literal["atomic", "compound", "unclear"]
 ClaimType = Literal[
@@ -268,6 +281,8 @@ class HeuristicClaimExtractorV0(BaseClaimExtractor):
             ):
                 substantive_matches = max(substantive_matches, 1)
             if _ENTITY_ATTRIBUTE_CLAIM_RE.search(stripped_sentence):
+                substantive_matches = max(substantive_matches, 1)
+            if _SOURCE_ASSERTION_RE.search(sentence):
                 substantive_matches = max(substantive_matches, 1)
             conjunctions = len(re.findall(r"\b(?:and|or|but)\b", sentence, re.IGNORECASE))
             atomicity: ClaimAtomicity = (

@@ -157,6 +157,25 @@ def test_generic_instruction_not_extracted_as_claim() -> None:
     assert claims == []
 
 
+def test_unsupported_source_assertion_suffix_is_not_silently_clean() -> None:
+    """Task 23: an answer whose only unsupported content is a fabricated
+    source-attribution suffix must not let grounding skip into a CLEAN diagnosis."""
+    answer = (
+        "Paris is the capital of France. The source also notes this was formally "
+        "reaffirmed at a later international summit."
+    )
+    run = run_with_answer(
+        answer,
+        [chunk("c1", "Paris is the capital of France and its largest city.")],
+    )
+
+    result = ClaimGroundingAnalyzer().analyze(run)
+
+    assert result.status != "skip"
+    assert result.status == "fail"
+    assert result.failure_type == FailureType.UNSUPPORTED_CLAIM
+
+
 def test_modal_word_alone_does_not_make_claim() -> None:
     extractor = ClaimExtractor()
 
