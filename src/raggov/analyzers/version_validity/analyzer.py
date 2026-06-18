@@ -546,8 +546,17 @@ class TemporalSourceValidityAnalyzerV1(BaseAnalyzer):
                 continue
 
             if is_stale_by_age and doc_id in retrieved_doc_ids and not is_cited:
+                # Task 17-v3: a query-relevant STALE_BY_AGE doc is only a
+                # retrieval failure when a strictly newer dated version was also
+                # retrieved (relative recency). Absolute age vs an assumed "now"
+                # alone (a lone old year in prose) is old-but-relevant, not a
+                # failure -- that was the CLEAN over-firing source.
                 if query_relevant:
-                    retrieved_only_stale_doc_ids.append(doc_id)
+                    if self._has_newer_dated_alternative(
+                        records_by_doc_id, doc_id, retrieved_doc_ids
+                    ):
+                        retrieved_only_stale_doc_ids.append(doc_id)
+                    # else: no newer dated version retrieved -> not a failure.
                 elif self._has_current_alternative(run, doc_id):
                     stale_but_irrelevant_doc_ids.append(doc_id)
                 else:
@@ -611,6 +620,35 @@ class TemporalSourceValidityAnalyzerV1(BaseAnalyzer):
         if run.cited_doc_ids:
             return any(doc_id not in run.cited_doc_ids for doc_id in stale_doc_ids)
         return True
+
+    def _has_newer_dated_alternative(
+        self,
+        records_by_doc_id: dict[str, "DocumentValidityRecord"],
+        stale_doc_id: str,
+        retrieved_doc_ids: set[str],
+    ) -> bool:
+        """True if another retrieved doc has a strictly newer structured date.
+
+        Relative-recency signal for staleness. Uses effective_date/issue_date on
+        the document records only -- never passage text or the query.
+        """
+
+        def _date(rec: "DocumentValidityRecord") -> datetime | None:
+            return getattr(rec, "effective_date", None) or getattr(rec, "issue_date", None)
+
+        stale_rec = records_by_doc_id.get(stale_doc_id)
+        if stale_rec is None:
+            return False
+        stale_date = _date(stale_rec)
+        if stale_date is None:
+            return False
+        for other_id, rec in records_by_doc_id.items():
+            if other_id == stale_doc_id or other_id not in retrieved_doc_ids:
+                continue
+            other_date = _date(rec)
+            if other_date is not None and other_date > stale_date:
+                return True
+        return False
 
     def _has_current_alternative(self, run: RAGRun, stale_doc_id: str) -> bool:
         for chunk in run.retrieved_chunks:
