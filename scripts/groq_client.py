@@ -18,8 +18,37 @@ from __future__ import annotations
 import json
 import os
 import urllib.request
+from pathlib import Path
 
 _ENDPOINT = "https://api.groq.com/openai/v1/chat/completions"
+# Accepted key names, in priority order (env var first, then .env file).
+_KEY_NAMES = ("GROQ_API_KEY", "GROQ_API", "groq_api", "groq_api_key")
+
+
+def _load_key() -> str | None:
+    """Resolve the Groq key from the environment, then from a .env file.
+
+    .env lines look like `groq_api = gsk_...` (spaces and quotes tolerated). The .env
+    file is gitignored — the key is never committed.
+    """
+    for name in _KEY_NAMES:
+        val = os.environ.get(name)
+        if val:
+            return val.strip().strip("'\"")
+    # search .env in cwd and up to repo root
+    here = Path(__file__).resolve()
+    for base in (Path.cwd(), here.parent, here.parent.parent):
+        env_path = base / ".env"
+        if not env_path.is_file():
+            continue
+        for line in env_path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            name, _, value = line.partition("=")
+            if name.strip() in _KEY_NAMES:
+                return value.strip().strip("'\"")
+    return None
 
 
 class GroqClient:
@@ -28,10 +57,11 @@ class GroqClient:
     def __init__(self, model: str = "llama-3.3-70b-versatile", temperature: float = 0.0) -> None:
         self.model = model
         self.temperature = temperature
-        self._key = os.environ.get("GROQ_API_KEY")
+        self._key = _load_key()
         if not self._key:
             raise RuntimeError(
-                "GROQ_API_KEY not set. Export it in the environment; never hardcode it."
+                "No Groq key found. Set GROQ_API_KEY in the environment or add "
+                "`groq_api = gsk_...` to a .env file (gitignored). Never hardcode it."
             )
 
     def chat(self, prompt: str) -> str:
