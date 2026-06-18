@@ -214,3 +214,38 @@ def test_missing_profile_numeric_prose_does_not_fail_as_flattened_table() -> Non
     assert result.status == "warn"
     assert result.failure_type == FailureType.METADATA_LOSS
     assert result.evidence[0] == "parser_validation_profile_missing"
+
+
+def test_chunk_boundary_damage_flagged_within_same_document() -> None:
+    """Task 20 TP: a sentence split across adjacent chunks of ONE document is a
+    genuine chunking boundary error."""
+    chunks = [
+        RetrievedChunk(
+            chunk_id="c1",
+            text="The revised safety regulation applies to every contractor working on",
+            source_doc_id="doc-shared",
+            score=None,
+        ),
+        RetrievedChunk(
+            chunk_id="c2",
+            text="federal infrastructure projects after the new fiscal year begins.",
+            source_doc_id="doc-shared",
+            score=None,
+        ),
+    ]
+    result = ParserValidationAnalyzer().analyze(run_with_chunks(chunks))
+
+    assert result.status == "fail"
+    assert result.failure_type == FailureType.CHUNKING_BOUNDARY_ERROR
+
+
+def test_chunk_boundary_damage_ignored_across_distinct_documents() -> None:
+    """Task 20 precision: mid-sentence starts across independent multi-hop passages
+    (distinct source documents) are not a chunker defect."""
+    chunks = [
+        chunk("c1", "Harmony Korine is an American film director known for"),
+        chunk("c2", "babenco and other influences shaped his early independent work."),
+    ]
+    result = ParserValidationAnalyzer().analyze(run_with_chunks(chunks))
+
+    assert result.failure_type != FailureType.CHUNKING_BOUNDARY_ERROR

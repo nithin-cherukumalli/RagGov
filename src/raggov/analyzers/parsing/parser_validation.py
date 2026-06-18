@@ -168,7 +168,7 @@ class ParserValidationAnalyzer(BaseAnalyzer):
         lowered = combined.lower()
         query_lower = run.query.lower()
 
-        if self._has_chunk_boundary_damage(texts):
+        if self._has_chunk_boundary_damage(chunks):
             return AnalyzerResult(
                 analyzer_name=self.name(),
                 status="fail",
@@ -235,13 +235,21 @@ class ParserValidationAnalyzer(BaseAnalyzer):
 
         return None
 
-    def _has_chunk_boundary_damage(self, texts: list[str]) -> bool:
-        if len(texts) < 2:
+    def _has_chunk_boundary_damage(self, chunks: list) -> bool:
+        if len(chunks) < 2:
             return False
         dangling_end = re.compile(r"\b(?:of|for|to|in|on|with|and|or|the|a|an|is|are)$", re.IGNORECASE)
-        for left, right in zip(texts, texts[1:]):
-            left = left.strip()
-            right = right.strip()
+        for left_chunk, right_chunk in zip(chunks, chunks[1:]):
+            # A sentence split across a boundary is only a chunking error when the
+            # two chunks are adjacent fragments of the SAME source document. On
+            # multi-hop retrieval, consecutive chunks come from distinct documents
+            # and a mid-sentence start is not a chunker defect.
+            left_doc = getattr(left_chunk, "source_doc_id", None)
+            right_doc = getattr(right_chunk, "source_doc_id", None)
+            if left_doc != right_doc:
+                continue
+            left = str(getattr(left_chunk, "text", "") or "").strip()
+            right = str(getattr(right_chunk, "text", "") or "").strip()
             if not left or not right:
                 continue
             if dangling_end.search(left) and right[:1].islower():
