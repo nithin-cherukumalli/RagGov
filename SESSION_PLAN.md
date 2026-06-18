@@ -86,8 +86,18 @@ prereg + result docs either way.
 
 ## Definition of done (project-level, not this session)
 Generalization ≥ ~0.70 on a real 30–50-case heldout, low CLEAN false-positive rate, every advertised
-type data-backed. **Probe today: 0.393** (start of session 0.241; +0.152 across Tasks 18–21).
-CLEAN-correct 4/30 → 13/30.
+type data-backed. **Probe today: 0.552** (start 0.241; +0.311 across Tasks 18–23).
+CLEAN-correct 4/30 → 13/30; UNSUPPORTED_CLAIM 2/30 → 25/30; CITATION_MISMATCH 29/30; injection 9/10.
+
+### Session 2 addendum (following Codex sidekick plan)
+- **Task 23 LANDED** — source-assertion suffixes now verifiable (`claims.py`).
+  `UNSUPPORTED_CLAIM→CLEAN` 7→0; probe **0.393→0.552**. See `task23_result.md`.
+- **Task 22 NO-GO (documented)** — CONTRADICTED_CLAIM recall can't be safely recovered in native
+  mode: `_require_explicit_contradiction` is load-bearing (disabling regresses Calib 23→22, +10
+  false contradictions). Needs optional LLM/NLI verifier or label audit. See `task22_result.md`.
+- **Tasks 14/15/16 — groundwork only** (`task14_15_16_groundwork.md`); deferred to avoid a
+  protected-baseline-risking profile/policy change at session end. Recommended order: 15 → 14 → 16.
+- **Task 24** (list/short-answer extraction recall) not started; higher CLEAN-precision risk.
 
 ---
 
