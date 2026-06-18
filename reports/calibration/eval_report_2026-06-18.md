@@ -1,10 +1,10 @@
-# eval_report — 2026-06-18
+# eval_report Phase 2 — 2026-06-18
 
 **Method status:** heuristic_baseline / practical_approximation (uncalibrated).  
-Scores EXACT primary-failure accuracy on available eval data — NOT a production-generalization guarantee.
+Scores EXACT primary-failure accuracy — NOT a production-generalization guarantee.  
+**Real heldout v1 (18/75 = 0.24) is now THE primary metric.**
 
-Seeds used: [0]  
-Modes: ['default', 'native']
+Seeds: [0] | Modes: ['default', 'native']
 
 ## Mode: `default`
 ### Calib (train+dev+heldout)
@@ -28,20 +28,27 @@ Modes: ['default', 'native']
 | RETRIEVAL_ANOMALY | 1 | 0.0 | 0.0 | None |
 | POST_RATIONALIZED_CITATION | 1 | 0.0 | 0.0 | None |
 
-### Induced Probe
+### Induced Probe (synthetic)
 | n | correct (mean) | accuracy mean | min | max | confidence_mean |
 |----|----|----|----|----|-----|
-| 145 | 80.0 | 0.5517 | 0.5517 | 0.5517 | 0.3696 |
+| 0 | 0.0 | None | None | None | None |
 
 **Per-type:**
 | type | n | correct (mean) | accuracy mean | confidence_mean |
 |------|---|----|----|------|
-| CLEAN | 30 | 13.0 | 0.4333 | None |
-| INSUFFICIENT_CONTEXT | 30 | 4.0 | 0.1333 | None |
-| UNSUPPORTED_CLAIM | 30 | 25.0 | 0.8333 | None |
-| CITATION_MISMATCH | 30 | 29.0 | 0.9667 | None |
-| CONTRADICTED_CLAIM | 15 | 0.0 | 0.0 | None |
-| PROMPT_INJECTION | 10 | 9.0 | 0.9 | None |
+
+### **Real Heldout v1** (production bar)
+| n | correct (mean) | accuracy mean | min | max | confidence_mean |
+|----|----|----|----|----|-----|
+| 75 | 18.0 | 0.24 | 0.24 | 0.24 | 0.5485 |
+
+**Per-type:**
+| type | n | correct (mean) | accuracy mean | confidence_mean |
+|------|---|----|----|------|
+| CLEAN | 50 | 12.0 | 0.24 | None |
+| CONTRADICTED_CLAIM | 25 | 6.0 | 0.24 | None |
+
+**CLEAN-FP rate [heldout_real, default]:** 38/50 = 0.76 — breakdown: {'STALE_RETRIEVAL': 9, 'INSUFFICIENT_CONTEXT': 8, 'INCONSISTENT_CHUNKS': 7, 'UNSUPPORTED_CLAIM': 6, 'CONTRADICTED_CLAIM': 2, 'POST_RATIONALIZED_CITATION': 1, 'PROMPT_INJECTION': 1, 'PRIVACY_VIOLATION': 1, 'SCOPE_VIOLATION': 1, 'GENERATION_IGNORE': 1, 'RETRIEVAL_ANOMALY': 1}
 
 ## Mode: `native`
 ### Calib (train+dev+heldout)
@@ -65,26 +72,44 @@ Modes: ['default', 'native']
 | RETRIEVAL_ANOMALY | 1 | 0.0 | 0.0 | None |
 | POST_RATIONALIZED_CITATION | 1 | 0.0 | 0.0 | None |
 
-### Induced Probe
+### Induced Probe (synthetic)
 | n | correct (mean) | accuracy mean | min | max | confidence_mean |
 |----|----|----|----|----|-----|
-| 145 | 82.0 | 0.5655 | 0.5655 | 0.5655 | 0.3696 |
+| 0 | 0.0 | None | None | None | None |
 
 **Per-type:**
 | type | n | correct (mean) | accuracy mean | confidence_mean |
 |------|---|----|----|------|
-| CLEAN | 30 | 15.0 | 0.5 | None |
-| INSUFFICIENT_CONTEXT | 30 | 4.0 | 0.1333 | None |
-| UNSUPPORTED_CLAIM | 30 | 25.0 | 0.8333 | None |
-| CITATION_MISMATCH | 30 | 29.0 | 0.9667 | None |
-| CONTRADICTED_CLAIM | 15 | 0.0 | 0.0 | None |
-| PROMPT_INJECTION | 10 | 9.0 | 0.9 | None |
 
-## Spot-Case Parity (3 named cases vs. raggov_score.build_run)
+### **Real Heldout v1** (production bar)
+| n | correct (mean) | accuracy mean | min | max | confidence_mean |
+|----|----|----|----|----|-----|
+| 75 | 19.0 | 0.2533 | 0.2533 | 0.2533 | 0.5485 |
+
+**Per-type:**
+| type | n | correct (mean) | accuracy mean | confidence_mean |
+|------|---|----|----|------|
+| CLEAN | 50 | 13.0 | 0.26 | None |
+| CONTRADICTED_CLAIM | 25 | 6.0 | 0.24 | None |
+
+**CLEAN-FP rate [heldout_real, native]:** 37/50 = 0.74 — breakdown: {'INSUFFICIENT_CONTEXT': 8, 'STALE_RETRIEVAL': 8, 'INCONSISTENT_CHUNKS': 8, 'UNSUPPORTED_CLAIM': 6, 'CONTRADICTED_CLAIM': 2, 'POST_RATIONALIZED_CITATION': 1, 'PROMPT_INJECTION': 1, 'PRIVACY_VIOLATION': 1, 'SCOPE_VIOLATION': 1, 'RETRIEVAL_ANOMALY': 1}
+
+## NLI A/B Comparison (real heldout v1)
+> ⚠️ NO-LLM SANDBOX: llm_entailment falls back to HeuristicValueOverlapVerifier. Numbers may be identical. Re-run with llm_client set for real NLI comparison.
+
+| Policy | n | correct | accuracy | CLEAN-FP rate | CONTRADICTED recall |
+|--------|---|---------|----------|---------------|---------------------|
+| native (conservative_ensemble) | 75 | 18 | 0.24 | 0.76 | 0.24 |
+| llm_entailment (→ heuristic fallback) | 75 | 18 | 0.24 | 0.76 | 0.24 |
+
+**CLEAN-FP breakdown (native):** {'STALE_RETRIEVAL': 9, 'INSUFFICIENT_CONTEXT': 8, 'INCONSISTENT_CHUNKS': 7, 'UNSUPPORTED_CLAIM': 6, 'CONTRADICTED_CLAIM': 2, 'POST_RATIONALIZED_CITATION': 1, 'PROMPT_INJECTION': 1, 'PRIVACY_VIOLATION': 1, 'SCOPE_VIOLATION': 1, 'GENERATION_IGNORE': 1, 'RETRIEVAL_ANOMALY': 1}
+**CLEAN-FP breakdown (entailment):** {'STALE_RETRIEVAL': 9, 'INSUFFICIENT_CONTEXT': 8, 'INCONSISTENT_CHUNKS': 7, 'UNSUPPORTED_CLAIM': 6, 'CONTRADICTED_CLAIM': 2, 'POST_RATIONALIZED_CITATION': 1, 'PROMPT_INJECTION': 1, 'PRIVACY_VIOLATION': 1, 'SCOPE_VIOLATION': 1, 'GENERATION_IGNORE': 1, 'RETRIEVAL_ANOMALY': 1}
+
+## Spot-Case Parity (vs raggov_score.build_run)
 | spot_label | case_id | expected | got | match | confidence |
 |------|------|------|------|------|------|
 | gc-001 | gc-001 | CLEAN | CLEAN | True | None |
-| citation_probe | gc-PENDING | CITATION_MISMATCH | CITATION_MISMATCH | True | None |
-| clean_probe | gc-PENDING | CLEAN | CLEAN | True | None |
+| heldout_contra | heldout-real-ragtruth-13392 | CONTRADICTED_CLAIM | UNSUPPORTED_CLAIM | False | 1.2516 |
+| heldout_clean | heldout-real-hotpotqa-5ab345db55429969a97a8122 | CLEAN | INSUFFICIENT_CONTEXT | False | 0.0 |
 
-> **Anchor note:** protected baseline check returned 42/46 (check_protected_baseline.py). The ledger anchor is 43/46 effective (including acceptable-alternative cases). Calib 23/45 confirmed. Probe 80/145 [default] / 82/145 [native] confirmed.
+> **Anchors:** Calib 23/45. Probe 80/145 [default] / 82/145 [native]. Real heldout 18/75 = 0.24 [default]. Protected 43/46 effective.

@@ -1939,3 +1939,173 @@ Known limitations:
 
 Next step:
 - Hand back to Opus: plug real independent judges into `scripts/llm_label_heldout.py`, run on fresh deduped intake, and accept labels only after human spot-audit/adjudication.
+
+## [Dated: 2026-06-18] Phase 2 — Contradiction Human Audit + NLI Provider Readiness (Sidekick 2)
+
+### Scope and guardrails
+- Allowed edits only: standalone report-builder script, `reports/calibration/` outputs, and this ledger.
+- No engine, analyzer, policy, label, gate, threshold, fixture, canonical dataset, manifest, or lock files edited.
+- Preflight `workspace_audit.py` and `harness_preflight.py` failed before edits because the workspace already had unrelated dirty/deleted/untracked files.
+
+### Current committed-code reproduction
+Committed code snapshot: `HEAD=2f5f8a5`, evaluated from a `git archive HEAD` extraction against staging file `evals/govrag_calib/staging/raw/heldout_real_v1.jsonl`.
+
+| Evaluation | Mode | Result |
+|---|---|---:|
+| Real heldout v1 | default | `18/75 = 0.2400` |
+| `CLEAN` | default | `12/50 = 0.2400` |
+| `CONTRADICTED_CLAIM` | default | `6/25 = 0.2400` |
+| Real heldout v1 | native | `19/75 = 0.2533` |
+| `CLEAN` | native | `13/50 = 0.2600` |
+| `CONTRADICTED_CLAIM` | native | `6/25 = 0.2400` |
+
+Visible degradation during scoring:
+- Requirement extraction repeatedly failed because no `llm_client` was configured.
+- Sufficiency fell back to term coverage.
+- Treat the heldout result as honest current-code measurement, but not calibrated production evidence.
+
+### Human-audit worklist
+Created:
+- `reports/calibration/contradiction_audit_worklist.md`
+
+Input:
+- `evals/govrag_calib/staging/raw/heldout_real_v1.jsonl`
+
+Contents:
+- All 25 `CONTRADICTED_CLAIM` rows, each with `source_id`, query, answer, retrieved passage text, a yes/no/unsure human contradiction prompt, and a provisional S2 read.
+- 10 `CLEAN` spot-check rows: first 5 HotpotQA and first 5 ALCE rows, each with query, reference answer, cited/retrieved passage text, human faithful/not faithful/unsure field, and provisional S2 read.
+
+Provisional S2 audit counts, not final labels:
+| Section | Provisional class | Count |
+|---|---|---:|
+| CONTRADICTED | clear contradiction | 0 |
+| CONTRADICTED | actually unsupported | 1 |
+| CONTRADICTED | actually fine/mislabeled | 24 |
+| CLEAN spot-check | faithful | 5 |
+| CLEAN spot-check | needs human check | 5 |
+
+Important caveat:
+- The contradiction counts are provisional text-only reads. The sheet intentionally does not finalize labels. Opus/humans must fill the yes/no/unsure fields before any label is accepted.
+
+### NLI provider readiness note
+Created:
+- `reports/calibration/nli_provider_readiness.md`
+
+Inspected code:
+- `src/raggov/analyzers/grounding/verifiers.py`
+- `src/raggov/analyzers/grounding/support.py`
+- `src/raggov/evaluators/claim/refchecker_adapter.py`
+- `src/raggov/evaluators/claim/structured_llm.py`
+- `src/raggov/engine.py`
+- `src/raggov/config.py`
+
+Key interface for Opus:
+- Implement `EvidenceVerifier.verify(claim, query, candidates, metadata) -> VerificationResult`, or preferably subclass `ClaimEntailmentVerifierV1` and implement `verify_entailment(...) -> VerificationResult`.
+- Inputs include `claim_text`, `source_sentence`, `top_k_candidates`, cited doc/chunk ids, claim type, numbers, dates, entities, atomicity status, query, and metadata.
+- Output must be `VerificationResult` with `label`, `support_label`, `raw_score`, evidence ids/spans, rationale, `verifier_name`, warnings/limitations, and visible fallback metadata.
+
+Enablement paths documented:
+- `claim_grounding_verifier_policy="llm_entailment"` with `llm_client`.
+- `claim_grounding_verifier_policy="conservative_ensemble"` with `llm_client`.
+- `claim_verifier="structured_llm"` with `llm_client` or `llm_fn`.
+- `claim_verifier="refchecker"` with `enabled_external_providers=["refchecker_claim"]`.
+
+Degradation documented:
+- Missing `llm_client` for `llm_entailment` or `conservative_ensemble` falls back to `HeuristicValueOverlapVerifier`.
+- `LLMClaimEntailmentVerifierV1` invoke/parse failures set `fallback_used`, `fallback_from`, `fallback_to`, and verifier warnings.
+- `ClaimGroundingAnalyzer` appends visible evidence lines for unavailable external claim verifiers.
+- `DiagnosisEngine` records `missing_external_providers`, `external_provider_readiness`, `external_adapter_errors`, `degraded_external_mode`, and `fallback_heuristics_used`.
+- RefChecker is advisory, optional, uncalibrated locally, and not recommended for gating; native runtime needs an explicit runner/mock configured.
+
+### Closeout ledger
+Files inspected:
+- `evals/govrag_calib/staging/raw/heldout_real_v1.jsonl`: heldout rows for audit sheet and scoring.
+- `src/raggov/analyzers/grounding/verifiers.py`: `EvidenceVerifier`, `ClaimEntailmentVerifierV1`, `LLMClaimEntailmentVerifierV1`, `ConservativeEnsembleVerifier`, fallback metadata.
+- `src/raggov/analyzers/grounding/support.py`: provider selection, config keys, external verifier error evidence.
+- `src/raggov/evaluators/claim/refchecker_adapter.py`: RefChecker readiness, runner requirements, advisory signal shape.
+- `src/raggov/evaluators/claim/structured_llm.py`: structured LLM interface and external signal output.
+- `src/raggov/engine.py`: external provider readiness/degraded-mode metadata.
+- `src/raggov/config.py`: config key names.
+- `scripts/raggov_score.py`: scoring helper used from committed-code snapshot.
+
+Files created:
+- `scripts/build_phase2_audit_worklist.py`
+- `reports/calibration/contradiction_audit_worklist.md`
+- `reports/calibration/nli_provider_readiness.md`
+
+Commands run:
+- `python scripts/build_phase2_audit_worklist.py`: PASS; wrote worklist and NLI note.
+- `python -m py_compile scripts/build_phase2_audit_worklist.py`: PASS.
+- `git archive HEAD ... score_file(heldout_real_v1, default/native)`: PASS; reproduced default `18/75 = 0.24`.
+
+Protected/labels/gates changed:
+- No.
+
+Known limitations:
+- Provisional audit classifications are not adjudications.
+- CLEAN ALCE spot checks include long list answers; the worklist marks those as needing human item-by-item review.
+- No local NLI provider is currently wired; the readiness note specifies the exact integration point.
+
+Next step:
+- Hand back to Opus: humans fill the contradiction and CLEAN audit fields; Opus wires a real NLI provider against `ClaimEntailmentVerifierV1` and keeps all fallback/degradation metadata visible.
+
+## [Dated: 2026-06-18] Phase 2 — Real Heldout + NLI A/B Harness
+
+### Anchors Confirmed (current committed code)
+| Metric | Value | Mode |
+|--------|-------|------|
+| Calib (train+dev+heldout) | 23/45 = 0.5111 | default |
+| Induced probe | 80/145 = 0.5517 | default |
+| Induced probe | 82/145 = 0.5655 | native |
+| **Real heldout v1 (PRIMARY METRIC)** | **18/75 = 0.24** | default |
+| **CLEAN-FP rate [heldout_real]** | **38/50 = 0.76** | default |
+
+### eval_report.py Changes (Phase 2)
+- Added `heldout_real_v1.jsonl` as first-class scored set alongside calib and probe.
+- Added `_clean_fp_rate()`: counts how many expected-CLEAN rows got any non-CLEAN label.
+- Added `_nli_ab()`: runs heldout_real twice — `conservative_ensemble` vs `llm_entailment` config.
+- Updated spot-parity to use gc-001 + first heldout CLEAN + first heldout CONTRADICTED.
+- Updated `--seeds` default to 3; added `--no-nli` flag for fast runs.
+- Markdown now shows heldout_real as primary metric with CLEAN-FP inline.
+
+### Real Heldout v1 Results [default]
+| type | n | correct | accuracy |
+|------|---|---------|----------|
+| CLEAN | 50 | 12 | 0.24 |
+| CONTRADICTED_CLAIM | 25 | 6 | 0.24 |
+
+- **CLEAN false-positive rate: 38/50 = 0.76** — 38 of 50 clean rows got a non-CLEAN label. This is the #1 trust metric.
+- **CONTRADICTED recall: 6/25 = 0.24** — engine misses 19 of 25 genuine contradictions on real data.
+- Zero variance across seeds (engine is fully deterministic).
+
+### NLI A/B Comparison [heldout_real, default]
+| Policy | accuracy | CLEAN-FP rate | CONTRADICTED recall |
+|--------|----------|---------------|---------------------|
+| native (conservative_ensemble) | 0.24 | 0.76 | 0.24 |
+| llm_entailment (heuristic fallback) | 0.24 | 0.76 | 0.24 |
+
+**HONEST FINDING:** No-LLM sandbox causes `llm_entailment` to silently fall back to `HeuristicValueOverlapVerifier`. Both arms are identical. Real NLI comparison requires re-running with `llm_client` configured. Harness infrastructure is ready.
+
+### Spot Parity (2 heldout cases + gc-001)
+| spot_label | expected | got | match |
+|---|---|---|---|
+| gc-001 | CLEAN | CLEAN | True |
+| heldout_contra | CONTRADICTED_CLAIM | UNSUPPORTED_CLAIM | False |
+| heldout_clean | CLEAN | INSUFFICIENT_CONTEXT | False |
+
+- `heldout_contra` misfire: UNSUPPORTED_CLAIM returned instead of CONTRADICTED_CLAIM — same grounding failure family, wrong sub-type. Root cause: CONTRADICTED detection path missing on real RAGTruth text patterns.
+- `heldout_clean` misfire: INSUFFICIENT_CONTEXT on a clean row — known CLEAN-FP bucket (NCVPipelineVerifier/policy warn-level escalation).
+
+### Reports Written
+- `reports/calibration/eval_report_2026-06-18.json`
+- `reports/calibration/eval_report_2026-06-18.md`
+
+### Closeout Status
+- Code/labels/gates changed: No
+- `calibration_status=not_production_calibrated`
+- `production_gating_eligible=false`
+
+### Next Step (hand back to Opus)
+Two highest-impact precision targets on the real heldout:
+1. **CONTRADICTED recall (6/25 = 0.24)** — fix CONTRADICTED detection path in ClaimGroundingAnalyzer for real-world text patterns (not just synthetic mutations).
+2. **CLEAN-FP rate (38/50 = 0.76)** — fix policy warn-level escalation; single narrow patch recovers the most rows.

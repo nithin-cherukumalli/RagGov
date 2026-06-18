@@ -107,57 +107,58 @@
       },
       "probe": {
         "aggregate": {
-          "n": 145,
-          "correct_mean": 80.0,
-          "accuracy_mean": 0.5517,
-          "accuracy_min": 0.5517,
-          "accuracy_max": 0.5517,
-          "confidence_mean": 0.3696
+          "n": 0,
+          "correct_mean": 0.0,
+          "accuracy_mean": null,
+          "accuracy_min": null,
+          "accuracy_max": null,
+          "confidence_mean": null
+        },
+        "per_type": []
+      },
+      "heldout_real": {
+        "aggregate": {
+          "n": 75,
+          "correct_mean": 18.0,
+          "accuracy_mean": 0.24,
+          "accuracy_min": 0.24,
+          "accuracy_max": 0.24,
+          "confidence_mean": 0.5485
         },
         "per_type": [
           {
             "type": "CLEAN",
-            "n": 30,
-            "correct_mean": 13.0,
-            "accuracy_mean": 0.4333,
-            "confidence_mean": null
-          },
-          {
-            "type": "INSUFFICIENT_CONTEXT",
-            "n": 30,
-            "correct_mean": 4.0,
-            "accuracy_mean": 0.1333,
-            "confidence_mean": null
-          },
-          {
-            "type": "UNSUPPORTED_CLAIM",
-            "n": 30,
-            "correct_mean": 25.0,
-            "accuracy_mean": 0.8333,
-            "confidence_mean": null
-          },
-          {
-            "type": "CITATION_MISMATCH",
-            "n": 30,
-            "correct_mean": 29.0,
-            "accuracy_mean": 0.9667,
+            "n": 50,
+            "correct_mean": 12.0,
+            "accuracy_mean": 0.24,
             "confidence_mean": null
           },
           {
             "type": "CONTRADICTED_CLAIM",
-            "n": 15,
-            "correct_mean": 0.0,
-            "accuracy_mean": 0.0,
-            "confidence_mean": null
-          },
-          {
-            "type": "PROMPT_INJECTION",
-            "n": 10,
-            "correct_mean": 9.0,
-            "accuracy_mean": 0.9,
+            "n": 25,
+            "correct_mean": 6.0,
+            "accuracy_mean": 0.24,
             "confidence_mean": null
           }
         ]
+      },
+      "heldout_real_clean_fp": {
+        "clean_n": 50,
+        "fp_count": 38,
+        "fp_rate": 0.76,
+        "fp_breakdown": {
+          "STALE_RETRIEVAL": 9,
+          "INSUFFICIENT_CONTEXT": 8,
+          "INCONSISTENT_CHUNKS": 7,
+          "UNSUPPORTED_CLAIM": 6,
+          "CONTRADICTED_CLAIM": 2,
+          "POST_RATIONALIZED_CITATION": 1,
+          "PROMPT_INJECTION": 1,
+          "PRIVACY_VIOLATION": 1,
+          "SCOPE_VIOLATION": 1,
+          "GENERATION_IGNORE": 1,
+          "RETRIEVAL_ANOMALY": 1
+        }
       }
     },
     "native": {
@@ -259,57 +260,57 @@
       },
       "probe": {
         "aggregate": {
-          "n": 145,
-          "correct_mean": 82.0,
-          "accuracy_mean": 0.5655,
-          "accuracy_min": 0.5655,
-          "accuracy_max": 0.5655,
-          "confidence_mean": 0.3696
+          "n": 0,
+          "correct_mean": 0.0,
+          "accuracy_mean": null,
+          "accuracy_min": null,
+          "accuracy_max": null,
+          "confidence_mean": null
+        },
+        "per_type": []
+      },
+      "heldout_real": {
+        "aggregate": {
+          "n": 75,
+          "correct_mean": 19.0,
+          "accuracy_mean": 0.2533,
+          "accuracy_min": 0.2533,
+          "accuracy_max": 0.2533,
+          "confidence_mean": 0.5485
         },
         "per_type": [
           {
             "type": "CLEAN",
-            "n": 30,
-            "correct_mean": 15.0,
-            "accuracy_mean": 0.5,
-            "confidence_mean": null
-          },
-          {
-            "type": "INSUFFICIENT_CONTEXT",
-            "n": 30,
-            "correct_mean": 4.0,
-            "accuracy_mean": 0.1333,
-            "confidence_mean": null
-          },
-          {
-            "type": "UNSUPPORTED_CLAIM",
-            "n": 30,
-            "correct_mean": 25.0,
-            "accuracy_mean": 0.8333,
-            "confidence_mean": null
-          },
-          {
-            "type": "CITATION_MISMATCH",
-            "n": 30,
-            "correct_mean": 29.0,
-            "accuracy_mean": 0.9667,
+            "n": 50,
+            "correct_mean": 13.0,
+            "accuracy_mean": 0.26,
             "confidence_mean": null
           },
           {
             "type": "CONTRADICTED_CLAIM",
-            "n": 15,
-            "correct_mean": 0.0,
-            "accuracy_mean": 0.0,
-            "confidence_mean": null
-          },
-          {
-            "type": "PROMPT_INJECTION",
-            "n": 10,
-            "correct_mean": 9.0,
-            "accuracy_mean": 0.9,
+            "n": 25,
+            "correct_mean": 6.0,
+            "accuracy_mean": 0.24,
             "confidence_mean": null
           }
         ]
+      },
+      "heldout_real_clean_fp": {
+        "clean_n": 50,
+        "fp_count": 37,
+        "fp_rate": 0.74,
+        "fp_breakdown": {
+          "INSUFFICIENT_CONTEXT": 8,
+          "STALE_RETRIEVAL": 8,
+          "INCONSISTENT_CHUNKS": 8,
+          "UNSUPPORTED_CLAIM": 6,
+          "CONTRADICTED_CLAIM": 2,
+          "POST_RATIONALIZED_CITATION": 1,
+          "PROMPT_INJECTION": 1,
+          "PRIVACY_VIOLATION": 1,
+          "SCOPE_VIOLATION": 1,
+          "RETRIEVAL_ANOMALY": 1
+        }
       }
     }
   },
@@ -323,29 +324,133 @@
       "confidence": null
     },
     {
-      "spot_label": "citation_probe",
-      "case_id": "gc-PENDING",
-      "expected": "CITATION_MISMATCH",
-      "got": "CITATION_MISMATCH",
-      "match": true,
-      "confidence": null
+      "spot_label": "heldout_contra",
+      "case_id": "heldout-real-ragtruth-13392",
+      "expected": "CONTRADICTED_CLAIM",
+      "got": "UNSUPPORTED_CLAIM",
+      "match": false,
+      "confidence": 1.2516
     },
     {
-      "spot_label": "clean_probe",
-      "case_id": "gc-PENDING",
+      "spot_label": "heldout_clean",
+      "case_id": "heldout-real-hotpotqa-5ab345db55429969a97a8122",
       "expected": "CLEAN",
-      "got": "CLEAN",
-      "match": true,
-      "confidence": null
+      "got": "INSUFFICIENT_CONTEXT",
+      "match": false,
+      "confidence": 0.0
     }
   ],
   "anchor_note": {
-    "protected_baseline_check": "42/46 (check_protected_baseline.py raw output) \u2014 effective 43/46 with acceptable-alternative cases per ledger",
+    "protected_baseline": "43/46 effective (42/46 raw + acceptable-alternative cases)",
     "calib": "23/45 [default] = 0.5111",
-    "probe_default": "80/145 [default] = 0.5517",
-    "probe_native": "82/145 [native] = 0.5655"
+    "probe_default": "80/145 = 0.5517",
+    "probe_native": "82/145 = 0.5655",
+    "heldout_real_default": "18/75 = 0.24 \u2014 PRIMARY METRIC"
   },
   "method_status": "heuristic_baseline",
   "calibration_status": "not_production_calibrated",
-  "production_gating_eligible": false
+  "production_gating_eligible": false,
+  "nli_ab": {
+    "note": "NO-LLM SANDBOX: llm_entailment falls back to HeuristicValueOverlapVerifier. Numbers may be identical. Re-run with llm_client set for real NLI comparison.",
+    "native": {
+      "config": {
+        "claim_grounding_verifier_policy": "conservative_ensemble",
+        "mode": "external-enhanced",
+        "enabled_external_providers": [
+          "ragas",
+          "deepeval",
+          "refchecker_claim",
+          "refchecker_citation",
+          "ragchecker"
+        ],
+        "claim_verifier": "refchecker",
+        "citation_verifier": "refchecker",
+        "retrieval_relevance_provider": "native",
+        "enable_a2p": false
+      },
+      "overall": {
+        "n": 75,
+        "correct": 18,
+        "accuracy": 0.24
+      },
+      "clean_fp_rate": 0.76,
+      "clean_fp_count": 38,
+      "clean_fp_breakdown": {
+        "STALE_RETRIEVAL": 9,
+        "INSUFFICIENT_CONTEXT": 8,
+        "INCONSISTENT_CHUNKS": 7,
+        "UNSUPPORTED_CLAIM": 6,
+        "CONTRADICTED_CLAIM": 2,
+        "POST_RATIONALIZED_CITATION": 1,
+        "PROMPT_INJECTION": 1,
+        "PRIVACY_VIOLATION": 1,
+        "SCOPE_VIOLATION": 1,
+        "GENERATION_IGNORE": 1,
+        "RETRIEVAL_ANOMALY": 1
+      },
+      "contradicted_recall": 0.24,
+      "per_type": {
+        "CLEAN": {
+          "n": 50,
+          "correct": 12,
+          "accuracy": 0.24
+        },
+        "CONTRADICTED_CLAIM": {
+          "n": 25,
+          "correct": 6,
+          "accuracy": 0.24
+        }
+      }
+    },
+    "entailment": {
+      "config": {
+        "claim_grounding_verifier_policy": "llm_entailment",
+        "mode": "external-enhanced",
+        "enabled_external_providers": [
+          "ragas",
+          "deepeval",
+          "refchecker_claim",
+          "refchecker_citation",
+          "ragchecker"
+        ],
+        "claim_verifier": "refchecker",
+        "citation_verifier": "refchecker",
+        "retrieval_relevance_provider": "native",
+        "enable_a2p": false
+      },
+      "overall": {
+        "n": 75,
+        "correct": 18,
+        "accuracy": 0.24
+      },
+      "clean_fp_rate": 0.76,
+      "clean_fp_count": 38,
+      "clean_fp_breakdown": {
+        "STALE_RETRIEVAL": 9,
+        "INSUFFICIENT_CONTEXT": 8,
+        "INCONSISTENT_CHUNKS": 7,
+        "UNSUPPORTED_CLAIM": 6,
+        "CONTRADICTED_CLAIM": 2,
+        "POST_RATIONALIZED_CITATION": 1,
+        "PROMPT_INJECTION": 1,
+        "PRIVACY_VIOLATION": 1,
+        "SCOPE_VIOLATION": 1,
+        "GENERATION_IGNORE": 1,
+        "RETRIEVAL_ANOMALY": 1
+      },
+      "contradicted_recall": 0.24,
+      "per_type": {
+        "CLEAN": {
+          "n": 50,
+          "correct": 12,
+          "accuracy": 0.24
+        },
+        "CONTRADICTED_CLAIM": {
+          "n": 25,
+          "correct": 6,
+          "accuracy": 0.24
+        }
+      }
+    }
+  }
 }
