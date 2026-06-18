@@ -11,14 +11,33 @@ from raggov.models.retrieval_evidence import RetrievalEvidenceProfile
 from raggov.models.run import RAGRun
 
 
+# Strong, polarity-bearing negations only. Discourse connectives ("however",
+# "in fact", "but actually") were the dominant source of cross-topic false
+# positives on multi-hop retrieval and do not by themselves indicate that two
+# chunks make opposing claims, so they are excluded from contradiction signals.
 NEGATION_SIGNALS = {
     "not",
     "never",
+    "cannot",
     "no longer",
-    "contrary to",
-    "however",
-    "but actually",
-    "in fact",
+}
+
+# Function words excluded when deciding whether a *shared* term is contentful.
+# (Kept separate from STOPWORDS, which other modules consume via terms().)
+FUNCTION_WORDS = {
+    "i", "you", "he", "she", "they", "we", "him", "her", "his", "hers", "its",
+    "their", "them", "our", "us", "my", "me", "your", "yours",
+    "who", "whom", "whose", "which", "what", "when", "where", "why", "how",
+    "these", "those", "that", "this",
+    "been", "being", "am", "were", "have", "has", "had", "do", "does", "did",
+    "will", "would", "shall", "should", "can", "could", "may", "might", "must",
+    "but", "however", "though", "although", "while", "than", "then", "also",
+    "very", "more", "most", "such", "some", "any", "all", "each", "both",
+    "other", "another", "one", "often", "originally",
+    "into", "onto", "over", "under", "after", "before", "between", "through",
+    "during", "about", "above", "below", "again", "once", "here", "there",
+    "so", "because", "if", "else", "only", "own", "same", "too", "just", "now",
+    "ever", "never", "not", "upon", "per", "via", "amid", "among",
 }
 
 STOPWORDS = {
@@ -62,31 +81,96 @@ def terms(text: str) -> set[str]:
     return {token for token in tokens(text) if token not in STOPWORDS}
 
 
-def has_nearby_negation(text: str, candidate_terms: set[str]) -> bool:
-    """Return whether any shared term appears near a negation signal."""
+_MULTIWORD_NEGATIONS = tuple(
+    tuple(signal.split()) for signal in NEGATION_SIGNALS if " " in signal
+)
+_SINGLE_NEGATIONS = frozenset(
+    signal for signal in NEGATION_SIGNALS if " " not in signal
+)
+
+# Tightening rationale (Task 19): the v0 rule fired on a *single* incidental
+# shared token near a negation in *either* chunk, regardless of whether the two
+# chunks actually disagreed — the dominant CLEAN false-positive source on
+# multi-hop retrieval. A genuine contradiction is the same proposition with
+# opposite polarity, so we now require (a) a strong negation whose ±5 window
+# holds >=2 shared *content* terms, and (b) that same cluster asserted (present,
+# negation-free) in the other chunk.
+_NEGATION_WINDOW = 5
+_ASSERTION_SPAN = 16
+_MIN_CLUSTER = 2
+
+
+def shared_content_terms(left: str, right: str) -> set[str]:
+    """Shared, contentful terms between two texts (drops function/short/numeric)."""
+    shared = terms(left) & terms(right)
+    return {
+        term
+        for term in shared
+        if len(term) >= 3 and term not in FUNCTION_WORDS and not term.isdigit()
+    }
+
+
+def _negation_positions(token_list: list[str]) -> list[int]:
+    positions = [i for i, tok in enumerate(token_list) if tok in _SINGLE_NEGATIONS]
+    for i in range(len(token_list)):
+        for phrase in _MULTIWORD_NEGATIONS:
+            if tuple(token_list[i : i + len(phrase)]) == phrase:
+                positions.append(i)
+    return positions
+
+
+def _largest_negation_window_cluster(text: str, candidates: set[str]) -> set[str]:
+    """Largest set of candidate terms co-located in one strong-negation window."""
     token_list = tokens(text)
-    for index, token in enumerate(token_list):
-        window = token_list[max(0, index - 5) : index + 6]
-        window_text = " ".join(window)
-        if token in candidate_terms and any(
-            re.search(rf"\b{re.escape(signal)}\b", window_text)
-            for signal in NEGATION_SIGNALS
-        ):
+    best: set[str] = set()
+    for pos in _negation_positions(token_list):
+        window = token_list[max(0, pos - _NEGATION_WINDOW) : pos + _NEGATION_WINDOW + 1]
+        cluster = {tok for tok in window if tok in candidates}
+        if len(cluster) > len(best):
+            best = cluster
+    return best
+
+
+def has_nearby_negation(text: str, candidate_terms: set[str]) -> bool:
+    """Return whether >=2 candidate terms share one strong-negation window."""
+    return len(_largest_negation_window_cluster(text, candidate_terms)) >= _MIN_CLUSTER
+
+
+def _cluster_asserted(text: str, cluster: set[str]) -> bool:
+    """True if all cluster terms co-occur within a negation-free span in text."""
+    token_list = tokens(text)
+    negations = set(_negation_positions(token_list))
+    positions: dict[str, list[int]] = {}
+    for i, tok in enumerate(token_list):
+        if tok in cluster:
+            positions.setdefault(tok, []).append(i)
+    if len(positions) < len(cluster):
+        return False
+    anchor = min(positions, key=lambda t: len(positions[t]))
+    for start in positions[anchor]:
+        lo, hi = start - _ASSERTION_SPAN, start + _ASSERTION_SPAN
+        if any(lo <= i <= hi for i in negations):
+            continue
+        if all(any(lo <= p <= hi for p in positions[t]) for t in cluster):
             return True
     return False
 
 
 def has_suspicious_negation_pair(left: RetrievedChunk, right: RetrievedChunk) -> bool:
-    """Return whether two chunks show a contradiction-style negation pattern."""
-    left_terms = terms(left.text)
-    right_terms = terms(right.text)
-    shared_terms = left_terms & right_terms
-    if not shared_terms:
+    """Return whether two chunks show a polarity-opposed contradiction pattern.
+
+    Requires the same multi-term proposition to appear negated in one chunk and
+    asserted in the other — not merely a shared token near a negation.
+    """
+    candidates = shared_content_terms(left.text, right.text)
+    if len(candidates) < _MIN_CLUSTER:
         return False
 
-    return has_nearby_negation(left.text, shared_terms) or has_nearby_negation(
-        right.text, shared_terms
-    )
+    for negated, asserted in ((left.text, right.text), (right.text, left.text)):
+        cluster = _largest_negation_window_cluster(negated, candidates)
+        if len(cluster) >= _MIN_CLUSTER and _cluster_asserted(asserted, cluster):
+            return True
+    return False
 
 
 class InconsistentChunksAnalyzer(BaseAnalyzer):

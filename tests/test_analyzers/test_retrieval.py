@@ -130,6 +130,30 @@ def test_inconsistent_chunks_warns_on_nearby_negation_signals() -> None:
     )
 
 
+def test_inconsistent_chunks_ignores_incidental_single_token_negation() -> None:
+    """Task 19 precision: one incidental shared token near a negation is not a
+    contradiction (the dominant multi-hop false-positive class)."""
+    run = run_with_chunks(
+        [
+            chunk(
+                "chunk-1",
+                "Cadmium chloride is a white crystalline compound of cadmium and "
+                "chlorine used in electroplating.",
+            ),
+            chunk(
+                "chunk-2",
+                "Diflucortolone valerate is a topical steroid that does not contain "
+                "any chlorine in its active formulation.",
+            ),
+        ]
+    )
+
+    result = InconsistentChunksAnalyzer().analyze(run)
+
+    assert result.status == "pass"
+    assert result.failure_type is None
+
+
 def test_inconsistent_chunks_skips_empty_chunk_list() -> None:
     result = InconsistentChunksAnalyzer().analyze(run_with_chunks([]))
 
