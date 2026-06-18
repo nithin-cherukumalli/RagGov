@@ -290,13 +290,10 @@ def test_stale_retrieved_only_blocks_clean_when_retrieval_quality_affected() -> 
     assert diagnosis.root_cause_stage.name == "RETRIEVAL"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Task 14: a stale-but-irrelevant source (not cited/answer-bearing) is "
-    "promoted to primary STALE_RETRIEVAL. Known over-promotion bug, pre-dates Task 2; "
-    "see reports/codex_session/red_test_triage.md and NEXT_TASKS Task 14.",
-)
 def test_stale_irrelevant_source_does_not_primary_fail() -> None:
+    # Task 14 FIXED: StaleRetrievalAnalyzer._from_profile now requires a stale doc to be
+    # query-relevant AND superseded by a strictly-newer dated alternative before it can
+    # promote STALE_RETRIEVAL. The irrelevant lease distractor no longer primary-fails.
     diagnosis = diagnose(
         run_with_multiple_docs(
             query="Who is the CEO?",

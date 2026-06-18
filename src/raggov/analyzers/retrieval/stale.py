@@ -8,7 +8,7 @@ from datetime import UTC, date, datetime, timedelta
 from raggov.analyzers.base import BaseAnalyzer
 from raggov.models.chunk import RetrievedChunk
 from raggov.models.diagnosis import AnalyzerResult, FailureStage, FailureType
-from raggov.models.retrieval_evidence import RetrievalEvidenceProfile
+from raggov.models.retrieval_evidence import QueryRelevanceLabel, RetrievalEvidenceProfile
 from raggov.models.run import RAGRun
 
 
@@ -219,10 +219,23 @@ class StaleRetrievalAnalyzer(BaseAnalyzer):
         if not profile.stale_doc_ids:
             return self._pass(analysis_source="retrieval_evidence_profile")
 
+        # Task 14: an age-stale doc is only diagnosis-bearing when it is query-relevant
+        # AND a strictly-newer dated alternative was retrieved. An irrelevant stale
+        # distractor (not query-relevant) or the freshest retrieved doc itself (no newer
+        # alternative) must not promote STALE_RETRIEVAL to primary. Genuine stale cases
+        # (a relevant outdated version coexisting with a newer one) are preserved.
+        effective_stale = [
+            doc_id
+            for doc_id in profile.stale_doc_ids
+            if self._stale_doc_is_diagnostic(doc_id, run, profile)
+        ]
+        if not effective_stale:
+            return self._pass(analysis_source="retrieval_evidence_profile")
+
         max_age_days = int(self.config.get("max_age_days", 180))
         evidence = [
             f"[profile] stale document: {doc_id}"
-            for doc_id in profile.stale_doc_ids
+            for doc_id in effective_stale
         ]
         return self._fail(
             FailureType.STALE_RETRIEVAL,
@@ -232,6 +245,40 @@ class StaleRetrievalAnalyzer(BaseAnalyzer):
             "filtering to retrieval.",
             analysis_source="retrieval_evidence_profile",
         )
+
+    def _stale_doc_is_diagnostic(
+        self, doc_id: str, run: RAGRun, profile: RetrievalEvidenceProfile
+    ) -> bool:
+        """A profile-stale doc counts only if query-relevant AND superseded by a newer one."""
+        return self._doc_query_relevant(doc_id, profile) and self._has_newer_dated_alternative(
+            doc_id, run
+        )
+
+    @staticmethod
+    def _doc_query_relevant(doc_id: str, profile: RetrievalEvidenceProfile) -> bool:
+        labels = [
+            cp.query_relevance_label
+            for cp in (profile.chunks or [])
+            if cp.source_doc_id == doc_id
+        ]
+        if not labels:
+            return True  # no relevance info: do not suppress (preserve legacy behavior)
+        return any(
+            label in (QueryRelevanceLabel.RELEVANT, QueryRelevanceLabel.PARTIAL)
+            for label in labels
+        )
+
+    @staticmethod
+    def _has_newer_dated_alternative(doc_id: str, run: RAGRun) -> bool:
+        dates = {}
+        for entry in run.corpus_entries or []:
+            ts = getattr(entry, "timestamp", None)
+            if ts is not None:
+                dates[entry.doc_id] = ts
+        own = dates.get(doc_id)
+        if own is None:
+            return True  # no date info: do not suppress (preserve legacy behavior)
+        return any(other != doc_id and ts > own for other, ts in dates.items())
 
     # ------------------------------------------------------------------
     # Legacy fallback (original v0 logic — preserved exactly)
