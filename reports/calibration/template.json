@@ -1,0 +1,138 @@
+{
+  "schema_version": 1,
+  "generated_at": null,
+  "code_ref": {
+    "git_commit": null,
+    "dirty_worktree": null,
+    "notes": []
+  },
+  "dataset": {
+    "path": null,
+    "split": null,
+    "fingerprint_sha256": null,
+    "n_rows": null,
+    "label_status": "not_evaluated",
+    "label_source": null
+  },
+  "overall": {
+    "n": null,
+    "correct": null,
+    "accuracy": null,
+    "confidence_mean": null,
+    "ece": null,
+    "ace": null,
+    "brier": null,
+    "reliability_curve_bins": [],
+    "bootstrap_ci": {
+      "method": "bootstrap",
+      "confidence_level": 0.95,
+      "resamples": null,
+      "accuracy": {"low": null, "high": null},
+      "ece": {"low": null, "high": null},
+      "brier": {"low": null, "high": null}
+    },
+    "calibration_status": "not_evaluated",
+    "gating_eligible": false
+  },
+  "modes": {
+    "default": {
+      "overall": {
+        "n": null,
+        "correct": null,
+        "accuracy": null,
+        "confidence_mean": null,
+        "ece": null,
+        "ace": null,
+        "brier": null,
+        "reliability_curve_bins": [],
+        "bootstrap_ci": {
+          "method": "bootstrap",
+          "confidence_level": 0.95,
+          "resamples": null,
+          "accuracy": {"low": null, "high": null},
+          "ece": {"low": null, "high": null},
+          "brier": {"low": null, "high": null}
+        },
+        "calibration_status": "not_evaluated",
+        "gating_eligible": false
+      },
+      "per_failure_type": {
+        "STALE_RETRIEVAL": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "SCOPE_VIOLATION": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "CITATION_MISMATCH": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "INCONSISTENT_CHUNKS": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "INSUFFICIENT_CONTEXT": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "UNSUPPORTED_CLAIM": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "CONTRADICTED_CLAIM": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "PROMPT_INJECTION": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "SUSPICIOUS_CHUNK": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "RETRIEVAL_ANOMALY": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "PRIVACY_VIOLATION": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "LOW_CONFIDENCE": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "TABLE_STRUCTURE_LOSS": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "HIERARCHY_FLATTENING": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "METADATA_LOSS": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "POST_RATIONALIZED_CITATION": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "PARSER_STRUCTURE_LOSS": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "CHUNKING_BOUNDARY_ERROR": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "EMBEDDING_DRIFT": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "RETRIEVAL_DEPTH_LIMIT": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "RERANKER_FAILURE": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "GENERATION_IGNORE": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "INCOMPLETE_DIAGNOSIS": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "CLAIM_EXTRACTION_FAILED": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "CLEAN": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false}
+      }
+    },
+    "native": {
+      "overall": {
+        "n": null,
+        "correct": null,
+        "accuracy": null,
+        "confidence_mean": null,
+        "ece": null,
+        "ace": null,
+        "brier": null,
+        "reliability_curve_bins": [],
+        "bootstrap_ci": {
+          "method": "bootstrap",
+          "confidence_level": 0.95,
+          "resamples": null,
+          "accuracy": {"low": null, "high": null},
+          "ece": {"low": null, "high": null},
+          "brier": {"low": null, "high": null}
+        },
+        "calibration_status": "not_evaluated",
+        "gating_eligible": false
+      },
+      "per_failure_type": {
+        "STALE_RETRIEVAL": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "SCOPE_VIOLATION": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "CITATION_MISMATCH": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "INCONSISTENT_CHUNKS": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "INSUFFICIENT_CONTEXT": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "UNSUPPORTED_CLAIM": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "CONTRADICTED_CLAIM": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "PROMPT_INJECTION": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "SUSPICIOUS_CHUNK": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "RETRIEVAL_ANOMALY": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "PRIVACY_VIOLATION": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "LOW_CONFIDENCE": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "TABLE_STRUCTURE_LOSS": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "HIERARCHY_FLATTENING": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "METADATA_LOSS": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "POST_RATIONALIZED_CITATION": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "PARSER_STRUCTURE_LOSS": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "CHUNKING_BOUNDARY_ERROR": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "EMBEDDING_DRIFT": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "RETRIEVAL_DEPTH_LIMIT": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "RERANKER_FAILURE": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "GENERATION_IGNORE": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "INCOMPLETE_DIAGNOSIS": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "CLAIM_EXTRACTION_FAILED": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false},
+        "CLEAN": {"n": null, "correct": null, "accuracy": null, "confidence_mean": null, "ece": null, "ace": null, "brier": null, "reliability_curve_bins": [], "bootstrap_ci": {"method": "bootstrap", "confidence_level": 0.95, "resamples": null, "accuracy": {"low": null, "high": null}, "ece": {"low": null, "high": null}, "brier": {"low": null, "high": null}}, "calibration_status": "not_evaluated", "gating_eligible": false}
+      }
+    }
+  },
+  "notes": []
+}

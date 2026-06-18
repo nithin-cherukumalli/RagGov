@@ -39,3 +39,63 @@ build the dedup/validation tooling so the result is clean.
 ## Closeout (ledger format)
 Files inspected; new prep scripts created (paths); code/labels/gates changed (no); the exact
 user runbook; known limitations; next step. Hand back to Opus.
+
+## Current Fresh Pull Runbook (updated 2026-06-18)
+
+Run this on a machine with Hugging Face access:
+
+```bash
+pip install datasets
+python scripts/pull_seed_intake.py --fresh-preset
+```
+
+This writes:
+
+```text
+evals/govrag_calib/staging/raw/fresh_intake_v1.jsonl
+```
+
+The preset uses:
+
+- `--seed 99`
+- `--ragtruth-conflict 25`
+- `--ragtruth-baseless 25`
+- `--ragtruth-conflict-skip 15`
+- `--ragtruth-baseless-skip 15`
+- `--hotpotqa 30`
+- `--hotpotqa-skip 20`
+- `--alce 20`
+- `--alce-skip 10`
+- `--prompt-injections 0`
+
+Expected raw size is about 100 rows before dedup. RAGTruth is sampled from QA
+rows with source labels; HotpotQA and ALCE are clean base rows. Prompt-injection
+rows are intentionally excluded from this fresh heldout pull.
+
+If a larger buffer is needed, override the preset counts explicitly, for example:
+
+```bash
+python scripts/pull_seed_intake.py \
+  --out evals/govrag_calib/staging/raw/fresh_intake_v1.jsonl \
+  --seed 99 \
+  --ragtruth-conflict 35 \
+  --ragtruth-baseless 35 \
+  --ragtruth-conflict-skip 15 \
+  --ragtruth-baseless-skip 15 \
+  --hotpotqa 40 \
+  --hotpotqa-skip 20 \
+  --alce 20 \
+  --alce-skip 10 \
+  --prompt-injections 0
+```
+
+After the file is dropped into the sandbox, run the dedup/validation tool before
+any scoring or label acceptance:
+
+```bash
+PYTHONPATH=/tmp/shim:src:. python scripts/validate_fresh_heldout.py \
+  evals/govrag_calib/staging/raw/fresh_intake_v1.jsonl
+```
+
+Do not append to `govrag_calib_150.jsonl`, regenerate the lock, or call any label
+gold until Opus/humans adjudicate the provisional labels.
