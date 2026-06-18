@@ -262,6 +262,34 @@ def test_duplicate_chunks_fail_context_assembly() -> None:
     assert report["first_failing_node"] == NCVNode.CONTEXT_ASSEMBLY.value
 
 
+def test_topically_overlapping_distinct_passages_do_not_fail_context_assembly() -> None:
+    """Task 21: high lexical overlap between distinct passages about the same entity
+    is not a duplicate-chunk assembly defect (multi-hop retrieval is normal)."""
+    analyzer = NCVPipelineVerifier({"fail_fast": False})
+    result = analyzer.analyze(
+        run_with_chunks(
+            [
+                chunk(
+                    "chunk-1",
+                    "Kodak Tower is a nineteen story skyscraper located in the High "
+                    "Falls District of downtown Rochester near the Genesee river "
+                    "waterfall landmark.",
+                    0.84,
+                ),
+                chunk(
+                    "chunk-2",
+                    "Archived snapshot. Kodak Tower is a nineteen story skyscraper "
+                    "located in the High Falls District of downtown Rochester near "
+                    "the Genesee river waterfall landmark.",
+                    0.83,
+                ),
+            ]
+        )
+    )
+
+    assert result.failure_type != FailureType.INCONSISTENT_CHUNKS
+
+
 def test_answer_completeness_fails_for_missing_number() -> None:
     analyzer = NCVPipelineVerifier({"fail_fast": False})
     result = analyzer.analyze(

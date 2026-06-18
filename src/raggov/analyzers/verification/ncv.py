@@ -37,6 +37,12 @@ from raggov.parser_validation.models import ParserFailureType, ParserSeverity
 from raggov.taxonomy import DEFAULT_REMEDIATIONS
 
 
+# A context-assembly duplicate means the SAME chunk content was assembled more
+# than once (a dedup/assembly defect), not two passages that merely share topic
+# vocabulary. 0.85 conflated the two and fired on distinct ALCE passages about
+# the same entity (Jaccard 0.85-0.96). Require near-identical content.
+_DUPLICATE_JACCARD_MIN = 0.97
+
 NODE_ORDER = [
     NCVNode.QUERY_UNDERSTANDING,
     NCVNode.PARSER_VALIDITY,
@@ -588,7 +594,7 @@ class NCVPipelineVerifier(BaseAnalyzer):
                     duplicate_score = similarity
                     duplicate_pair = (left.chunk_id, right.chunk_id)
 
-        if duplicate_pair is not None and duplicate_score > 0.85:
+        if duplicate_pair is not None and duplicate_score > _DUPLICATE_JACCARD_MIN:
             return self._node(
                 NCVNode.CONTEXT_ASSEMBLY,
                 NCVNodeStatus.FAIL,
