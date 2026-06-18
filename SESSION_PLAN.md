@@ -57,25 +57,33 @@ prereg + result docs either way.
    0.297**, zero regressions, unit + e2e tests added. 1 romanized-Hindi payload still
    missed (documented evasion boundary). See `task18_result.md`. → **Start at Task 19.**
 
-2. **Task 19 — INCONSISTENT_CHUNKS over-firing** (8 CLEAN false positives)
-   - Require real contradiction evidence between chunks, not surface signals.
-   - Pass: CLEAN false positives from this type drop materially; baseline + Calib hold; no true-positive
-     INCONSISTENT_CHUNKS regression.
+2. ~~**Task 19 — INCONSISTENT_CHUNKS over-firing**~~ ✅ **DONE / LANDED (2026-06-18)**.
+   Root cause was the negation heuristic firing on a single incidental shared token near
+   ANY negation. Rewrote `has_suspicious_negation_pair` to require a polarity-opposed
+   multi-term proposition (≥2 shared content terms negated in one chunk, asserted in the
+   other); dropped discourse markers. Negation-path CLEAN FPs **8→2** (2 residuals are
+   lexically identical to the protected TP — need NLI). Overall **0.297→0.324**. See
+   `task19_result.md`. Spawned **Task 21** (separate Jaccard duplicate path).
 
-3. **Task 20 — CHUNKING_BOUNDARY_ERROR over-firing** (5 CLEAN false positives, long ALCE passages)
-   - Tighten `ParserValidationAnalyzer` precision.
-   - Pass: CLEAN false positives from this type drop; baseline + Calib hold; parser true positives hold.
+3. ~~**Task 20 — CHUNKING_BOUNDARY_ERROR over-firing**~~ ✅ **DONE / LANDED (2026-06-18)**.
+   `_has_chunk_boundary_damage` ignored provenance; multi-hop passages from distinct docs
+   were misread as split sentences. Now require the consecutive pair to share
+   `source_doc_id`. CLEAN FPs **5→0**. Overall **0.324→0.372**. See `task20_result.md`.
 
-4. **Checkpoint** — re-measure all guards + probe, write result docs, commit one-per-task, report delta.
+4. ~~**Checkpoint**~~ ✅ guards re-verified (protected 41/46, lock PASS, taxonomy PASS,
+   Calib 23/45, probe **54/145 = 0.372**); `tests/test_analyzers` 542 passed (1 pre-existing
+   stale fail, 3 xfail). All session work committed locally (user pushes).
 
-### Deferred (this session)
+### Next (not started this session)
+- **Task 21 — NCV Jaccard duplicate over-firing** (2 CLEAN FPs surfaced under Task 19).
 - CONTRADICTED_CLAIM recall (0/15): needs label audit first (RAGTruth contradicted-vs-unsupported is
   heuristic). Risk of training to noisy labels.
 - Bugs 14/15/16 (xfail): pick up if injection/CLEAN work touches the same paths.
 
 ## Definition of done (project-level, not this session)
 Generalization ≥ ~0.70 on a real 30–50-case heldout, low CLEAN false-positive rate, every advertised
-type data-backed. Today: **0.297** (post Task 18).
+type data-backed. **Probe today: 0.372** (start of session 0.241; +0.131 across Tasks 18–20).
+CLEAN-correct 4/30 → 10/30.
 
 ---
 
