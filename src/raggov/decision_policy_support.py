@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 import json
+import re
 from typing import Any
 
 from raggov.calibration_status import CalibrationStatus, get_calibration_status
@@ -1654,7 +1655,29 @@ def _claim_has_textual_contradiction(claim_text: str, result: AnalyzerResult) ->
         for term in ("not allowed", "not permitted", "prohibited", "ineligible", "not eligible")
     )
     positive_evidence = any(term in evidence_lower for term in ("allowed", "permitted", "authorized", "eligible"))
-    return (positive_permission and negative_permission) or (negative_claim and positive_evidence)
+    # Task 16: a claim asserting BROAD/unrestricted permission contradicts evidence stating an
+    # explicit restriction (e.g. "you can wear anything you want" vs "Policy: No blue shirts").
+    broad_permission_claim = bool(
+        re.search(
+            r"\b(?:wear|do|use|say|bring|choose|eat|take|have)\s+(?:anything|whatever|any)\b"
+            r"|\banything\s+(?:you|they)\s+(?:want|like|wish)\b"
+            r"|\bno\s+(?:restrictions?|rules?|limits?|dress\s*code)\b",
+            claim_lower,
+        )
+    )
+    restriction_evidence = bool(
+        re.search(
+            r"\bno\s+[a-z]+(?:\s+[a-z]+)?\b"
+            r"|\b(?:not\s+allowed|prohibit(?:ed)?|forbidden|banned|must\s+not|may\s+not"
+            r"|only\s+[a-z]+\s+(?:allowed|permitted)|required\s+to)\b",
+            evidence_lower,
+        )
+    )
+    return (
+        (positive_permission and negative_permission)
+        or (negative_claim and positive_evidence)
+        or (broad_permission_claim and restriction_evidence)
+    )
 
 
 def _has_explicit_scope_violation(candidate: DecisionCandidate) -> bool:
