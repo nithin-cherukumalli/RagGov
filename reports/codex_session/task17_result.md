@@ -60,3 +60,59 @@ increases — this time the second half of criterion 3 must hold, which attempt 
 violated).
 
 **Out of scope:** unchanged.
+
+---
+
+## Attempt 2 (Task 17-v2) — FAILED, REVERTED
+
+**Change.** Kept the analyzer running; in `_text_lifecycle_metadata`, replaced the
+aggressive `(YYYY)` / "as of YYYY" → `issue_date` inference with an explicit
+"issued/published <year>" inference only.
+
+**Measured.**
+
+| Criterion | Required | After | Verdict |
+|---|---|---|---|
+| Protected baseline | ≥ 41/46 | **40/46 (case `version_stale_not_cited_32` regressed)** | ❌ |
+| Calib scored primary | ≥ 0.511 | 0.511 | ✅ |
+| Probe STALE FP (CLEAN) | → 0 | 5 → 1 | partial |
+| Probe CLEAN-correct | > 3 | 3 → 5 | ✅ |
+| gc-012 / gc-013 | stay STALE | yes | ✅ |
+
+Closer (probe genuinely improved, Calib held) but **criterion 1 failed** →
+reverted.
+
+## The real root cause (why a quick fix can't work)
+
+The protected case `version_stale_not_cited_32` is:
+
+> query "Who is the CEO?", chunks `"Old CEO Bob (2010)"` + `"New CEO Alice
+> (2024)"`, answer cites Alice. Expected: STALE_RETRIEVAL (a stale doc was
+> retrieved even though the answer avoided it).
+
+It detects staleness **from the same parenthetical-year text inference** that
+produces the wiki false positives. So the over-firing and a pinned expectation
+are entangled in one heuristic.
+
+The distinction that actually separates the good case from the false positives:
+- **Relative recency** — two competing docs about the same entity with different
+  years (2010 vs 2024) → the older is stale. *Legitimate* (the protected case).
+- **Absolute age vs an assumed "now"** — a single year mention in ordinary prose
+  ("the 1945 film", "(1889)") aged against today → STALE_BY_AGE. *The false
+  positive.*
+
+The current analyzer collapses both into the same text→`issue_date`→age path.
+
+## Status: Task 17 needs a redesign (17-v3), not a patch
+
+**17-v3 hypothesis (queued, needs own pre-registration).** Split the two paths:
+keep text-year staleness ONLY when a newer competing version of the same
+doc/entity is present (relative recency); do **not** escalate absolute
+age-vs-assumed-now staleness to a STALE `fail`. This should preserve
+`version_stale_not_cited_32` (relative) while removing the wiki false positives
+(absolute). Same hard criteria as above. This is analyzer logic surgery in
+`_severity_buckets` / `_document_record`, not a one-line change, so it gets a
+fresh pre-registration before any code.
+
+Two disciplined reverts here are the system working as intended: the pinned
+criteria caught both regressions before anything false landed.
