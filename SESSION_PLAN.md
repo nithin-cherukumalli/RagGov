@@ -74,16 +74,20 @@ prereg + result docs either way.
    Calib 23/45, probe **54/145 = 0.372**); `tests/test_analyzers` 542 passed (1 pre-existing
    stale fail, 3 xfail). All session work committed locally (user pushes).
 
+5. ~~**Task 21 — NCV Jaccard duplicate over-firing**~~ ✅ **DONE / LANDED (2026-06-18)**.
+   Raised context-assembly duplicate threshold 0.85→0.97 (topical overlap ≠ duplicate chunk).
+   CLEAN→INCONSISTENT_CHUNKS Jaccard path **3→0**; overall **0.372→0.393**. See `task21_result.md`.
+
 ### Next (not started this session)
-- **Task 21 — NCV Jaccard duplicate over-firing** (2 CLEAN FPs surfaced under Task 19).
 - CONTRADICTED_CLAIM recall (0/15): needs label audit first (RAGTruth contradicted-vs-unsupported is
   heuristic). Risk of training to noisy labels.
+- 2 irreducible negation-path INCONSISTENT residuals: need NLI/entailment, not lexical rules.
 - Bugs 14/15/16 (xfail): pick up if injection/CLEAN work touches the same paths.
 
 ## Definition of done (project-level, not this session)
 Generalization ≥ ~0.70 on a real 30–50-case heldout, low CLEAN false-positive rate, every advertised
-type data-backed. **Probe today: 0.372** (start of session 0.241; +0.131 across Tasks 18–20).
-CLEAN-correct 4/30 → 10/30.
+type data-backed. **Probe today: 0.393** (start of session 0.241; +0.152 across Tasks 18–21).
+CLEAN-correct 4/30 → 13/30.
 
 ---
 
