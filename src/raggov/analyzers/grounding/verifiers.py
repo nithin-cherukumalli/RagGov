@@ -2118,3 +2118,165 @@ class ConservativeEnsembleVerifier(EvidenceVerifier):
             if len(normalized) > 2:
                 content_terms.add(normalized)
         return content_terms
+
+
+class LocalNLIClaimVerifier(ClaimEntailmentVerifierV1):
+    """Local natural language inference evidence verifier using a HuggingFace CrossEncoder model."""
+
+    _cached_model = None
+
+    def __init__(self, config: dict[str, Any]):
+        self._config = config
+        self._fallback_verifier = HeuristicValueOverlapVerifier(dict(config))
+        self._model_name = config.get("nli_model_name") or config.get("claim_verifier_model") or "cross-encoder/nli-deberta-v3-small"
+        self._verifier_name = "local_nli_verifier"
+        self._device = config.get("nli_device")  # e.g., 'cpu', 'cuda', 'mps'
+
+    @classmethod
+    def _get_model(cls, model_name: str, device: str | None = None):
+        if cls._cached_model is None:
+            from sentence_transformers import CrossEncoder
+            cls._cached_model = CrossEncoder(model_name, device=device)
+        return cls._cached_model
+
+    def verify_entailment(
+        self,
+        *,
+        claim_text: str,
+        source_sentence: str,
+        top_k_candidates: list[EvidenceCandidate],
+        cited_doc_ids: list[str],
+        cited_chunk_ids: list[str],
+        claim_type: str,
+        numbers: list[str],
+        dates: list[str],
+        entities: list[str],
+        atomicity_status: str,
+        query: str,
+        metadata: dict[str, Any] | None = None,
+    ) -> VerificationResult:
+        if not top_k_candidates:
+            return VerificationResult(
+                label="unsupported",
+                support_label="insufficient_evidence",
+                label_reason="unsupported_no_evidence",
+                raw_score=0.0,
+                evidence_chunk_id=None,
+                evidence_span=None,
+                rationale="No candidate evidence chunks available.",
+                verifier_name=self._verifier_name,
+                confidence_status="unavailable",
+                verifier_warnings=["no_candidate_evidence"],
+            )
+
+        try:
+            # Lazy import and model loading
+            model = self._get_model(self._model_name, self._device)
+            
+            # Resolve label mapping dynamically
+            label2id = getattr(model.model.config, "label2id", None)
+            if label2id:
+                label2id = {k.lower(): v for k, v in label2id.items()}
+            else:
+                label2id = {"contradiction": 0, "entailment": 1, "neutral": 2}
+
+            entailment_idx = label2id.get("entailment", 1)
+            contradiction_idx = label2id.get("contradiction", 0)
+            neutral_idx = label2id.get("neutral", 2)
+
+            # Score each candidate chunk against the claim
+            pairs = [[cand.chunk_text, claim_text] for cand in top_k_candidates]
+            
+            import numpy as np
+            scores = model.predict(pairs)
+            
+            # In CrossEncoder,predict can return single 1D array if only 1 pair is scored.
+            # Make sure it's 2D for consistent handling
+            if len(pairs) == 1 and len(scores.shape) == 1:
+                scores = np.expand_dims(scores, axis=0)
+
+            # Softmax to get probabilities
+            def softmax(x):
+                e_x = np.exp(x - np.max(x, axis=-1, keepdims=True))
+                return e_x / e_x.sum(axis=-1, keepdims=True)
+
+            probs = softmax(scores)
+
+            best_candidate_id = None
+            best_label = "unsupported"
+            best_support_label = "insufficient_evidence"
+            best_score = 0.0
+            best_rationale = ""
+            best_evidence_span = None
+
+            supporting_ids = []
+            contradicting_ids = []
+            neutral_ids = []
+
+            for idx, (cand, prob) in enumerate(zip(top_k_candidates, probs)):
+                ent_prob = float(prob[entailment_idx])
+                con_prob = float(prob[contradiction_idx])
+                neu_prob = float(prob[neutral_idx])
+
+                # Determine candidate label
+                if ent_prob > con_prob and ent_prob > neu_prob:
+                    cand_label = "entailed"
+                    cand_support = "supported"
+                    cand_score = ent_prob
+                    supporting_ids.append(cand.chunk_id)
+                elif con_prob > ent_prob and con_prob > neu_prob:
+                    cand_label = "contradicted"
+                    cand_support = "contradicted"
+                    cand_score = con_prob
+                    contradicting_ids.append(cand.chunk_id)
+                else:
+                    cand_label = "unsupported"
+                    cand_support = "insufficient_evidence"
+                    cand_score = neu_prob
+                    neutral_ids.append(cand.chunk_id)
+
+                if cand_score > best_score or best_candidate_id is None:
+                    best_score = cand_score
+                    best_candidate_id = cand.chunk_id
+                    best_label = cand_label
+                    best_support_label = cand_support
+                    best_rationale = (
+                        f"Local NLI prediction: entailment={ent_prob:.3f}, "
+                        f"contradiction={con_prob:.3f}, neutral={neu_prob:.3f} "
+                        f"on chunk {cand.chunk_id}."
+                    )
+                    best_evidence_span = cand.chunk_text[:100] + "..."
+
+            return VerificationResult(
+                label=best_label,
+                support_label=best_support_label,
+                raw_score=best_score,
+                evidence_chunk_id=best_candidate_id,
+                evidence_span=best_evidence_span,
+                rationale=best_rationale,
+                verifier_name=self._verifier_name,
+                supporting_chunk_ids=supporting_ids,
+                contradicting_chunk_ids=contradicting_ids,
+                neutral_chunk_ids=neutral_ids,
+                candidate_chunk_ids=[c.chunk_id for c in top_k_candidates],
+                confidence_status="uncalibrated_heuristic_proxy",
+            )
+
+        except Exception as exc:
+            logger.warning("Local NLI verifier failed, falling back to heuristic: %s", exc)
+            fallback = self._fallback_verifier.verify(
+                claim_text,
+                query,
+                top_k_candidates,
+                metadata=metadata,
+            )
+            fallback.fallback_used = True
+            fallback.fallback_from = self._verifier_name
+            fallback.fallback_to = "heuristic_top_k_verifier"
+            fallback.verifier_warnings = [
+                *fallback.verifier_warnings,
+                f"local_nli_failed:{type(exc).__name__}",
+            ]
+            fallback.error_info = str(exc)
+            return fallback
+

@@ -805,3 +805,44 @@ def test_claim_grounding_still_skips_for_trivially_short_answers() -> None:
 
     assert result.status == "skip"
     assert result.evidence == ["no claims extracted from final answer"]
+
+
+def test_local_nli_verifier_runs_and_evaluates() -> None:
+    import pytest
+
+    # Integration test: needs sentence-transformers + a downloadable NLI model. Skip where
+    # unavailable (CI/sandbox) rather than fail — the offline fallback is covered separately.
+    pytest.importorskip("sentence_transformers")
+    from raggov.analyzers.grounding.verifiers import LocalNLIClaimVerifier
+    from raggov.analyzers.grounding.candidate_selection import EvidenceCandidate
+
+    verifier = LocalNLIClaimVerifier({"claim_verifier_mode": "local_nli"})
+    candidates = [
+        EvidenceCandidate(
+            chunk_id="chunk-1",
+            source_doc_id="doc-1",
+            chunk_text="Paris is the capital of France.",
+            chunk_text_preview="Paris is...",
+            lexical_overlap_score=0.9,
+            anchor_overlap_score=0.9,
+            value_overlap_score=0.9,
+            retrieval_score=0.9,
+            rerank_score=0.9,
+            candidate_reason="matching terms",
+            is_best=True
+        )
+    ]
+    res = verifier.verify(
+        claim="Paris is the capital of France.",
+        query="What is the capital of France?",
+        candidates=candidates,
+    )
+    if getattr(res, "fallback_used", False):
+        import pytest
+
+        pytest.skip("local NLI model not loadable in this environment; fallback path used")
+    assert res.label == "entailed"
+    assert res.support_label == "supported"
+    assert res.evidence_chunk_id == "chunk-1"
+    assert "Local NLI prediction" in res.rationale
+

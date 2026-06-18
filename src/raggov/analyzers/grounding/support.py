@@ -190,6 +190,9 @@ class ClaimGroundingAnalyzer(BaseAnalyzer):
                     "structured_llm_claim: no LLM client configured; native fallback used."
                 )
                 self._verifier = HeuristicValueOverlapVerifier(self.config)
+        elif requested_verifier == "local_nli" or mode == "local_nli":
+            from raggov.analyzers.grounding.verifiers import LocalNLIClaimVerifier
+            self._verifier = LocalNLIClaimVerifier(self.config)
         elif requested_verifier == "llm_entailment":
             if has_llm_client:
                 self._verifier = LLMClaimEntailmentVerifierV1(self.config)

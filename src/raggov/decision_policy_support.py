@@ -1614,6 +1614,7 @@ _ENTAILMENT_GRADE_METHODS = frozenset({
     "llm_claim_entailment_verifier_v1",
     "structured_llm_claim_verifier_v1",
     "conservative_ensemble_v1",
+    "local_nli_verifier",
 })
 
 
