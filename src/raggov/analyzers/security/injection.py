@@ -68,6 +68,34 @@ IMPERATIVE_DIRECTIVES = [
     (r"(?i)\b(enable|activate|switch to|enter)\b.{0,20}\b(debug|privileged|root|admin|unrestricted|god)\s*(mode|access|context)\b", "system_context"),
 ]
 
+# Detector 1b: Multilingual imperative directives (non-English task/persona injection).
+# English-only patterns above miss override / new-instruction / role markers in other
+# languages, which is the dominant gap on real injection corpora (deepset prompt-injections).
+# Anchored on instruction/role nouns (or known exemplars) to avoid firing on ordinary
+# foreign-language prose. Content-scanning is by design for the security stage.
+MULTILINGUAL_DIRECTIVES = [
+    # German — task override / new-instruction
+    (r"(?i)abweichend\s+zu\s+.{0,25}\b(instruktion|anweisung)", "ml_task_override"),
+    (r"(?i)\bvergiss\b.{0,25}\b(alles|davor|vorherige|obige|bisherige)", "ml_task_override"),
+    (r"(?i)\b(ignorier|missacht|verwerfe)\w*\b.{0,30}\b(anweisung|instruktion|regel|vorherige|obige)", "ml_task_override"),
+    (r"(?i)\b(nun|jetzt)\s+folgen\b.{0,20}\b(neue\s+)?(anweisung|instruktion)", "ml_task_override"),
+    (r"(?i)\bneue\s+(anweisungen|instruktionen)\b", "ml_task_override"),
+    (r"(?i)\b(verhalte dich wie|agiere als|tu so als)\b", "ml_role_reassignment"),
+    # Spanish
+    (r"(?i)\bolvid\w*\b.{0,25}\b(todo|anterior|previo|antes|instrucci)", "ml_task_override"),
+    (r"(?i)\bignora\w*\b.{0,25}\b(instruccion|reglas|anterior|previo)", "ml_task_override"),
+    (r"(?i)\bhaz caso omiso\b", "ml_task_override"),
+    (r"(?i)\b(act[uú]a como|comp[oó]rtate como)\b", "ml_role_reassignment"),
+    # French
+    (r"(?i)\b(ignore[zr]?|oublie[zr]?)\b.{0,25}\b(instruction|consigne|pr[ée]c[ée]dent|tout)", "ml_task_override"),
+    (r"(?i)\b(agis comme|comporte-toi comme)\b", "ml_role_reassignment"),
+    # Cross-lingual manipulation / known exemplar attacks
+    (r"(?i)(?:^|[.?!]\s*)say\s+(yes|no)\b", "manip_directive"),
+    (r"(?i)\bpwned\b", "jailbreak_exemplar"),
+    (r"(?i)\b(formuliere|schreibe|verfasse)\b.{0,40}\b(unwahr|falsch|überschrift|schlagzeile)", "ml_task_directive"),
+    (r"(?i)\b(now|nun)\s+(write|create|generate|produce|schreib\w*|verfass\w*)\b.{0,30}\b(manifest|article|headline|essay|überschrift)", "ml_task_directive"),
+]
+
 # Detector 2: Exfiltration structure (Greshake taxonomy: data theft)
 # Checks for: data-reference + transmission-verb + external-target
 EXFILTRATION_PATTERNS = [
@@ -423,6 +451,7 @@ class PromptInjectionAnalyzer(BaseAnalyzer):
             (re.compile(pattern, re.IGNORECASE), label)
             for pattern, label in (
                 IMPERATIVE_DIRECTIVES
+                + MULTILINGUAL_DIRECTIVES
                 + EXFILTRATION_PATTERNS
                 + DELIMITER_PATTERNS
                 + JAILBREAK_PATTERNS
