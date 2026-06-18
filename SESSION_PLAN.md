@@ -86,7 +86,9 @@ prereg + result docs either way.
 
 ## Definition of done (project-level, not this session)
 Generalization ≥ ~0.70 on a real 30–50-case heldout, low CLEAN false-positive rate, every advertised
-type data-backed. **Probe today: 0.552** (start 0.241; +0.311 across Tasks 18–23).
+type data-backed. **Probe today: 0.552** (default config; **0.566 in `mode=native`** — both
+SYNTHETIC, not production. All session deltas measured consistently in default config.)
+(start 0.241; +0.311 across Tasks 18–23).
 CLEAN-correct 4/30 → 13/30; UNSUPPORTED_CLAIM 2/30 → 25/30; CITATION_MISMATCH 29/30; injection 9/10.
 
 ### Session 2 addendum (following Codex sidekick plan)

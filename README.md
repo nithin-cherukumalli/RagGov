@@ -1,13 +1,13 @@
 # GovRAG
 
-**Diagnosis for production RAG systems.**
+**Failure diagnosis for RAG systems — research preview, not yet production-calibrated.**
 
 GovRAG tells you why a RAG answer failed, where the failure originated, whether the evidence was unsafe, and whether the system should have answered at all.
 
 Most RAG tooling measures answer quality or traces execution. GovRAG is built for a different job: failure attribution.
 
 > **Maturity: research preview — `calibration_status: not_calibrated`, not production-gated.**
-> The architecture and taxonomy are complete, but evaluation is still maturing. The
+> The architecture and taxonomy are defined, but data and validation are still maturing. The
 > calibration set (`dataset_v1`) is 52 cases, mostly synthetic, and only **3 of 25**
 > failure types currently have ≥5 real labelled examples behind them (see
 > `evals/govrag_calib/taxonomy_support_tiers.json`). Treat GovRAG today as a useful
