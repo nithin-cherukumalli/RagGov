@@ -53,7 +53,8 @@ def _score(rows, engine):
 def main() -> None:
     logging.disable(logging.CRITICAL)
     ap = argparse.ArgumentParser()
-    ap.add_argument("--model", default="llama-3.3-70b-versatile")
+    ap.add_argument("--provider", default="groq", choices=["groq", "kimi", "mock"])
+    ap.add_argument("--model", default=None, help="model id (provider default if omitted)")
     ap.add_argument("--mock", action="store_true", help="offline wiring test (no API call)")
     args = ap.parse_args()
     rows = _load_rows(HELDOUT)
@@ -61,14 +62,17 @@ def main() -> None:
     native = DiagnosisEngine()
     print("NATIVE (heuristic):", _score(rows, native))
 
-    if args.mock:
+    if args.mock or args.provider == "mock":
         class _MockEntailmentClient:
             def chat(self, prompt: str) -> str:
                 return '{"label":"entailed","rationale":"mock"}'
         client = _MockEntailmentClient()
+    elif args.provider == "kimi":
+        from kimi_client import KimiClient
+        client = KimiClient(model=args.model)
     else:
         from groq_client import GroqClient
-        client = GroqClient(model=args.model)
+        client = GroqClient(model=args.model) if args.model else GroqClient()
 
     nli = DiagnosisEngine(config={
         "llm_client": client,
