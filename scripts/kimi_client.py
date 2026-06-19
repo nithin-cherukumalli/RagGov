@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import os
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -55,6 +56,8 @@ class KimiClient:
     ) -> None:
         self.model = model or os.environ.get("KIMI_MODEL") or DEFAULT_KIMI_MODEL
         self.temperature = temperature
+        if self.model.startswith("kimi-"):
+            self.temperature = 1.0
         self.base_url = (base_url or os.environ.get("KIMI_BASE_URL") or DEFAULT_BASE_URL).rstrip("/")
         self._key = _load_kimi_key()
         if not self._key:
@@ -63,10 +66,15 @@ class KimiClient:
                 "`KIMI_API_KEY = sk-...` to a gitignored .env file. Never hardcode it."
             )
 
-    def chat(self, prompt: str) -> str:
+    def chat(self, prompt: str, max_tokens: int = 1024) -> str:
+        # Moonshot requires temperature in (0, 1]; temperature=0 is rejected. Clamp.
+        temperature = self.temperature if self.temperature and self.temperature > 0 else 0.3
+        if temperature > 1:
+            temperature = 1.0
         payload = {
             "model": self.model,
-            "temperature": self.temperature,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
             "messages": [{"role": "user", "content": prompt}],
         }
         req = urllib.request.Request(
@@ -77,8 +85,15 @@ class KimiClient:
                 "Content-Type": "application/json",
             },
         )
-        with urllib.request.urlopen(req, timeout=90) as resp:
-            data = json.loads(resp.read())
+        try:
+            with urllib.request.urlopen(req, timeout=90) as resp:
+                data = json.loads(resp.read())
+        except urllib.error.HTTPError as exc:  # surface Moonshot's real error message
+            try:
+                body = exc.read().decode("utf-8", errors="replace")
+            except Exception:
+                body = ""
+            raise RuntimeError(f"Kimi HTTP {exc.code} ({self.model}): {body[:400]}") from exc
         return data["choices"][0]["message"]["content"]
 
     def complete(self, prompt: str) -> str:
