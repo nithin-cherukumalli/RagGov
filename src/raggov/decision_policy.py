@@ -239,7 +239,28 @@ def select_primary_failure_with_policy(
     winner = ranked_status_pool[0]
     
     winner, rule_applied = support.apply_named_exception_rules(winner, ranked_status_pool, results)
-    
+
+    # Grounded-clean gate (Phase 2): an entailment-grade grounding verdict that finds the answer
+    # clean overrides a lone low-tier retrieval-health heuristic. Inactive without an entailment
+    # verifier, so native behavior is unchanged.
+    if support.grounded_clean_override(winner, status_pool, results):
+        return (
+            FailureType.CLEAN,
+            None,
+            support.DiagnosisDecisionTrace(
+                selected_primary_failure=FailureType.CLEAN.value,
+                selected_analyzer=None,
+                selected_tier=None,
+                selection_reason=(
+                    f"grounded_clean_override: entailment verdict found the answer clean; "
+                    f"low-tier {winner.failure_type.value} from {winner.analyzer_name} suppressed."
+                ),
+                alternatives_considered=[c.to_dict() for c in ranked_status_pool],
+                suppressed_candidates=[c.to_dict() for c in suppressed],
+                warnings=warnings,
+            ).to_dict(),
+        )
+
     primary_result = results[winner.original_index]
     if primary_result.stage != winner.stage:
         primary_result.stage = winner.stage

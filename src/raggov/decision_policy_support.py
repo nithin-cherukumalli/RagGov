@@ -1618,6 +1618,51 @@ _ENTAILMENT_GRADE_METHODS = frozenset({
 })
 
 
+# Low-tier retrieval-health failures that an entailment-clean grounding verdict may override.
+_GROUNDED_CLEAN_SUPPRESSIBLE = frozenset({
+    FailureType.STALE_RETRIEVAL,
+    FailureType.INCONSISTENT_CHUNKS,
+    FailureType.SCOPE_VIOLATION,
+    FailureType.RETRIEVAL_ANOMALY,
+    FailureType.CITATION_MISMATCH,
+    FailureType.INSUFFICIENT_CONTEXT,
+})
+
+
+def _answer_is_entailment_clean(results: list[AnalyzerResult]) -> bool:
+    """True iff an entailment-grade grounding verdict shows no contradicted/unsupported claim.
+
+    Requires the ClaimGroundingAnalyzer to have used an entailment-grade verifier (NLI/LLM).
+    In native/heuristic mode no claim carries an entailment method, so this returns False and
+    the grounded-clean gate never fires (native behavior unchanged).
+    """
+    for result in results:
+        if result.analyzer_name != "ClaimGroundingAnalyzer":
+            continue
+        claims = result.claim_results or []
+        used_entailment = any(
+            getattr(c, "verification_method", None) in _ENTAILMENT_GRADE_METHODS for c in claims
+        )
+        if not used_entailment:
+            return False
+        bad = any(getattr(c, "label", None) in ("contradicted", "unsupported") for c in claims)
+        return not bad
+    return False
+
+
+def grounded_clean_override(
+    winner: DecisionCandidate,
+    status_pool: list[DecisionCandidate],
+    results: list[AnalyzerResult],
+) -> bool:
+    """Should the winner be overridden to CLEAN because the answer is entailment-clean?"""
+    if winner.failure_type not in _GROUNDED_CLEAN_SUPPRESSIBLE:
+        return False
+    if any(c.evidence_tier == EvidenceTier.BLOCKING_DETERMINISTIC for c in status_pool):
+        return False
+    return _answer_is_entailment_clean(results)
+
+
 def _has_explicit_contradiction(candidate: DecisionCandidate, results: list[AnalyzerResult]) -> bool:
     # "explicit_contradiction" is the default label_reason for ANY contradicted claim
     # (see _default_label_reason in verifiers.py).  Counting it here would make
