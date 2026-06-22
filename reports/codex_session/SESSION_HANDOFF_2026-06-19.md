@@ -137,6 +137,30 @@ have been wrong on judgment every round — great for breadth, not final calls).
 - Guards: `scripts/check_protected_baseline.py` (43/46), `check_dataset_lock.py`, `check_taxonomy_support.py`
 - Plan/state: `reports/MASTER_PLAN.md`, `reports/ARCHITECTURE_AND_HONEST_STATE.md`, this file.
 
+## 10b. Update — 2026-06-22 session (two increments landed, both native-safe)
+- **`ee0b433` (Step B reliability):** shared `scripts/_llm_http.py` `post_json_with_retry` —
+  bounded exponential backoff + jitter, honors numeric `Retry-After`, retries only 429/5xx (never
+  4xx auth). Wired into Groq + Kimi clients. Targets the ~42% rate-limit fallback. Unit-tested
+  offline (`tests/scripts/test_llm_http_retry.py`, 4 tests). The *cheap* half of Step B
+  (risk-filtered/batched verification to cut call count) is still TODO.
+- **`72fa109` (Step A — the CLEAN-FP lever):** grounded-clean gate **v2**. Replaced increment-3's
+  strict-zero-unsupported with an **entailed-fraction** rule: suppress a low-tier retrieval-health
+  winner iff (no `contradicted` claim) AND (≥1 verifiable claim) AND (entailed/verifiable ≥
+  threshold, default 0.75, env `RAGGOV_GROUNDED_CLEAN_ENTAILED_FRACTION`). `INCOMPLETE_DIAGNOSIS`
+  deliberately NOT added — recorded in `phase2_grounded_clean_gate_v2_prereg.md`. 7 gate unit
+  tests. Note: `ClaimResult.label` is the 4-value literal {entailed,unsupported,contradicted,
+  abstain}; the richer verifier vocab is `support_label`.
+- **Native-safety re-verified (byte-identical):** Calib native 23/45, real heldout native 19/75
+  (this scorer reads 19, not 18 — a one-row drift from the run_nli harness; same ballpark),
+  protected baseline pass, 55 decision_policy + 4 retry tests green. Gain is **unmeasured** —
+  needs an off-sandbox clean NLI run.
+- **NEXT (only the user/sidekick can do it):** run `reports/codex_session/NEXT_sidekick_clean_nli_ab.md`
+  — confirm backoff cut the fallback, then sweep the threshold and report CLEAN-FP + gold-FAIL
+  recall. Opus then sets the winning threshold (or reverts `72fa109` if nothing earns it).
+- **Sandbox gotcha (new):** the mounted `.git/index.lock` sometimes can't be `rm`'d *or* `mv`'d
+  ("Operation not permitted"). Workaround that worked: commit via a temp index —
+  `GIT_INDEX_FILE=/tmp/idx git read-tree HEAD && git add <files> && git commit`.
+
 ## 11. The one sentence to hold onto
 The infra is real (hybrid NLI tier, 3 providers, grounded-clean gate, canonical scorer, real
 heldout) and everything is honest; the next win is making the grounded-clean gate fire usefully on a
