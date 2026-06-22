@@ -95,15 +95,15 @@ Seeds: [0] | Modes: ['default', 'native']
 **CLEAN-FP rate [heldout_real, native]:** 37/50 = 0.74 — breakdown: {'INSUFFICIENT_CONTEXT': 8, 'STALE_RETRIEVAL': 8, 'INCONSISTENT_CHUNKS': 8, 'UNSUPPORTED_CLAIM': 6, 'CONTRADICTED_CLAIM': 2, 'POST_RATIONALIZED_CITATION': 1, 'PROMPT_INJECTION': 1, 'PRIVACY_VIOLATION': 1, 'SCOPE_VIOLATION': 1, 'RETRIEVAL_ANOMALY': 1}
 
 ## NLI A/B Comparison (real heldout v1)
-> ⚠️ NO-LLM SANDBOX: llm_entailment falls back to HeuristicValueOverlapVerifier. Numbers may be identical. Re-run with llm_client set for real NLI comparison.
+> ⚠️ Comparing native heuristic (conservative_ensemble fallback) against local_nli (cross-encoder/nli-deberta-v3-small).
 
 | Policy | n | correct | accuracy | CLEAN-FP rate | CONTRADICTED recall |
 |--------|---|---------|----------|---------------|---------------------|
 | native (conservative_ensemble) | 75 | 18 | 0.24 | 0.76 | 0.24 |
-| llm_entailment (→ heuristic fallback) | 75 | 18 | 0.24 | 0.76 | 0.24 |
+| llm_entailment (→ heuristic fallback) | 75 | 6 | 0.08 | 0.88 | 0.0 |
 
 **CLEAN-FP breakdown (native):** {'STALE_RETRIEVAL': 9, 'INSUFFICIENT_CONTEXT': 8, 'INCONSISTENT_CHUNKS': 7, 'UNSUPPORTED_CLAIM': 6, 'CONTRADICTED_CLAIM': 2, 'POST_RATIONALIZED_CITATION': 1, 'PROMPT_INJECTION': 1, 'PRIVACY_VIOLATION': 1, 'SCOPE_VIOLATION': 1, 'GENERATION_IGNORE': 1, 'RETRIEVAL_ANOMALY': 1}
-**CLEAN-FP breakdown (entailment):** {'STALE_RETRIEVAL': 9, 'INSUFFICIENT_CONTEXT': 8, 'INCONSISTENT_CHUNKS': 7, 'UNSUPPORTED_CLAIM': 6, 'CONTRADICTED_CLAIM': 2, 'POST_RATIONALIZED_CITATION': 1, 'PROMPT_INJECTION': 1, 'PRIVACY_VIOLATION': 1, 'SCOPE_VIOLATION': 1, 'GENERATION_IGNORE': 1, 'RETRIEVAL_ANOMALY': 1}
+**CLEAN-FP breakdown (entailment):** {'UNSUPPORTED_CLAIM': 21, 'INSUFFICIENT_CONTEXT': 9, 'STALE_RETRIEVAL': 7, 'INCONSISTENT_CHUNKS': 3, 'PROMPT_INJECTION': 1, 'PRIVACY_VIOLATION': 1, 'GENERATION_IGNORE': 1, 'RETRIEVAL_ANOMALY': 1}
 
 ## Spot-Case Parity (vs raggov_score.build_run)
 | spot_label | case_id | expected | got | match | confidence |

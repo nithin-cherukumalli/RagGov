@@ -2109,3 +2109,31 @@ Next step:
 Two highest-impact precision targets on the real heldout:
 1. **CONTRADICTED recall (6/25 = 0.24)** — fix CONTRADICTED detection path in ClaimGroundingAnalyzer for real-world text patterns (not just synthetic mutations).
 2. **CLEAN-FP rate (38/50 = 0.76)** — fix policy warn-level escalation; single narrow patch recovers the most rows.
+
+## [Dated: 2026-06-18] Phase 2 — NLI Granularity Call & Model Approval (Sidekick 1)
+
+### 1. Granularity Call: Claim-Level Entailment (Approved)
+
+- **Selected Granularity**: **Claim-Level** (decomposing the generated final answer into atomic claims, then checking if each claim is supported or contradicted by retrieved context).
+- **Rationale**:
+  1. **Architectural Alignment**: The current verification structures (`ClaimGroundingAnalyzer`, `ClaimEntailmentVerifierV1`, `triplets.py`) are built around claim-level operations. Sentence-level is too coarse and error-prone (sentences often combine multiple factual details), while chunk/answer-level misses local support/contradiction precision.
+  2. **Explainability**: Claim-level matches downstream diagnostic rollups (e.g. support rate, contradiction counts, citation mismatch patterns).
+  3. **Consistency**: Directly feeds the existing `VerificationResult` schema.
+
+### 2. Approved Local NLI Model: `cross-encoder/nli-deberta-v3-small`
+
+- **Approved Model**: **`cross-encoder/nli-deberta-v3-small`** (~180MB / ~86.8M parameters)
+- **Rationale**:
+  1. **Cross-Encoder Architecture**: Superior at entailment reasoning compared to dual-encoders (bi-encoders) because it feeds premise and hypothesis simultaneously through all attention layers.
+  2. **Efficiency**: Under 200MB, it runs exceptionally fast on local CPU setups without risking memory exhaust or causing a heavy test-suite latency penalty.
+  3. **Zero-Shot/Entailment Mapping**: Class mappings (contradiction, entailment, neutral) map cleanly to `contradicted`, `entailed`, and `unsupported`/`insufficient_evidence` labels in `VerificationResult`.
+- **Optional High-Precision Override**: `cross-encoder/nli-deberta-v3-base` (~400MB) can be supported as a config override for environments with more resources.
+
+### 3. Implementation Plan for Opus
+
+1. **Verifier Subclass**: Create `LocalNLIClaimVerifier` subclassing `ClaimEntailmentVerifierV1` in `src/raggov/analyzers/grounding/verifiers.py`.
+2. **Lazy Dependencies**: Import `transformers` and `torch` inside the verifier methods to ensure heavy dependencies remain optional (not imported at start).
+3. **Thresholds & Logit Mapping**: Map cross-encoder logits cleanly, comparing probability thresholds against `contradiction` and `entailment` labels.
+4. **Fallback Handling**: Gracefully fallback to `HeuristicValueOverlapVerifier` with complete fallback metadata when dependencies or model load fail.
+5. **Config integration**: Support `"local_nli"` as policy in `ClaimGroundingAnalyzer`.
+

@@ -2,14 +2,14 @@
 
 **Date:** 2026-05-07
 **Total Cases:** 46
-**Passed:** 41
-**Pass Rate:** 89.1%
+**Passed:** 42
+**Pass Rate:** 91.3%
 
 ## Performance by Category
 
 | Category | Total | Passed | Pass Rate |
 | :--- | :--- | :--- | :--- |
-| answer_quality | 6 | 4 | 66.7% |
+| answer_quality | 6 | 5 | 83.3% |
 | citation | 5 | 5 | 100.0% |
 | grounding | 7 | 6 | 85.7% |
 | parser_chunking | 6 | 6 | 100.0% |
@@ -59,10 +59,10 @@
 | `security_privacy_sensitive_35` | security | `PRIVACY_VIOLATION` | `PRIVACY_VIOLATION` | ✅ PASS |
 | `security_retrieval_anomaly_only_36` | security | `RETRIEVAL_ANOMALY` | `UNSUPPORTED_CLAIM` | ❌ FAIL |
 | `security_poisoning_explicit_37` | security | `SUSPICIOUS_CHUNK` | `SUSPICIOUS_CHUNK` | ✅ PASS |
-| `quality_incomplete_38` | answer_quality | `UNSUPPORTED_CLAIM` | `UNSUPPORTED_CLAIM` | ❌ FAIL |
+| `quality_incomplete_38` | answer_quality | `UNSUPPORTED_CLAIM` | `UNSUPPORTED_CLAIM` | ✅ PASS |
 | `quality_weak_grounding_39` | answer_quality | `CITATION_MISMATCH` | `CITATION_MISMATCH` | ✅ PASS |
 | `quality_ambiguous_query_40` | answer_quality | `LOW_CONFIDENCE` | `LOW_CONFIDENCE` | ✅ PASS |
-| `quality_ignores_context_41` | answer_quality | `CONTRADICTED_CLAIM` | `UNSUPPORTED_CLAIM` | ❌ FAIL |
+| `quality_ignores_context_41` | answer_quality | `CONTRADICTED_CLAIM` | `CONTRADICTED_CLAIM` | ❌ FAIL |
 | `quality_overconfident_weak_evidence_42` | answer_quality | `UNSUPPORTED_CLAIM` | `UNSUPPORTED_CLAIM` | ✅ PASS |
 | `parser_table_partial_loss_43` | parser_chunking | `TABLE_STRUCTURE_LOSS` | `TABLE_STRUCTURE_LOSS` | ✅ PASS |
 | `retrieval_semantic_entropy_high_44` | answer_quality | `LOW_CONFIDENCE` | `LOW_CONFIDENCE` | ✅ PASS |

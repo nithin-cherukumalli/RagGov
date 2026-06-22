@@ -213,6 +213,16 @@ test_rank*.py
 *_diagnosis.json
 diff.txt
 
+# Generated harness/report outputs
+reports/common_failure_triage.json
+reports/common_failure_triage.md
+reports/harness_post_edit_validation.json
+reports/harness_post_edit_validation.md
+reports/harness_preflight_report.json
+reports/harness_preflight_report.md
+reports/workspace_audit.json
+reports/workspace_audit.md
+
 # Marimo
 marimo/_static/
 marimo/_lsp/

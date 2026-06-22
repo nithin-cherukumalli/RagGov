@@ -98,15 +98,12 @@ def _score_with_config(path: str | Path, config: dict) -> dict:
 
 
 def _nli_ab(path: str | Path) -> dict:
-    """Compare native heuristic vs. llm_entailment policy on path.
+    """Compare native heuristic vs. local_nli policy on path.
 
-    IMPORTANT: In this sandbox no LLM client is configured, so 'llm_entailment'
-    silently falls back to HeuristicValueOverlapVerifier. The A/B will show
-    identical or near-identical numbers — that is the honest result.
-    Opus should re-run with a real LLM client to get the true NLI comparison.
+    Runs both configurations and scores accuracy, CLEAN-FP rate, and CONTRADICTED recall.
     """
     native_cfg = {"claim_grounding_verifier_policy": "conservative_ensemble"}
-    entail_cfg = {"claim_grounding_verifier_policy": "llm_entailment"}
+    entail_cfg = {"claim_grounding_verifier_policy": "local_nli"}
 
     native_score = _score_with_config(path, native_cfg)
     entail_score = _score_with_config(path, entail_cfg)
@@ -124,8 +121,8 @@ def _nli_ab(path: str | Path) -> dict:
 
     return {
         "note": (
-            "NO-LLM SANDBOX: llm_entailment falls back to HeuristicValueOverlapVerifier. "
-            "Numbers may be identical. Re-run with llm_client set for real NLI comparison."
+            "Comparing native heuristic (conservative_ensemble fallback) against "
+            "local_nli (cross-encoder/nli-deberta-v3-small)."
         ),
         "native": {
             "config": native_cfg,

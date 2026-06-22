@@ -1,0 +1,49 @@
+{
+  "dataset_path": "/Users/nitin/Desktop/RagGov/evals/govrag_calib/govrag_calib_150.jsonl",
+  "total_cases": 52,
+  "complete_cases": 45,
+  "placeholder_cases": 7,
+  "by_category": {
+    "clean_pass": 10,
+    "retrieval": 9,
+    "sufficiency": 5,
+    "grounding": 15,
+    "citation": 3,
+    "security": 3
+  },
+  "by_domain": {
+    "software": 32,
+    "general": 4,
+    "finance": 3,
+    "healthcare": 4,
+    "legal": 2
+  },
+  "by_label_source": {
+    "benchmark_migrated": 7,
+    "synthetic_mutation": 38
+  },
+  "by_split": {
+    "train": 31,
+    "dev": 11,
+    "heldout": 3
+  },
+  "by_confidence": {
+    "high": 42,
+    "medium": 3,
+    "low": 7
+  },
+  "split_availability": {
+    "train": true,
+    "dev": true,
+    "heldout": true,
+    "train_count": 31,
+    "dev_count": 11,
+    "heldout_count": 3
+  },
+  "thin_categories": {},
+  "min_per_category_threshold": 3,
+  "readiness_status": "PROVISIONAL_DATASET",
+  "readiness_reason": "45 complete cases. Provisional dataset \u2014 usable for early harness development but not for production calibration evaluation.",
+  "production_gating_eligible": false,
+  "production_gating_reason": "Production gating is not enabled. No calibrated confidence scores exist. Activate only after statistical calibration is complete and validated."
+}

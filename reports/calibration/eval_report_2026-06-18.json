@@ -351,7 +351,7 @@
   "calibration_status": "not_production_calibrated",
   "production_gating_eligible": false,
   "nli_ab": {
-    "note": "NO-LLM SANDBOX: llm_entailment falls back to HeuristicValueOverlapVerifier. Numbers may be identical. Re-run with llm_client set for real NLI comparison.",
+    "note": "Comparing native heuristic (conservative_ensemble fallback) against local_nli (cross-encoder/nli-deberta-v3-small).",
     "native": {
       "config": {
         "claim_grounding_verifier_policy": "conservative_ensemble",
@@ -404,7 +404,7 @@
     },
     "entailment": {
       "config": {
-        "claim_grounding_verifier_policy": "llm_entailment",
+        "claim_grounding_verifier_policy": "local_nli",
         "mode": "external-enhanced",
         "enabled_external_providers": [
           "ragas",
@@ -420,35 +420,32 @@
       },
       "overall": {
         "n": 75,
-        "correct": 18,
-        "accuracy": 0.24
+        "correct": 6,
+        "accuracy": 0.08
       },
-      "clean_fp_rate": 0.76,
-      "clean_fp_count": 38,
+      "clean_fp_rate": 0.88,
+      "clean_fp_count": 44,
       "clean_fp_breakdown": {
-        "STALE_RETRIEVAL": 9,
-        "INSUFFICIENT_CONTEXT": 8,
-        "INCONSISTENT_CHUNKS": 7,
-        "UNSUPPORTED_CLAIM": 6,
-        "CONTRADICTED_CLAIM": 2,
-        "POST_RATIONALIZED_CITATION": 1,
+        "UNSUPPORTED_CLAIM": 21,
+        "INSUFFICIENT_CONTEXT": 9,
+        "STALE_RETRIEVAL": 7,
+        "INCONSISTENT_CHUNKS": 3,
         "PROMPT_INJECTION": 1,
         "PRIVACY_VIOLATION": 1,
-        "SCOPE_VIOLATION": 1,
         "GENERATION_IGNORE": 1,
         "RETRIEVAL_ANOMALY": 1
       },
-      "contradicted_recall": 0.24,
+      "contradicted_recall": 0.0,
       "per_type": {
         "CLEAN": {
           "n": 50,
-          "correct": 12,
-          "accuracy": 0.24
+          "correct": 6,
+          "accuracy": 0.12
         },
         "CONTRADICTED_CLAIM": {
           "n": 25,
-          "correct": 6,
-          "accuracy": 0.24
+          "correct": 0,
+          "accuracy": 0.0
         }
       }
     }

@@ -13,11 +13,11 @@
 
 ## Prediction Metrics
 
-- `primary_failure_accuracy`: `0.48`
-- `stage_accuracy`: `0.42`
+- `primary_failure_accuracy`: `0.62`
+- `stage_accuracy`: `0.54`
 - `first_failing_node_accuracy`: `unavailable`
-- `fix_category_accuracy`: `0.0`
-- `root_cause_accuracy`: `0.2`
+- `fix_category_accuracy`: `0.044444444444444446`
+- `root_cause_accuracy`: `0.2222222222222222`
 
 ## Safety Metrics
 
@@ -29,28 +29,28 @@
 - `acceptable_nonclean_human_review_count`: `2`
 - `dangerous_miss_count`: `0`
 - `dangerous_miss_count_definition`: Deprecated alias for dangerous_clean_miss_count: a security/privacy/adversarial/high-risk case returned CLEAN or failed to require human review.
-- `human_review_miss_count`: `1`
+- `human_review_miss_count`: `0`
 
 ## Family Metrics
 
 | Family | Total | Accuracy | Precision | Recall | F1 |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| answer_quality | 5 | 0.200 | 0.667 | 0.400 | 0.500 |
-| citation | 7 | 0.429 | 0.444 | 0.571 | 0.500 |
-| clean_pass | 5 | 0.400 | 1.000 | 0.400 | 0.571 |
-| grounding | 8 | 0.750 | 0.300 | 0.750 | 0.429 |
-| retrieval | 8 | 0.375 | 0.667 | 0.250 | 0.364 |
+| answer_quality | 5 | 0.200 | 1.000 | 0.400 | 0.571 |
+| citation | 7 | 0.429 | 0.571 | 0.571 | 0.571 |
+| clean_pass | 5 | 1.000 | 1.000 | 1.000 | 1.000 |
+| grounding | 8 | 0.750 | 0.333 | 0.750 | 0.462 |
+| retrieval | 8 | 0.375 | 1.000 | 0.250 | 0.400 |
 | security_privacy | 7 | 1.000 | 1.000 | 1.000 | 1.000 |
-| sufficiency | 5 | 0.200 | 0.200 | 0.200 | 0.200 |
-| version_validity | 5 | 0.200 | 1.000 | 0.200 | 0.333 |
+| sufficiency | 5 | 0.200 | 0.250 | 0.200 | 0.222 |
+| version_validity | 5 | 1.000 | 1.000 | 1.000 | 1.000 |
 
 ## Decision Policy Metrics
 
-- `expected_failure_candidate_generated_count`: `25`
-- `expected_candidate_selected_count`: `24`
+- `expected_failure_candidate_generated_count`: `28`
+- `expected_candidate_selected_count`: `31`
 - `acceptable_alternative_match_count`: `9`
 - `wrong_stage_correct_failure_count`: `5`
-- `correct_stage_wrong_failure_count`: `2`
+- `correct_stage_wrong_failure_count`: `1`
 
 ## Evidence Diagnostics
 
