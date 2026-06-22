@@ -15,12 +15,15 @@ this on a machine with open network access (e.g. your laptop):
 
 from __future__ import annotations
 
-import json
 import os
-import urllib.request
+import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _llm_http import post_json_with_retry  # noqa: E402
+
 _ENDPOINT = "https://api.groq.com/openai/v1/chat/completions"
+DEFAULT_GROQ_MODEL = "llama-3.1-8b-instant"
 # Accepted key names, in priority order (env var first, then .env file).
 _KEY_NAMES = ("GROQ_API_KEY", "GROQ_API", "groq_api", "groq_api_key")
 
@@ -54,9 +57,16 @@ def _load_key() -> str | None:
 class GroqClient:
     """Tiny OpenAI-compatible chat client for Groq."""
 
-    def __init__(self, model: str = "llama-3.3-70b-versatile", temperature: float = 0.0) -> None:
+    def __init__(
+        self,
+        model: str = DEFAULT_GROQ_MODEL,
+        temperature: float = 0.0,
+        *,
+        max_retries: int = 5,
+    ) -> None:
         self.model = model
         self.temperature = temperature
+        self.max_retries = max_retries
         self._key = _load_key()
         if not self._key:
             raise RuntimeError(
@@ -70,16 +80,16 @@ class GroqClient:
             "temperature": self.temperature,
             "messages": [{"role": "user", "content": prompt}],
         }
-        req = urllib.request.Request(
+        data = post_json_with_retry(
             _ENDPOINT,
-            data=json.dumps(payload).encode("utf-8"),
+            payload,
             headers={
                 "Authorization": f"Bearer {self._key}",
                 "Content-Type": "application/json",
             },
+            timeout=60,
+            max_retries=self.max_retries,
         )
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            data = json.loads(resp.read())
         return data["choices"][0]["message"]["content"]
 
     # Some verifier paths probe for .complete(); alias to chat.

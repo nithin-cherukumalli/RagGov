@@ -16,9 +16,13 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _llm_http import post_json_with_retry  # noqa: E402
 
 _KEY_NAMES = ("KIMI_API_KEY", "MOONSHOT_API_KEY", "kimi_api", "moonshot_api")
 DEFAULT_KIMI_MODEL = "kimi-k2.5"
@@ -53,9 +57,12 @@ class KimiClient:
         model: str | None = None,
         temperature: float = 0.0,
         base_url: str | None = None,
+        *,
+        max_retries: int = 5,
     ) -> None:
         self.model = model or os.environ.get("KIMI_MODEL") or DEFAULT_KIMI_MODEL
         self.temperature = temperature
+        self.max_retries = max_retries
         if self.model.startswith("kimi-"):
             self.temperature = 1.0
         self.base_url = (base_url or os.environ.get("KIMI_BASE_URL") or DEFAULT_BASE_URL).rstrip("/")
@@ -77,17 +84,17 @@ class KimiClient:
             "max_tokens": max_tokens,
             "messages": [{"role": "user", "content": prompt}],
         }
-        req = urllib.request.Request(
-            f"{self.base_url}/chat/completions",
-            data=json.dumps(payload).encode("utf-8"),
-            headers={
-                "Authorization": f"Bearer {self._key}",
-                "Content-Type": "application/json",
-            },
-        )
         try:
-            with urllib.request.urlopen(req, timeout=90) as resp:
-                data = json.loads(resp.read())
+            data = post_json_with_retry(
+                f"{self.base_url}/chat/completions",
+                payload,
+                headers={
+                    "Authorization": f"Bearer {self._key}",
+                    "Content-Type": "application/json",
+                },
+                timeout=90,
+                max_retries=self.max_retries,
+            )
         except urllib.error.HTTPError as exc:  # surface Moonshot's real error message
             try:
                 body = exc.read().decode("utf-8", errors="replace")
