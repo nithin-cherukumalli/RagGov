@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 import json
+import os
 import re
 from typing import Any
 
@@ -1628,14 +1629,49 @@ _GROUNDED_CLEAN_SUPPRESSIBLE = frozenset({
     FailureType.INSUFFICIENT_CONTEXT,
 })
 
+# Claim-label partition for the entailed-fraction rule (Phase 2 increment 4).
+# ClaimResult.label is the normalized 4-value literal {entailed, unsupported, contradicted,
+# abstain} (the richer verifier vocabulary — supported/insufficient_evidence/skipped/unverifiable
+# — lives on support_label and is collapsed before reaching the decision layer). "supported" is
+# kept here only as a defensive alias; it is not a valid ClaimResult.label today.
+_GROUNDED_CLEAN_POSITIVE_LABELS = frozenset({"entailed", "supported"})
+_GROUNDED_CLEAN_SOFT_NEGATIVE_LABELS = frozenset({"unsupported"})
+_GROUNDED_CLEAN_HARD_NEGATIVE_LABELS = frozenset({"contradicted"})
+# "abstain" (and any unrecognized label) is excluded from the denominator: no judgment made.
+
+# Default entailed-fraction threshold for the grounded-clean gate. Overridable via env so the
+# off-sandbox NLI sweep can tune it WITHOUT a code edit (see prereg v2). Native mode is
+# unaffected regardless of this value (the gate needs an entailment-grade verdict to fire).
+_GROUNDED_CLEAN_ENTAILED_FRACTION_DEFAULT = 0.75
+
+
+def _grounded_clean_threshold() -> float:
+    """Entailed-fraction threshold; env override is clamped to [0, 1]."""
+    raw = os.environ.get("RAGGOV_GROUNDED_CLEAN_ENTAILED_FRACTION")
+    if raw is None:
+        return _GROUNDED_CLEAN_ENTAILED_FRACTION_DEFAULT
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        return _GROUNDED_CLEAN_ENTAILED_FRACTION_DEFAULT
+    return min(1.0, max(0.0, value))
+
 
 def _answer_is_entailment_clean(results: list[AnalyzerResult]) -> bool:
-    """True iff an entailment-grade grounding verdict shows no contradicted/unsupported claim.
+    """True iff an entailment-grade grounding verdict shows the answer is well-grounded.
 
-    Requires the ClaimGroundingAnalyzer to have used an entailment-grade verifier (NLI/LLM).
-    In native/heuristic mode no claim carries an entailment method, so this returns False and
-    the grounded-clean gate never fires (native behavior unchanged).
+    Phase 2 increment 4 — entailed-fraction rule (supersedes strict-zero). Requires the
+    ClaimGroundingAnalyzer to have used an entailment-grade verifier (NLI/LLM); in
+    native/heuristic mode no claim carries an entailment method, so this returns False and the
+    grounded-clean gate never fires (native behavior byte-identical).
+
+    Given an entailment-grade verdict, the answer is "clean" iff: no claim is `contradicted`
+    (hard floor), there is at least one verifiable (non-abstain) claim, and the fraction of
+    verifiable claims that are positively entailed meets the threshold. This tolerates a bounded
+    number of peripheral `unsupported` claims — the over-strict "zero unsupported" of increment 3
+    is why the gate never fired on real faithful answers.
     """
+    threshold = _grounded_clean_threshold()
     for result in results:
         if result.analyzer_name != "ClaimGroundingAnalyzer":
             continue
@@ -1645,8 +1681,22 @@ def _answer_is_entailment_clean(results: list[AnalyzerResult]) -> bool:
         )
         if not used_entailment:
             return False
-        bad = any(getattr(c, "label", None) in ("contradicted", "unsupported") for c in claims)
-        return not bad
+        positive = soft_neg = hard_neg = 0
+        for claim in claims:
+            label = getattr(claim, "label", None)
+            if label in _GROUNDED_CLEAN_HARD_NEGATIVE_LABELS:
+                hard_neg += 1
+            elif label in _GROUNDED_CLEAN_POSITIVE_LABELS:
+                positive += 1
+            elif label in _GROUNDED_CLEAN_SOFT_NEGATIVE_LABELS:
+                soft_neg += 1
+            # else: abstain-family — excluded from the denominator
+        if hard_neg:
+            return False  # a real contradiction is never suppressed
+        verifiable = positive + soft_neg + hard_neg
+        if verifiable == 0:
+            return False  # no positive grounding evidence (e.g. all-abstain) — do not suppress
+        return (positive / verifiable) >= threshold
     return False
 
 
