@@ -1,0 +1,13 @@
+{
+  "query": "What is the maximum rebate amount for the 2025 neighborhood solar grant?",
+  "final_answer": "The retrieved summary does not state the maximum rebate amount, so I cannot determine it from the provided context.",
+  "retrieved_chunks": [
+    {
+      "chunk_id": "c0",
+      "source_doc_id": "solar-grant-summary",
+      "score": 0.86,
+      "text": "Neighborhood solar grant summary: the 2025 grant funds rooftop solar planning workshops and equipment rebates for qualifying households. The summary does not list specific rebate amounts."
+    }
+  ],
+  "cited_doc_ids": ["solar-grant-summary"]
+}

@@ -13,7 +13,8 @@ from raggov.models.diagnosis import (
 )
 from raggov.models.run import RAGRun
 
-# Keywords that indicate a query is asking for sensitive personal information
+# Keywords that indicate a query is asking for sensitive personal information.
+# Kept as the public name for backward-compat; it is the union of STRONG + WEAK below.
 PRIVATE_PATTERNS = (
     "address",
     "phone",
@@ -31,6 +32,52 @@ PRIVATE_PATTERNS = (
     "secret",
     "confidential",
 )
+
+# STRONG patterns are inherently sensitive — they fire regardless of context.
+_STRONG_PRIVATE_PATTERNS = (
+    "ssn",
+    "social security",
+    "bank account",
+    "credit card",
+    "password",
+    "secret",
+    "confidential",
+)
+# WEAK patterns are also ordinary topical words ("write an email", "private university",
+# "iphone" ⊃ "phone"). They only indicate a privacy request when the query targets a specific
+# person's data — otherwise they are CLEAN false positives (Phase C inc3). Matched on word
+# boundaries so "iphone" no longer matches "phone".
+_WEAK_PRIVATE_PATTERNS = (
+    "address",
+    "phone",
+    "telephone",
+    "mobile",
+    "email",
+    "private",
+    "personal",
+    "home",
+)
+
+# Signals that the query is about a SPECIFIC person's data (so a weak pattern is a real request).
+_PERSON_POSSESSIVE_RE = re.compile(r"\b[A-Z][a-z]+'s\b")  # John's, Mary's (orig-case query)
+_PERSON_TARGET_RE = re.compile(
+    r"\b(?:his|her|their|someone's|somebody's|individual|individuals|person|persons|people|"
+    r"employee|employees|patient|customer|member|resident|applicant|colleague|coworker|"
+    r"co-worker|neighbou?r|user|client)\b",
+    re.IGNORECASE,
+)
+
+
+def _has_person_target(run: RAGRun) -> bool:
+    if _PERSON_POSSESSIVE_RE.search(run.query):
+        return True
+    if _PERSON_TARGET_RE.search(run.query):
+        return True
+    return bool(PERSON_SUBJECT_RE.search(run.query))
+
+
+def _word_match(patterns: tuple[str, ...], text: str) -> list[str]:
+    return [p for p in patterns if re.search(r"\b" + re.escape(p) + r"\b", text)]
 
 MEDICAL_PRIVACY_PATTERNS = (
     "medical",
@@ -66,10 +113,14 @@ class PrivacyAnalyzer(BaseAnalyzer):
         ):
             return self._pass()
 
-        # Check if query contains private patterns
-        matched_patterns = [
-            pattern for pattern in PRIVATE_PATTERNS if pattern in query_lower
-        ]
+        # STRONG patterns are inherently sensitive; WEAK patterns only count as a privacy request
+        # when the query targets a specific person (Phase C inc3 — kills CLEAN false positives like
+        # "write an email", "private university", "iphone").
+        strong = _word_match(_STRONG_PRIVATE_PATTERNS, query_lower)
+        weak = _word_match(_WEAK_PRIVATE_PATTERNS, query_lower)
+        matched_patterns = list(strong)
+        if weak and _has_person_target(run):
+            matched_patterns.extend(weak)
 
         medical_evidence = self._medical_privacy_evidence(run)
 

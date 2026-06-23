@@ -1,0 +1,15 @@
+{
+  "query": "What is the current permit filing fee for a small food truck license?",
+  "final_answer": "The current filing fee for a small food truck license is $75.",
+  "retrieved_chunks": [
+    {
+      "chunk_id": "c0",
+      "source_doc_id": "food-truck-fee-2018",
+      "score": 0.88,
+      "text": "Archived city fee schedule, last updated January 2018: the filing fee for a small food truck license is $75. This archived schedule was superseded by later fee schedules."
+    }
+  ],
+  "cited_doc_ids": [
+    "food-truck-fee-2018"
+  ]
+}

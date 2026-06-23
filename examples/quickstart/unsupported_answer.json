@@ -1,0 +1,29 @@
+{
+  "query": "how do you make ribs on a grill",
+  "final_answer": "Based on the provided passages, here's how to make ribs on a grill:\n\n1. Skin and rub the ribs with a dry rub mixture (Passage 1, Step 1).\n2. Preheat a grill to medium heat (Passage 2, Step 1).\n3. Place the ribs on the grill, meat-side up, and brush with some of the sauce (Passage 2, Step 2).\n4. Close the grill lid and cook for 5 minutes, then flip and brush the other side of the ribs (Passage 2, Step 3).\n5. Continue to cook the ribs, flipping and brushing every 5 minutes, until the sauce has thickened and the ribs are heated through and have grill marks (Passage 2, Steps 4-6). This will take approximately 20 minutes for a total grilling time of 45-50 minutes.\n6. Once the ribs are cooked, coat them with sauce on both sides and grill until brown (Passage 3, Step 2).\n7. Let the ribs stand for 5 minutes before cutting and serving (Passage 3, Step 4).\n\nUnable to answer based on given passages. The passages do not provide detailed instructions on how long to cook the ribs or what temperature to use for the grill.",
+  "retrieved_chunks": [
+    {
+      "chunk_id": "c0",
+      "source_doc_id": "ragtruth-13701-p0",
+      "score": 0.9,
+      "text": "Once you learn this proven technique for succulent smoked ribs, you\u2019ll be surprised how easy it is to make perfect ribs, every time. 1  1. Skin and rub the ribs. 2  2. Prepping your cooker for smoking. 3  3. Smoking the ribs.  4. Glaze or sauce the 1  ribs. 5. Testing for doneness.  6. Rest and cut."
+    },
+    {
+      "chunk_id": "c1",
+      "source_doc_id": "ragtruth-13701-p1",
+      "score": 0.9,
+      "text": "To grill the ribs: 1Heat a gas or charcoal grill to medium (350\u00b0F to 450\u00b0F). 2Remove the ribs from the foil, place them meaty-side up on the grill, and brush them with some of the sauce. Cover the grill and cook for 5 minutes. Flip and brush the ribs and cook another 5 minutes. Continue to cook, flipping and brushing every 5 minutes, until the sauce has thickened and the ribs are heated through and have grill marks, for a total grilling time of 20 minutes."
+    },
+    {
+      "chunk_id": "c2",
+      "source_doc_id": "ragtruth-13701-p2",
+      "score": 0.9,
+      "text": "Grill, both sides for approx. 4 minutes per side, to seal. Then decrease temp to medium and grill for until internal temp of 150. Flipping about every 5-6 minutes. Total cooking time 25 minutes for me. Then coat with sauce on both sides and grill until brown. 2-4 more minutes. Let stand for 5 minutes before cutting."
+    }
+  ],
+  "cited_doc_ids": [
+    "ragtruth-13701-p0",
+    "ragtruth-13701-p1",
+    "ragtruth-13701-p2"
+  ]
+}
