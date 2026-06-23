@@ -47,6 +47,7 @@ from raggov.models.run import RAGRun
 from raggov.models.result_index import AnalyzerResultIndex
 from raggov.pinpoint.from_ncv import build_pinpoint_findings_from_ncv_report
 from raggov.decision_policy import select_primary_failure_with_policy
+from raggov.decision_policy_support import _PRIMARY_INELIGIBLE_ANALYZERS
 from raggov.external_signal_bridge import build_external_signal_diagnosis_probes
 from raggov.taxonomy import (
     DEFAULT_REMEDIATIONS,
@@ -1112,6 +1113,9 @@ class DiagnosisEngine:
                 result.status == "warn"
                 and result.failure_type is not None
                 and result.analyzer_name in blocking_names
+                # Primary-ineligible analyzers (zero measured TP) cannot promote a warn to primary
+                # (clean_fp_task1_prereg): they were CLEAN false-positive sources via this fallback.
+                and result.analyzer_name not in _PRIMARY_INELIGIBLE_ANALYZERS
             ):
                 allowed.append(
                     (

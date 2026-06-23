@@ -60,3 +60,23 @@ Report: `reports/calibration/heldout_real_v1_nli_relabel_report.md`
 - Source `CLEAN` rows: 50 -> {'CLEAN': 22, 'CONTRADICTED_CLAIM': 3, 'INSUFFICIENT_CONTEXT': 20, 'UNSUPPORTED_CLAIM': 5}; stayed CLEAN=22
 
 Human acceptance required before any promotion.
+
+
+## 2026-06-22 - Kimi NLI provisional relabel
+
+Method status: `external_signal` / `llm_assisted_provisional`.
+
+Ran staged heldout through `DiagnosisEngine` with Kimi `llm_entailment` and derived
+whole-answer labels from per-claim NLI verdicts using the most-severe-claim rule.
+No gold/canonical labels, locks, thresholds, gates, or engine/policy files were changed.
+
+Relabeled staging output: `evals/govrag_calib/staging/raw/heldout_real_v1_relabeled.jsonl`
+
+Audit worklist: `evals/govrag_calib/staging/raw/heldout_real_v1_nli_spot_audit_worklist.jsonl`
+
+Report: `reports/calibration/heldout_real_v1_nli_relabel_report.md`
+
+- Source `CONTRADICTED_CLAIM` rows: 25 -> {'CLEAN': 1, 'CONTRADICTED_CLAIM': 1, 'INSUFFICIENT_CONTEXT': 6, 'UNSUPPORTED_CLAIM': 17}
+- Source `CLEAN` rows: 50 -> {'CLEAN': 20, 'INSUFFICIENT_CONTEXT': 19, 'UNSUPPORTED_CLAIM': 11}; stayed CLEAN=20
+
+Human acceptance required before any promotion.

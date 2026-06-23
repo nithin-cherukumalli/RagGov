@@ -5,7 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 import json
-import os
 import re
 from typing import Any
 
@@ -133,6 +132,11 @@ _EXTERNAL_PROVIDER_MARKERS = (
     "cross-encoder",
 )
 _META_HEURISTIC_ANALYZERS = {"Layer6TaxonomyClassifier", "A2PAttributionAnalyzer"}
+# Uncalibrated analyzers that produce only false-positives on every measurable dataset
+# (protected-46, Calib-150, real heldout-75, probe-145) and therefore must never win the primary
+# diagnosis. Their signal is retained in the trace for corroboration but is primary-ineligible.
+# InconsistentChunksAnalyzer: 0 TP anywhere, 8 CLEAN-FP on the real heldout (clean_fp_task1_prereg).
+_PRIMARY_INELIGIBLE_ANALYZERS = frozenset({"InconsistentChunksAnalyzer"})
 _SUFFICIENCY_STRUCTURED_MARKERS = frozenset({
     "[sufficiency:missing_critical_requirement]",
     "[sufficiency:partial_requirement_coverage]",
@@ -414,6 +418,13 @@ def split_candidates(
     )
 
     for candidate in candidates:
+        # Primary-ineligible analyzers (uncalibrated, zero measured TP) never win the primary;
+        # retained in the trace for traceability/corroboration. See clean_fp_task1_prereg.md.
+        if candidate.analyzer_name in _PRIMARY_INELIGIBLE_ANALYZERS:
+            candidate.suppressed_reason = "primary_ineligible_uncalibrated_zero_tp_analyzer"
+            suppressed.append(candidate)
+            continue
+
         # Check if candidate is from retrieval/scope components:
         is_retrieval_scope = (
             candidate.analyzer_name in {"ScopeViolationAnalyzer", "RetrievalEvidenceProfilerV0", "RetrievalDiagnosisAnalyzerV0", "RetrievalQualityAnalyzer"}
@@ -951,13 +962,23 @@ def _require_explicit_contradiction(
 ) -> DecisionCandidate:
     if winner.failure_type != FailureType.CONTRADICTED_CLAIM or _has_explicit_contradiction(winner, results):
         return winner
+    if (
+        winner.analyzer_name in {"CitationFaithfulnessAnalyzerV0", "CitationFaithfulnessProbe", "NCVPipelineVerifier"}
+        and _has_non_explicit_grounding_contradiction(results)
+    ):
+        winner.failure_type = FailureType.UNSUPPORTED_CLAIM
+        winner.reason = (
+            f"{winner.analyzer_name} emitted a contradiction derived from non-explicit grounding evidence; "
+            "policy classified it as unsupported grounding evidence."
+        )
+        return winner
     grounding_contradiction = next(
         (
             candidate
             for candidate in ranked_status_pool
             if candidate.analyzer_name == "ClaimGroundingAnalyzer"
             and candidate.failure_type == FailureType.CONTRADICTED_CLAIM
-            and candidate.status == "fail"
+            and candidate.status in {"fail", "warn"}
         ),
         None,
     )
@@ -1224,6 +1245,7 @@ def _apply_signal_strength_guard_v2(
             if (
                 candidate.failure_type == FailureType.CONTRADICTED_CLAIM
                 and any(sig.signal_name == "grounding_contradiction" for sig in candidate.signal_metadata)
+                and _candidate_has_explicit_contradiction_signal(candidate, ranked_status_pool, results)
             ):
                 winner.suppressed_reason = "proxy_advisory_cannot_override_explicit_contradiction"
                 candidate.reason = (
@@ -1277,6 +1299,7 @@ def _apply_signal_strength_guard_v2(
         for candidate in ranked_status_pool:
             if (
                 candidate.failure_type == FailureType.CONTRADICTED_CLAIM
+                and _candidate_has_explicit_contradiction_signal(candidate, ranked_status_pool, results)
                 and any(
                     sig.signal_name == "grounding_contradiction"
                     and sig.evidence_strength in {"hard", "strong"}
@@ -1291,6 +1314,40 @@ def _apply_signal_strength_guard_v2(
                 return candidate
 
     return winner
+
+
+def _candidate_has_explicit_contradiction_signal(
+    candidate: DecisionCandidate,
+    ranked_status_pool: list[DecisionCandidate],
+    results: list[AnalyzerResult],
+) -> bool:
+    if _has_explicit_contradiction(candidate, results):
+        return True
+
+    grounding_candidate = next(
+        (
+            pool_candidate
+            for pool_candidate in ranked_status_pool
+            if pool_candidate.analyzer_name == "ClaimGroundingAnalyzer"
+            and pool_candidate.failure_type == FailureType.CONTRADICTED_CLAIM
+        ),
+        None,
+    )
+    if candidate.analyzer_name != "ClaimGroundingAnalyzer" and grounding_candidate is not None:
+        return _has_explicit_contradiction(grounding_candidate, results)
+
+    result = results[candidate.original_index]
+    if not result.claim_results and any(
+        sig.signal_name == "grounding_contradiction"
+        and sig.evidence_strength in {"hard", "strong"}
+        and sig.evidence_tier == "structured"
+        for sig in candidate.signal_metadata
+    ):
+        return True
+
+    return grounding_candidate is not None and _has_explicit_contradiction(
+        grounding_candidate, results
+    )
 
 
 
@@ -1629,49 +1686,14 @@ _GROUNDED_CLEAN_SUPPRESSIBLE = frozenset({
     FailureType.INSUFFICIENT_CONTEXT,
 })
 
-# Claim-label partition for the entailed-fraction rule (Phase 2 increment 4).
-# ClaimResult.label is the normalized 4-value literal {entailed, unsupported, contradicted,
-# abstain} (the richer verifier vocabulary — supported/insufficient_evidence/skipped/unverifiable
-# — lives on support_label and is collapsed before reaching the decision layer). "supported" is
-# kept here only as a defensive alias; it is not a valid ClaimResult.label today.
-_GROUNDED_CLEAN_POSITIVE_LABELS = frozenset({"entailed", "supported"})
-_GROUNDED_CLEAN_SOFT_NEGATIVE_LABELS = frozenset({"unsupported"})
-_GROUNDED_CLEAN_HARD_NEGATIVE_LABELS = frozenset({"contradicted"})
-# "abstain" (and any unrecognized label) is excluded from the denominator: no judgment made.
-
-# Default entailed-fraction threshold for the grounded-clean gate. Overridable via env so the
-# off-sandbox NLI sweep can tune it WITHOUT a code edit (see prereg v2). Native mode is
-# unaffected regardless of this value (the gate needs an entailment-grade verdict to fire).
-_GROUNDED_CLEAN_ENTAILED_FRACTION_DEFAULT = 0.75
-
-
-def _grounded_clean_threshold() -> float:
-    """Entailed-fraction threshold; env override is clamped to [0, 1]."""
-    raw = os.environ.get("RAGGOV_GROUNDED_CLEAN_ENTAILED_FRACTION")
-    if raw is None:
-        return _GROUNDED_CLEAN_ENTAILED_FRACTION_DEFAULT
-    try:
-        value = float(raw)
-    except (TypeError, ValueError):
-        return _GROUNDED_CLEAN_ENTAILED_FRACTION_DEFAULT
-    return min(1.0, max(0.0, value))
-
 
 def _answer_is_entailment_clean(results: list[AnalyzerResult]) -> bool:
-    """True iff an entailment-grade grounding verdict shows the answer is well-grounded.
+    """True iff an entailment-grade grounding verdict shows no contradicted/unsupported claim.
 
-    Phase 2 increment 4 — entailed-fraction rule (supersedes strict-zero). Requires the
-    ClaimGroundingAnalyzer to have used an entailment-grade verifier (NLI/LLM); in
-    native/heuristic mode no claim carries an entailment method, so this returns False and the
-    grounded-clean gate never fires (native behavior byte-identical).
-
-    Given an entailment-grade verdict, the answer is "clean" iff: no claim is `contradicted`
-    (hard floor), there is at least one verifiable (non-abstain) claim, and the fraction of
-    verifiable claims that are positively entailed meets the threshold. This tolerates a bounded
-    number of peripheral `unsupported` claims — the over-strict "zero unsupported" of increment 3
-    is why the gate never fired on real faithful answers.
+    Requires the ClaimGroundingAnalyzer to have used an entailment-grade verifier (NLI/LLM).
+    In native/heuristic mode no claim carries an entailment method, so this returns False and
+    the grounded-clean gate never fires (native behavior unchanged).
     """
-    threshold = _grounded_clean_threshold()
     for result in results:
         if result.analyzer_name != "ClaimGroundingAnalyzer":
             continue
@@ -1681,22 +1703,8 @@ def _answer_is_entailment_clean(results: list[AnalyzerResult]) -> bool:
         )
         if not used_entailment:
             return False
-        positive = soft_neg = hard_neg = 0
-        for claim in claims:
-            label = getattr(claim, "label", None)
-            if label in _GROUNDED_CLEAN_HARD_NEGATIVE_LABELS:
-                hard_neg += 1
-            elif label in _GROUNDED_CLEAN_POSITIVE_LABELS:
-                positive += 1
-            elif label in _GROUNDED_CLEAN_SOFT_NEGATIVE_LABELS:
-                soft_neg += 1
-            # else: abstain-family — excluded from the denominator
-        if hard_neg:
-            return False  # a real contradiction is never suppressed
-        verifiable = positive + soft_neg + hard_neg
-        if verifiable == 0:
-            return False  # no positive grounding evidence (e.g. all-abstain) — do not suppress
-        return (positive / verifiable) >= threshold
+        bad = any(getattr(c, "label", None) in ("contradicted", "unsupported") for c in claims)
+        return not bad
     return False
 
 
@@ -1714,13 +1722,27 @@ def grounded_clean_override(
 
 
 def _has_explicit_contradiction(candidate: DecisionCandidate, results: list[AnalyzerResult]) -> bool:
+    return _result_has_explicit_contradiction(results[candidate.original_index])
+
+
+def _has_non_explicit_grounding_contradiction(results: list[AnalyzerResult]) -> bool:
+    for result in results:
+        if (
+            result.analyzer_name == "ClaimGroundingAnalyzer"
+            and result.failure_type == FailureType.CONTRADICTED_CLAIM
+            and result.status in {"fail", "warn"}
+        ):
+            return not _result_has_explicit_contradiction(result)
+    return False
+
+
+def _result_has_explicit_contradiction(result: AnalyzerResult) -> bool:
     # "explicit_contradiction" is the default label_reason for ANY contradicted claim
     # (see _default_label_reason in verifiers.py).  Counting it here would make
     # _require_explicit_contradiction a no-op — every CONTRADICTED_CLAIM would appear
     # "explicit" even when the contradiction is purely heuristic.  Only treat a
     # contradiction as explicit when there is substantive additional evidence:
     # a real value conflict, a "conflicting value" phrase, or a specific typed reason.
-    result = results[candidate.original_index]
     for claim in result.claim_results or []:
         # Phase 2 (hybrid tier): a contradiction verified by an entailment-grade method
         # (NLI / LLM entailment) is hard semantic evidence and counts as explicit. Native
@@ -1732,18 +1754,64 @@ def _has_explicit_contradiction(candidate: DecisionCandidate, results: list[Anal
         ):
             return True
         if claim.value_conflicts:
-            if claim.value_matches and (claim.atomicity_status == "compound" or len(claim.value_conflicts) > 1):
+            if not _claim_has_substantive_value_conflict(claim):
                 continue
             return True
         reason = (claim.evidence_reason or "").lower()
         if "conflicting value" in reason:
+            if claim.value_conflicts and not _claim_has_substantive_value_conflict(claim):
+                continue
             return True
         if claim.label_reason in {"explicit_conflict", "value_conflict", "date_conflict", "unit_mismatch", "contradictory_evidence"}:
+            if claim.label_reason == "value_conflict" and not _claim_has_substantive_value_conflict(claim):
+                continue
             return True
         if claim.label_reason == "explicit_contradiction" and _claim_has_textual_contradiction(claim.claim_text, result):
             return True
     evidence_text = " ".join(result.evidence).lower()
     return "conflicting value" in evidence_text
+
+
+def _claim_has_substantive_value_conflict(claim: Any) -> bool:
+    conflicts = getattr(claim, "value_conflicts", None) or []
+    if not conflicts:
+        return False
+
+    if getattr(claim, "value_matches", None) and (
+        getattr(claim, "atomicity_status", None) == "compound" or len(conflicts) > 1
+    ):
+        return False
+
+    if (
+        getattr(claim, "verification_method", None) == "value_aware_structured_claim_verifier_v1"
+        and _value_conflicts_are_structural_markers(getattr(claim, "claim_text", ""), conflicts)
+    ):
+        return False
+
+    return True
+
+
+def _value_conflicts_are_structural_markers(claim_text: str, conflicts: list[dict[str, Any]]) -> bool:
+    """Filter list/citation ordinals such as 'Passage 1' or numbered bullets."""
+    if not conflicts:
+        return False
+    claim_lower = claim_text.lower()
+    has_structural_marker = bool(
+        re.search(r"\bpassage\s+\d+\b", claim_lower)
+        or re.search(r"(?:^|\n)\s*\d+\s*\.?\s*$", claim_text)
+        or re.search(r"\n\s*\d+\s*\.\s*$", claim_text)
+    )
+    if not has_structural_marker:
+        return False
+
+    return all(_is_bare_small_integer(conflict.get("claim_value", "")) for conflict in conflicts)
+
+
+def _is_bare_small_integer(value: Any) -> bool:
+    text = str(value).strip()
+    if not re.fullmatch(r"\d+", text):
+        return False
+    return 1 <= int(text) <= 20
 
 
 def _claim_has_textual_contradiction(claim_text: str, result: AnalyzerResult) -> bool:

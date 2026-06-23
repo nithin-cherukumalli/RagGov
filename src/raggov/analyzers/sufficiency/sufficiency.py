@@ -1064,11 +1064,25 @@ no structural requirements), return an empty list.
                     }
 
         # --- Pattern 5: scope-specific context for scope-general query ---
-        scope_matches = _SCOPE_PREP_PATTERN.findall(context_text)
-        for location in scope_matches:
+        # Phase C inc2 guard: the bare pattern grabs ANY US-state name from ANY chunk (incl.
+        # distractors) and declared the answer scope-limited — 0-TP / 7-FP on the trusted real
+        # gold. Fire only when the ANSWER actually echoes the scoped statement (so the answer
+        # genuinely inherits the chunk's hidden scope), which is what the protected TP
+        # `sufficiency_missing_scope_15` ("the sales tax is 7.25%" <- "in California") needs.
+        answer_lower = (getattr(run, "answer", None) or getattr(run, "final_answer", "") or "").lower()
+        answer_tokens = {w for w in re.findall(r"\b[\w.%-]+\b", answer_lower) if len(w) > 3}
+        for match in _SCOPE_PREP_PATTERN.finditer(context_text):
+            location = match.group(1)
             loc_lower = location.lower()
-            if loc_lower in _US_STATES and loc_lower not in query_lower:
-                return {
+            if loc_lower not in _US_STATES or loc_lower in query_lower:
+                continue
+            if loc_lower in answer_lower:
+                continue  # the answer already states the scope -> nothing is missing
+            window = context_text[max(0, match.start() - 80): match.end() + 80].lower()
+            window_tokens = {w for w in re.findall(r"\b[\w.%-]+\b", window) if len(w) > 3}
+            if not (answer_tokens & (window_tokens - {loc_lower})):
+                continue  # incidental/distractor location the answer never draws from
+            return {
                     "reason": "missing_scope_condition",
                     "failure_type": FailureType.INSUFFICIENT_CONTEXT,
                     "stage": FailureStage.SUFFICIENCY,

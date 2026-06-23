@@ -29,27 +29,35 @@ def _grounding_result(
     failure_type: FailureType,
     label: str,
     label_reason: str,
+    claim_text: str = "The answer contains an ungrounded factual claim.",
+    status: str = "fail",
     candidate_chunk_ids: list[str] | None = None,
     neutral_chunk_ids: list[str] | None = None,
     contradicting_chunk_ids: list[str] | None = None,
     value_conflicts: list[dict[str, str]] | None = None,
+    value_matches: list[dict[str, str]] | None = None,
+    atomicity_status: str | None = None,
+    verification_method: str | None = None,
     evidence_reason: str | None = None,
 ) -> AnalyzerResult:
     return AnalyzerResult(
         analyzer_name="ClaimGroundingAnalyzer",
-        status="fail",
+        status=status,
         failure_type=failure_type,
         stage=FailureStage.GROUNDING,
         evidence=["Claim grounding summary: total=1, entailed=0, unsupported=1, contradicted=0"],
         claim_results=[
             ClaimResult(
-                claim_text="The answer contains an ungrounded factual claim.",
+                claim_text=claim_text,
                 label=label,  # type: ignore[arg-type]
                 label_reason=label_reason,
                 candidate_chunk_ids=candidate_chunk_ids or [],
                 neutral_chunk_ids=neutral_chunk_ids or [],
                 contradicting_chunk_ids=contradicting_chunk_ids or [],
                 value_conflicts=value_conflicts or [],
+                value_matches=value_matches or [],
+                atomicity_status=atomicity_status,
+                verification_method=verification_method,
                 evidence_reason=evidence_reason,
             )
         ],
@@ -165,6 +173,81 @@ def test_value_conflict_counts_as_explicit_contradiction() -> None:
     )
 
     assert selected == FailureType.CONTRADICTED_CLAIM
+
+
+def test_compound_claim_with_matching_value_does_not_count_as_explicit_contradiction() -> None:
+    selected = _select(
+        [
+            _insufficient_context_result(),
+            _grounding_result(
+                failure_type=FailureType.CONTRADICTED_CLAIM,
+                label="contradicted",
+                label_reason="value_conflict",
+                claim_text="Passage 1: Preheat oven to 400 degrees F.",
+                candidate_chunk_ids=["chunk-1"],
+                contradicting_chunk_ids=["chunk-2"],
+                value_matches=[
+                    {"claim_value": "40 minutes", "evidence_value": "40 minutes", "value_type": "duration"}
+                ],
+                value_conflicts=[
+                    {"claim_value": "45 minutes", "evidence_value": "40 minutes", "value_type": "duration"}
+                ],
+                atomicity_status="compound",
+                verification_method="value_aware_structured_claim_verifier_v1",
+                evidence_reason="Evidence states 40 minutes, conflicting with claim value 45 minutes.",
+            ),
+        ]
+    )
+
+    assert selected == FailureType.UNSUPPORTED_CLAIM
+
+
+def test_structural_list_number_conflict_does_not_count_as_explicit_contradiction() -> None:
+    selected = _select(
+        [
+            _insufficient_context_result(),
+            _grounding_result(
+                failure_type=FailureType.CONTRADICTED_CLAIM,
+                label="contradicted",
+                label_reason="value_conflict",
+                claim_text="Passage 1: Preheat oven to 400 degrees F.",
+                candidate_chunk_ids=["chunk-1"],
+                contradicting_chunk_ids=["chunk-2"],
+                value_conflicts=[
+                    {"claim_value": "1", "evidence_value": "400", "value_type": "number"}
+                ],
+                verification_method="value_aware_structured_claim_verifier_v1",
+                evidence_reason="Evidence states 400, conflicting with claim value 1.",
+            ),
+        ]
+    )
+
+    assert selected == FailureType.UNSUPPORTED_CLAIM
+
+
+def test_citation_contradiction_defers_to_warn_level_non_explicit_grounding() -> None:
+    selected = _select(
+        [
+            AnalyzerResult(
+                analyzer_name="CitationFaithfulnessAnalyzerV0",
+                status="fail",
+                failure_type=FailureType.CONTRADICTED_CLAIM,
+                stage=FailureStage.GROUNDING,
+                evidence=["Citation faithfulness summary: total=1, contradicted=1"],
+            ),
+            _grounding_result(
+                failure_type=FailureType.CONTRADICTED_CLAIM,
+                status="warn",
+                label="contradicted",
+                label_reason="explicit_contradiction",
+                candidate_chunk_ids=["chunk-1"],
+                contradicting_chunk_ids=["chunk-1"],
+                evidence_reason="Claim is only partially supported by candidate chunks.",
+            ),
+        ]
+    )
+
+    assert selected == FailureType.UNSUPPORTED_CLAIM
 
 
 def test_unsupported_claims_fixture_selects_unsupported_claim() -> None:
